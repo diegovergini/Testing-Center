@@ -1,0 +1,2542 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing Center — Validação de Sistemas de Exaustão</title>
+<meta name="description" content="Catálogo de ensaios por cliente, custo e tempo de execução, com planejamento automático por disponibilidade de equipamento e de peça.">
+<style>
+/* Testing Center — folha de estilo única.
+   Tema claro/escuro por prefers-color-scheme, com sobreposição por [data-theme]. */
+
+:root {
+  --bg: #f4f6f9;
+  --bg-2: #ffffff;
+  --bg-3: #eef1f6;
+  --linha: #dce1ea;
+  --linha-forte: #c3cbd8;
+  --txt: #16202e;
+  --txt-2: #5b6878;
+  --txt-3: #8a95a5;
+  --acento: #1f6feb;
+  --acento-txt: #ffffff;
+  --ok: #1a7f56;
+  --ok-bg: #dcf3e8;
+  --alerta: #a2610a;
+  --alerta-bg: #fbeed4;
+  --erro: #b3261e;
+  --erro-bg: #fbe0de;
+  --fds: rgba(15, 30, 60, .045);
+  --sombra: 0 1px 2px rgba(16, 26, 40, .08), 0 6px 18px rgba(16, 26, 40, .05);
+  --raio: 10px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1219;
+    --bg-2: #151b25;
+    --bg-3: #1b222e;
+    --linha: #262f3d;
+    --linha-forte: #36414f;
+    --txt: #e6ebf2;
+    --txt-2: #9aa6b6;
+    --txt-3: #6d7a8b;
+    --acento: #4d8dfd;
+    --acento-txt: #06101f;
+    --ok: #4fd39a;
+    --ok-bg: rgba(79, 211, 154, .14);
+    --alerta: #f0b24a;
+    --alerta-bg: rgba(240, 178, 74, .14);
+    --erro: #ff7a70;
+    --erro-bg: rgba(255, 122, 112, .14);
+    --fds: rgba(255, 255, 255, .04);
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .25);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6f9; --bg-2: #ffffff; --bg-3: #eef1f6; --linha: #dce1ea; --linha-forte: #c3cbd8;
+  --txt: #16202e; --txt-2: #5b6878; --txt-3: #8a95a5; --acento: #1f6feb; --acento-txt: #fff;
+  --ok: #1a7f56; --ok-bg: #dcf3e8; --alerta: #a2610a; --alerta-bg: #fbeed4;
+  --erro: #b3261e; --erro-bg: #fbe0de; --fds: rgba(15, 30, 60, .045);
+}
+:root[data-theme="dark"] {
+  --bg: #0e1219; --bg-2: #151b25; --bg-3: #1b222e; --linha: #262f3d; --linha-forte: #36414f;
+  --txt: #e6ebf2; --txt-2: #9aa6b6; --txt-3: #6d7a8b; --acento: #4d8dfd; --acento-txt: #06101f;
+  --ok: #4fd39a; --ok-bg: rgba(79, 211, 154, .14); --alerta: #f0b24a; --alerta-bg: rgba(240, 178, 74, .14);
+  --erro: #ff7a70; --erro-bg: rgba(255, 122, 112, .14); --fds: rgba(255, 255, 255, .04);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: .92em; }
+.sub { color: var(--txt-2); font-size: 12.5px; }
+.num { text-align: right; }
+.mono { font-family: var(--mono); font-size: 12px; color: var(--txt-2); }
+.forte { font-weight: 650; }
+.vazio { padding: 28px; text-align: center; color: var(--txt-3); }
+
+/* ---------- topo ---------- */
+.topo {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 14px 20px; background: var(--bg-2);
+  border-bottom: 1px solid var(--linha); position: sticky; top: 0; z-index: 40;
+}
+.marca { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--acento), #7b4dfd); color: #fff; font-size: 20px;
+}
+.topo h1 { font-size: 17px; }
+.topo .marca p { font-size: 12px; color: var(--txt-2); }
+.top-kpis { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.top-kpi {
+  padding: 6px 12px; border: 1px solid var(--linha); border-radius: 8px; background: var(--bg-3);
+  display: flex; flex-direction: column; min-width: 108px;
+}
+.top-kpi span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--txt-3); }
+.top-kpi strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.top-kpi.ok strong { color: var(--ok); }
+.top-kpi.alerta strong { color: var(--alerta); }
+.acoes-topo { display: flex; gap: 6px; }
+
+/* ---------- abas ---------- */
+.abas {
+  display: flex; gap: 2px; padding: 0 20px; background: var(--bg-2);
+  border-bottom: 1px solid var(--linha); overflow-x: auto; position: sticky; top: 65px; z-index: 30;
+}
+.aba {
+  border: 0; background: none; color: var(--txt-2); font: inherit; font-weight: 550;
+  padding: 11px 14px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.aba:hover { color: var(--txt); }
+.aba.ativa { color: var(--acento); border-bottom-color: var(--acento); }
+
+main { padding: 20px; max-width: 1680px; margin: 0 auto; }
+
+.cabecalho-vista { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+.cabecalho-vista h2 { font-size: 18px; margin-bottom: 4px; }
+.cabecalho-vista .sub { max-width: 76ch; }
+.cabecalho-vista > button { margin-left: auto; flex: none; }
+
+.aviso {
+  margin: 10px 20px 0; padding: 9px 14px; border-radius: 8px;
+  background: var(--ok-bg); color: var(--ok); border: 1px solid currentColor; font-weight: 550;
+}
+
+/* ---------- botões e campos ---------- */
+.btn, .btn-sec {
+  font: inherit; font-weight: 550; border-radius: 8px; padding: 7px 13px; cursor: pointer;
+  border: 1px solid transparent; transition: background .12s, border-color .12s;
+}
+.btn { background: var(--acento); color: var(--acento-txt); }
+.btn:hover { filter: brightness(1.08); }
+.btn-sec { background: var(--bg-3); color: var(--txt); border-color: var(--linha); }
+.btn-sec:hover { border-color: var(--linha-forte); }
+.btn-sec.perigo { color: var(--erro); }
+.btn-icone {
+  border: 0; background: none; color: var(--txt-3); cursor: pointer; font-size: 13px;
+  padding: 2px 6px; border-radius: 5px; line-height: 1;
+}
+.btn-icone:hover { background: var(--erro-bg); color: var(--erro); }
+
+input, select {
+  font: inherit; color: var(--txt); background: var(--bg-2);
+  border: 1px solid var(--linha); border-radius: 7px; padding: 6px 8px;
+}
+input:focus-visible, select:focus-visible, button:focus-visible, .mx-cell:focus-visible, .g-barra:focus-visible {
+  outline: 2px solid var(--acento); outline-offset: 1px;
+}
+input.mini, select.mini { padding: 3px 5px; font-size: 12.5px; width: 100%; min-width: 0; }
+input[type="number"].mini { width: 62px; text-align: right; }
+
+.filtros {
+  display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+  padding: 12px; background: var(--bg-2); border: 1px solid var(--linha);
+  border-radius: var(--raio); margin-bottom: 12px;
+}
+.filtros label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--txt-2); font-weight: 550; }
+.filtros label.cresce { flex: 1; min-width: 160px; }
+.filtros > button { align-self: flex-end; }
+
+.segmentado { display: flex; margin-left: auto; border: 1px solid var(--linha); border-radius: 8px; overflow: hidden; }
+.segmentado button {
+  border: 0; background: var(--bg-2); color: var(--txt-2); font: inherit; font-weight: 550;
+  padding: 7px 14px; cursor: pointer;
+}
+.segmentado button.ativa { background: var(--acento); color: var(--acento-txt); }
+
+/* ---------- KPIs ---------- */
+.kpis-inline { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 10px; padding: 0 2px; }
+.kpi-inline { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--txt-2); }
+.kpi-inline strong { font-size: 14px; color: var(--txt); font-variant-numeric: tabular-nums; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi {
+  background: var(--bg-2); border: 1px solid var(--linha); border-radius: var(--raio);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--sombra);
+}
+.kpi-rot { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--txt-3); }
+.kpi-val { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.kpi-nota { font-size: 12px; color: var(--txt-2); }
+.kpi.ok .kpi-val { color: var(--ok); }
+.kpi.alerta .kpi-val { color: var(--alerta); }
+
+/* ---------- tabelas ---------- */
+.rolagem {
+  overflow-x: auto; background: var(--bg-2); border: 1px solid var(--linha);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+}
+.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabela thead th {
+  position: sticky; top: 0; background: var(--bg-3); z-index: 2;
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--txt-3); font-weight: 650; padding: 9px 10px; border-bottom: 1px solid var(--linha);
+  white-space: nowrap;
+}
+.tabela thead th.num { text-align: right; }
+.tabela tbody td { padding: 8px 10px; border-bottom: 1px solid var(--linha); vertical-align: middle; }
+.tabela tbody tr:hover { background: var(--bg-3); }
+.tabela tbody tr.sel { background: color-mix(in srgb, var(--acento) 10%, transparent); }
+.tabela tbody tr.novo { animation: pisca 2.4s ease-out 2; }
+@keyframes pisca {
+  0%, 100% { background: transparent; }
+  25% { background: color-mix(in srgb, var(--ok) 22%, transparent); }
+}
+.tabela small { display: block; color: var(--txt-3); font-size: 11px; }
+.c-check { width: 34px; }
+.c-nome { min-width: 210px; }
+.c-norma { white-space: nowrap; }
+.c-plan { min-width: 150px; white-space: nowrap; }
+.c-acoes { width: 32px; }
+.c-barra { width: 160px; }
+
+.chip-cliente { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-weight: 550; }
+.chip-cliente i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+.tag {
+  display: inline-block; padding: 1px 6px; border-radius: 5px; font-size: 10.5px; font-weight: 650;
+  background: var(--bg-3); color: var(--txt-2); border: 1px solid var(--linha); margin: 1px 2px 1px 0;
+  white-space: nowrap;
+}
+.tag-fase { font-family: var(--mono); }
+.tag-peca { font-family: var(--mono); }
+.tag-tipo { font-family: var(--mono); }
+.tag.ok { background: var(--ok-bg); color: var(--ok); border-color: currentColor; }
+.tag.alerta { background: var(--alerta-bg); color: var(--alerta); border-color: currentColor; }
+.tag.erro { background: var(--erro-bg); color: var(--erro); border-color: currentColor; }
+.crit-critica { background: var(--erro-bg); color: var(--erro); border-color: currentColor; }
+.crit-alta { background: var(--alerta-bg); color: var(--alerta); border-color: currentColor; }
+.crit-media, .crit-baixa { background: var(--bg-3); color: var(--txt-2); }
+
+select.prio-critica { color: var(--erro); font-weight: 650; }
+select.prio-alta { color: var(--alerta); font-weight: 650; }
+
+/* ---------- matriz ---------- */
+.matriz th.mx-proc {
+  position: sticky; left: 0; background: var(--bg-2); z-index: 3; text-align: left;
+  min-width: 250px; padding: 8px 10px; border-bottom: 1px solid var(--linha); font-weight: 550;
+  text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--txt);
+}
+.matriz thead th.mx-proc { background: var(--bg-3); z-index: 4; }
+.matriz th.mx-cli { text-align: center; min-width: 132px; }
+.matriz th.mx-cli i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.mx-cell {
+  text-align: center; cursor: pointer; padding: 7px 8px !important;
+  border-left: 1px solid var(--linha); line-height: 1.3;
+}
+.mx-cell:hover { background: color-mix(in srgb, var(--acento) 12%, transparent); }
+.mx-cell code { display: block; font-size: 11px; color: var(--txt-2); }
+.mx-cell .mx-val { display: block; font-weight: 650; font-variant-numeric: tabular-nums; }
+.mx-cell .mx-dur, .mx-cell .mx-fases { display: block; font-size: 10.5px; color: var(--txt-3); }
+.mx-off { color: var(--txt-3); text-align: center; border-left: 1px solid var(--linha); }
+
+/* ---------- barra de seleção ---------- */
+.barra-selecao {
+  position: sticky; bottom: 12px; margin-top: 12px; display: flex; align-items: center; gap: 16px;
+  padding: 11px 16px; background: var(--bg-2); border: 1px solid var(--acento);
+  border-radius: var(--raio); box-shadow: var(--sombra); z-index: 20;
+}
+.barra-selecao > div { margin-left: auto; display: flex; gap: 8px; }
+
+/* ---------- gantt ---------- */
+.gantt {
+  background: var(--bg-2); border: 1px solid var(--linha); border-radius: var(--raio);
+  overflow: auto; max-height: 62vh; box-shadow: var(--sombra);
+}
+.g-wrap { min-width: max-content; position: relative; }
+.g-topo { display: flex; position: sticky; top: 0; z-index: 12; background: var(--bg-3); border-bottom: 1px solid var(--linha); }
+.g-lbl, .g-lbl-col { width: 190px; flex: none; }
+.g-lbl-topo { padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--txt-3); font-weight: 650; }
+.g-pista-topo { position: relative; height: 38px; }
+.g-meses { display: flex; height: 19px; }
+.g-mes {
+  font-size: 10.5px; font-weight: 650; color: var(--txt-2); border-left: 1px solid var(--linha);
+  padding-left: 4px; overflow: hidden; white-space: nowrap; text-transform: uppercase; letter-spacing: .04em;
+}
+.g-marcas { position: relative; height: 19px; }
+.g-marca {
+  position: absolute; top: 0; font-size: 9.5px; color: var(--txt-3); padding-left: 3px;
+  border-left: 1px solid var(--linha); height: 19px; white-space: nowrap;
+}
+.g-corpo { position: relative; }
+.g-fundo { position: absolute; left: 190px; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+.g-fds { position: absolute; top: 0; bottom: 0; background: var(--fds); }
+.g-hoje { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--acento); opacity: .75; z-index: 3; }
+.g-linha { display: flex; border-bottom: 1px solid var(--linha); position: relative; }
+.g-lbl {
+  padding: 6px 10px; overflow: hidden; border-right: 1px solid var(--linha); background: var(--bg-2);
+  position: sticky; left: 0; z-index: 6; display: flex; flex-direction: column; justify-content: center;
+}
+.g-lbl strong { font-family: var(--mono); font-size: 11.5px; }
+.g-lbl small { font-size: 10.5px; color: var(--txt-2); line-height: 1.25; }
+.g-lbl small.sub { color: var(--txt-3); font-size: 10px; }
+.g-pista { position: relative; flex: none; }
+.g-manut {
+  position: absolute; top: 3px; bottom: 3px; border-radius: 4px; z-index: 1;
+  background: repeating-linear-gradient(45deg, var(--linha-forte) 0 4px, transparent 4px 8px);
+  border: 1px dashed var(--linha-forte);
+}
+.g-barra {
+  position: absolute; height: 21px; border-radius: 5px; z-index: 4; cursor: pointer; overflow: hidden;
+  background: color-mix(in srgb, var(--cor) 78%, transparent);
+  border: 1px solid var(--cor); display: flex; align-items: center;
+}
+.g-barra:hover { filter: brightness(1.12); z-index: 8; }
+.g-barra.atrasada { box-shadow: inset 0 0 0 2px var(--erro); }
+.g-barra.novo { animation: pulso 1.1s ease-out 3; }
+@keyframes pulso { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 55%, transparent); } }
+.g-rot {
+  font-size: 10px; font-weight: 650; color: #fff; padding: 0 5px; white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .45); pointer-events: none;
+}
+
+.legenda { display: flex; gap: 18px; flex-wrap: wrap; margin: 10px 2px; font-size: 12px; color: var(--txt-2); }
+.legenda span { display: flex; align-items: center; gap: 6px; }
+.legenda i { width: 16px; height: 11px; border-radius: 3px; display: inline-block; }
+.lg-barra { background: var(--acento); }
+.lg-atraso { background: var(--acento); box-shadow: inset 0 0 0 2px var(--erro); }
+.lg-manut { background: repeating-linear-gradient(45deg, var(--linha-forte) 0 4px, transparent 4px 8px); border: 1px dashed var(--linha-forte); }
+.lg-fds { background: var(--fds); border: 1px solid var(--linha); }
+.lg-hoje { background: var(--acento); width: 3px !important; }
+
+/* ---------- pendências ---------- */
+.pendencias { margin-top: 8px; }
+.pendencias h3 { font-size: 13px; margin: 14px 0 6px; color: var(--alerta); }
+.ok-msg {
+  padding: 12px 14px; border-radius: var(--raio); background: var(--ok-bg);
+  color: var(--ok); border: 1px solid currentColor; font-weight: 550;
+}
+.lista-risco { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lista-risco li {
+  padding: 9px 12px; background: var(--bg-2); border: 1px solid var(--linha);
+  border-left: 3px solid var(--alerta); border-radius: 8px; font-size: 13px;
+}
+.lista-risco small { display: block; color: var(--txt-2); font-size: 11.5px; margin-top: 2px; }
+
+/* ---------- equipamentos ---------- */
+.grid-equip { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.card-equip {
+  background: var(--bg-2); border: 1px solid var(--linha); border-radius: var(--raio);
+  padding: 13px; box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 10px;
+}
+.card-equip header { display: flex; align-items: flex-start; gap: 8px; }
+.card-equip header strong { display: block; font-family: var(--mono); font-size: 12px; color: var(--acento); }
+.card-equip header span { font-size: 13.5px; font-weight: 550; }
+.card-equip header .tag { margin-left: auto; }
+.uso { display: flex; flex-direction: column; gap: 4px; }
+.uso span { font-size: 11.5px; color: var(--txt-2); }
+.uso-barra, .barra { height: 7px; background: var(--bg-3); border-radius: 4px; overflow: hidden; }
+.uso-barra i, .barra i { display: block; height: 100%; background: var(--acento); border-radius: 4px; }
+.campos { display: flex; gap: 8px; flex-wrap: wrap; }
+.campos label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--txt-2); font-weight: 550; }
+.campos label input[type="number"] { width: 72px; }
+.campos label.check { flex-direction: row; align-items: center; gap: 5px; align-self: flex-end; padding-bottom: 6px; }
+.manut .rot { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--txt-3); font-weight: 650; }
+.manut ul { list-style: none; margin: 5px 0; padding: 0; display: grid; gap: 3px; }
+.manut li { display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--bg-3); border-radius: 6px; padding: 4px 7px; }
+.manut li em { color: var(--txt-2); font-style: normal; font-size: 11.5px; }
+.manut li button { margin-left: auto; }
+.form-manut { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.form-manut input { font-size: 12px; padding: 4px 6px; }
+.form-manut input[type="text"] { flex: 1; min-width: 90px; }
+
+/* ---------- visão gerencial ---------- */
+.painel {
+  background: var(--bg-2); border: 1px solid var(--linha); border-radius: var(--raio);
+  padding: 14px; margin-bottom: 14px; box-shadow: var(--sombra);
+}
+.painel h2 { font-size: 15px; margin-bottom: 4px; }
+.painel .tabela { margin-top: 10px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+.barras { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 9px; }
+.barras li { display: grid; grid-template-columns: 46px 1fr 118px; align-items: center; gap: 10px; }
+.b-rot { font-family: var(--mono); font-size: 11.5px; color: var(--txt-2); font-weight: 650; }
+.b-val { text-align: right; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.b-val small { display: block; font-weight: 400; font-size: 10.5px; color: var(--txt-3); }
+
+/* ---------- modal ---------- */
+.modal {
+  border: 1px solid var(--linha); border-radius: 14px; padding: 0; background: var(--bg-2);
+  color: var(--txt); max-width: 780px; width: calc(100% - 32px); box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+}
+.modal::backdrop { background: rgba(6, 10, 18, .6); backdrop-filter: blur(2px); }
+.modal form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.modal h2 { font-size: 17px; }
+.campos-modal { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.campos-modal label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--txt-2); font-weight: 550; }
+.campos-modal label.largo { grid-column: 1 / -1; }
+.itens-modal { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 34vh; overflow-y: auto; }
+.itens-modal li {
+  display: grid; grid-template-columns: 1fr 150px 96px 110px; gap: 10px; align-items: center;
+  background: var(--bg-3); border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px;
+}
+.ci-nome strong { font-size: 13px; }
+.ci-nome small { display: block; color: var(--txt-3); font-size: 11px; }
+.itens-modal label { display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; color: var(--txt-2); font-weight: 550; }
+.ci-custo { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+.total-modal {
+  display: flex; align-items: baseline; gap: 8px; justify-content: flex-end;
+  padding-top: 8px; border-top: 1px solid var(--linha); font-size: 13px; color: var(--txt-2);
+}
+.total-modal strong { font-size: 19px; color: var(--txt); font-variant-numeric: tabular-nums; }
+.acoes-modal { display: flex; gap: 8px; justify-content: flex-end; margin: 0; padding: 0; }
+
+@media (max-width: 900px) {
+  .top-kpis { order: 3; width: 100%; margin-left: 0; }
+  .abas { top: 0; }
+  .itens-modal li { grid-template-columns: 1fr 1fr; }
+  .barras li { grid-template-columns: 42px 1fr 96px; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <span class="logo" aria-hidden="true">◎</span>
+    <div>
+      <h1>Testing Center</h1>
+      <p>Validação de produto e processo — sistemas de exaustão</p>
+    </div>
+  </div>
+  <div id="top-kpis" class="top-kpis"></div>
+  <div class="acoes-topo">
+    <button id="btn-exportar-json" class="btn-sec" title="Baixar a base atual em JSON">Exportar base</button>
+    <button id="btn-importar" class="btn-sec" title="Carregar uma base salva">Importar</button>
+    <input type="file" id="file-importar" accept="application/json" hidden>
+    <button id="btn-reset" class="btn-sec perigo" title="Voltar à base de exemplo">Restaurar</button>
+  </div>
+</header>
+
+<nav class="abas" role="tablist" aria-label="Seções">
+  <button class="aba ativa" data-aba="catalogo" role="tab" aria-selected="true">Catálogo por cliente</button>
+  <button class="aba" data-aba="demandas" role="tab" aria-selected="false">Necessidades confirmadas</button>
+  <button class="aba" data-aba="plano" role="tab" aria-selected="false">Planejamento</button>
+  <button class="aba" data-aba="equipamentos" role="tab" aria-selected="false">Equipamentos</button>
+  <button class="aba" data-aba="visao" role="tab" aria-selected="false">Visão gerencial</button>
+</nav>
+
+<p id="aviso" class="aviso" role="status" hidden></p>
+
+<main>
+
+  <!-- ================= CATÁLOGO ================= -->
+  <section id="view-catalogo" class="vista" role="tabpanel">
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Catálogo de ensaios por cliente</h2>
+        <p class="sub">Todo procedimento exigido por cada montadora, com norma, peças aplicáveis,
+          fase do projeto, equipamento, tempo de execução e custo. Selecione o que precisa e confirme —
+          a necessidade entra automaticamente no planejamento.</p>
+      </div>
+      <button id="btn-exportar-catalogo" class="btn-sec">Exportar CSV</button>
+    </div>
+
+    <div class="filtros">
+      <label>Cliente<select id="f-cliente"></select></label>
+      <label>Tipo de peça<select id="f-peca"></select></label>
+      <label>Fase do projeto<select id="f-fase"></select></label>
+      <label>Equipamento<select id="f-equip"></select></label>
+      <label class="cresce">Busca<input id="f-busca" type="search" placeholder="ensaio, norma, código…"></label>
+      <button id="f-limpar" class="btn-sec">Limpar</button>
+      <div class="segmentado" role="group" aria-label="Modo de exibição">
+        <button class="ativa" data-modo="lista">Lista</button>
+        <button data-modo="matriz">Matriz</button>
+      </div>
+    </div>
+
+    <div id="cat-kpis" class="kpis-inline"></div>
+
+    <div id="cat-lista" class="rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th class="c-check"><input type="checkbox" id="cat-todos" aria-label="Selecionar todos os ensaios do filtro"></th>
+            <th>Cliente</th>
+            <th>Ensaio</th>
+            <th>Norma</th>
+            <th>Peças</th>
+            <th>Fases</th>
+            <th>Equipamento</th>
+            <th class="num">Duração</th>
+            <th class="num">Custo padrão</th>
+            <th>Criticidade</th>
+          </tr>
+        </thead>
+        <tbody id="cat-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="cat-matriz" class="rolagem" hidden></div>
+
+    <div id="cat-selecao" class="barra-selecao" hidden>
+      <span id="sel-resumo"></span>
+      <div>
+        <button id="sel-limpar" class="btn-sec">Limpar seleção</button>
+        <button id="sel-confirmar" class="btn">Confirmar necessidade →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DEMANDAS ================= -->
+  <section id="view-demandas" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Necessidades confirmadas</h2>
+        <p class="sub">Cada linha é um ensaio confirmado. Alterar amostras, disponibilidade da peça,
+          data-alvo ou prioridade replaneja a agenda na hora.</p>
+      </div>
+    </div>
+    <div id="dem-kpis" class="kpis-inline"></div>
+    <div class="rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>ID</th><th>Cliente</th><th>Ensaio</th><th>Projeto / peça</th><th>Fase</th>
+            <th class="num">Amostras</th><th>Peça disponível</th><th>Data alvo</th><th>Prioridade</th>
+            <th>Alocação</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="dem-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= PLANEJAMENTO ================= -->
+  <section id="view-plano" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Planejamento de bancada</h2>
+        <p class="sub">Alocação automática por prioridade, disponibilidade da peça e capacidade do
+          equipamento. Fins de semana, paradas de manutenção e jornada de cada bancada são respeitados.</p>
+      </div>
+      <button id="btn-exportar-plano" class="btn-sec">Exportar CSV</button>
+    </div>
+    <div id="plan-kpis" class="kpis"></div>
+    <div id="gantt" class="gantt"></div>
+    <div class="legenda">
+      <span><i class="lg-barra"></i> ensaio alocado (cor = cliente)</span>
+      <span><i class="lg-atraso"></i> termina depois da data-alvo</span>
+      <span><i class="lg-manut"></i> parada de manutenção</span>
+      <span><i class="lg-fds"></i> fim de semana</span>
+      <span><i class="lg-hoje"></i> hoje</span>
+    </div>
+    <div id="plan-pendencias" class="pendencias"></div>
+  </section>
+
+  <!-- ================= EQUIPAMENTOS ================= -->
+  <section id="view-equipamentos" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Equipamentos e disponibilidade</h2>
+        <p class="sub">Capacidade simultânea, jornada e paradas programadas. Qualquer alteração
+          aqui reprograma imediatamente todos os ensaios afetados.</p>
+      </div>
+    </div>
+    <div id="equip-lista" class="grid-equip"></div>
+  </section>
+
+  <!-- ================= VISÃO GERENCIAL ================= -->
+  <section id="view-visao" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Visão gerencial</h2>
+        <p class="sub">Onde o orçamento e as horas de bancada estão comprometidos.</p>
+      </div>
+    </div>
+    <div id="visao-conteudo"></div>
+  </section>
+
+</main>
+
+<!-- ================= MODAL DE CONFIRMAÇÃO ================= -->
+<dialog id="dlg-confirmar" class="modal">
+  <form id="form-confirmar" method="dialog">
+    <h2>Confirmar necessidade de ensaio</h2>
+    <p class="sub">Ao confirmar, os ensaios entram na fila e são alocados automaticamente na primeira
+      janela livre de equipamento a partir da data em que a peça estiver disponível.</p>
+
+    <div class="campos-modal">
+      <label>Projeto<input id="conf-projeto" type="text" placeholder="ex.: MQB Facelift" required></label>
+      <label>Fase do projeto<select id="conf-fase"></select></label>
+      <label>Peça disponível em<input id="conf-peca-disp" type="date" required></label>
+      <label>Data alvo (gate)<input id="conf-alvo" type="date"></label>
+      <label>Prioridade<select id="conf-prioridade">
+        <option>Crítica</option><option>Alta</option><option selected>Média</option><option>Baixa</option>
+      </select></label>
+      <label>Solicitante<input id="conf-solicitante" type="text" placeholder="ex.: D. Vergini"></label>
+      <label class="largo">Observações<input id="conf-obs" type="text" placeholder="opcional"></label>
+    </div>
+
+    <ul id="conf-itens" class="itens-modal"></ul>
+    <div id="conf-total" class="total-modal"></div>
+
+    <menu class="acoes-modal">
+      <button type="button" id="conf-cancelar" class="btn-sec">Cancelar</button>
+      <button type="submit" class="btn">Confirmar e planejar</button>
+    </menu>
+  </form>
+</dialog>
+
+<script>
+/* Testing Center — utilitários compartilhados (datas, moeda, formatação).
+   Carregado como script clássico no navegador e como módulo CommonJS nos testes. */
+(function (root, factory) {
+  var api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else (root.TC = root.TC || {}).util = api;
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var DIA_MS = 86400000;
+
+  /* Datas são sempre strings ISO 'YYYY-MM-DD' e a aritmética é feita em UTC,
+     para que o fuso do navegador nunca desloque um dia do planejamento. */
+  function paraTimestamp(iso) {
+    var p = String(iso).slice(0, 10).split('-');
+    return Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+
+  function paraISO(ts) {
+    return new Date(ts).toISOString().slice(0, 10);
+  }
+
+  function addDias(iso, n) {
+    return paraISO(paraTimestamp(iso) + n * DIA_MS);
+  }
+
+  function diffDias(de, ate) {
+    return Math.round((paraTimestamp(ate) - paraTimestamp(de)) / DIA_MS);
+  }
+
+  function diaDaSemana(iso) {
+    return new Date(paraTimestamp(iso)).getUTCDay(); // 0 = domingo
+  }
+
+  function ehFimDeSemana(iso) {
+    var d = diaDaSemana(iso);
+    return d === 0 || d === 6;
+  }
+
+  function maiorData() {
+    var maior = null;
+    for (var i = 0; i < arguments.length; i++) {
+      var v = arguments[i];
+      if (!v) continue;
+      if (maior === null || v > maior) maior = v;
+    }
+    return maior;
+  }
+
+  function hojeISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  var MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  function dataCurta(iso) {
+    if (!iso) return '—';
+    var p = String(iso).slice(0, 10).split('-');
+    return p[2] + '/' + p[1];
+  }
+
+  function dataLonga(iso) {
+    if (!iso) return '—';
+    var p = String(iso).slice(0, 10).split('-');
+    return p[2] + ' ' + MESES[Number(p[1]) - 1] + ' ' + p[0];
+  }
+
+  function rotuloMes(iso) {
+    var p = String(iso).slice(0, 10).split('-');
+    return MESES[Number(p[1]) - 1] + '/' + p[0].slice(2);
+  }
+
+  /* Moeda e números — pt-BR, sem centavos (valores de ensaio são altos). */
+  function moeda(v) {
+    var n = Number(v) || 0;
+    return 'R$\u00a0' + n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  }
+
+  function moedaCompacta(v) {
+    var n = Number(v) || 0;
+    if (Math.abs(n) >= 1000000) return 'R$\u00a0' + (n / 1000000).toFixed(1).replace('.', ',') + '\u00a0M';
+    if (Math.abs(n) >= 1000) return 'R$\u00a0' + Math.round(n / 1000) + '\u00a0k';
+    return moeda(n);
+  }
+
+  function numero(v, casas) {
+    var n = Number(v) || 0;
+    return n.toLocaleString('pt-BR', { maximumFractionDigits: casas == null ? 0 : casas });
+  }
+
+  /* Duração de ensaio: engenheiro pensa em horas até ~72h, depois em dias. */
+  function duracao(horas) {
+    var h = Number(horas) || 0;
+    if (h < 72) return numero(h) + ' h';
+    var dias = h / 24;
+    return numero(h) + ' h (' + numero(dias, 1) + ' d)';
+  }
+
+  function slug(s) {
+    return String(s)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  function normalizar(s) {
+    return String(s == null ? '' : s)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }
+
+  function indexarPor(lista, chave) {
+    var mapa = {};
+    (lista || []).forEach(function (item) { mapa[item[chave || 'id']] = item; });
+    return mapa;
+  }
+
+  function soma(lista, fn) {
+    return (lista || []).reduce(function (acc, item) { return acc + (Number(fn(item)) || 0); }, 0);
+  }
+
+  function agrupar(lista, fn) {
+    var mapa = new Map();
+    (lista || []).forEach(function (item) {
+      var k = fn(item);
+      if (!mapa.has(k)) mapa.set(k, []);
+      mapa.get(k).push(item);
+    });
+    return mapa;
+  }
+
+  function id(prefixo) {
+    return prefixo + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+  }
+
+  return {
+    DIA_MS: DIA_MS,
+    paraTimestamp: paraTimestamp,
+    paraISO: paraISO,
+    addDias: addDias,
+    diffDias: diffDias,
+    diaDaSemana: diaDaSemana,
+    ehFimDeSemana: ehFimDeSemana,
+    maiorData: maiorData,
+    hojeISO: hojeISO,
+    dataCurta: dataCurta,
+    dataLonga: dataLonga,
+    rotuloMes: rotuloMes,
+    moeda: moeda,
+    moedaCompacta: moedaCompacta,
+    numero: numero,
+    duracao: duracao,
+    slug: slug,
+    normalizar: normalizar,
+    indexarPor: indexarPor,
+    soma: soma,
+    agrupar: agrupar,
+    id: id
+  };
+});
+
+</script>
+<script>
+/* Testing Center — base de dados inicial do laboratório de validação de sistemas de exaustão.
+   O catálogo por cliente é montado a partir de procedimentos-base + uma matriz por cliente,
+   de modo que cada cliente carrega sua própria norma, fases e fatores de custo/duração. */
+(function (root, factory) {
+  var api = factory(
+    typeof module === 'object' && module.exports ? require('./00-util.js') : root.TC.util
+  );
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else (root.TC = root.TC || {}).seed = api;
+})(typeof self !== 'undefined' ? self : this, function (util) {
+  'use strict';
+
+  var CLIENTES = [
+    { id: 'STL', nome: 'Stellantis', segmento: 'Leves', cor: '#5b8def' },
+    { id: 'VW', nome: 'Volkswagen', segmento: 'Leves', cor: '#3fb27f' },
+    { id: 'GM', nome: 'General Motors', segmento: 'Leves', cor: '#e2a03f' },
+    { id: 'TOY', nome: 'Toyota', segmento: 'Leves', cor: '#e35d6a' },
+    { id: 'SCA', nome: 'Scania', segmento: 'Pesados', cor: '#9b6bde' },
+    { id: 'MB', nome: 'Mercedes-Benz', segmento: 'Pesados', cor: '#4bb8c9' }
+  ];
+
+  var TIPOS_PECA = [
+    { id: 'COL', nome: 'Coletor de escape' },
+    { id: 'CAT', nome: 'Catalisador' },
+    { id: 'DPF', nome: 'Filtro de particulados (DPF/GPF)' },
+    { id: 'SCR', nome: 'Sistema SCR / dosador' },
+    { id: 'SIL', nome: 'Silencioso' },
+    { id: 'TUB', nome: 'Tubulação / downpipe' },
+    { id: 'FLX', nome: 'Junta flexível' },
+    { id: 'PON', nome: 'Ponteira' },
+    { id: 'SUP', nome: 'Suportes e coxins' },
+    { id: 'ISO', nome: 'Isolamento térmico' },
+    { id: 'SEN', nome: 'Sensores e bossas' },
+    { id: 'SIS', nome: 'Sistema completo' }
+  ];
+
+  var FASES = [
+    { id: 'P0', nome: 'Conceito / Protótipo', ordem: 1 },
+    { id: 'DV', nome: 'DV — Design Validation', ordem: 2 },
+    { id: 'PV', nome: 'PV — Product Validation', ordem: 3 },
+    { id: 'PP', nome: 'PPAP / Aprovação', ordem: 4 },
+    { id: 'SR', nome: 'Série / Auditoria', ordem: 5 }
+  ];
+
+  /* Um "tipo" de equipamento pode ter várias unidades físicas; o planejador
+     escolhe a unidade que libera o ensaio mais cedo. */
+  var TIPOS_EQUIP = [
+    { id: 'BDT', nome: 'Bancada de durabilidade térmica' },
+    { id: 'SHK', nome: 'Shaker eletrodinâmico' },
+    { id: 'HSK', nome: 'Bancada de vibração a quente' },
+    { id: 'CNS', nome: 'Câmara de névoa salina' },
+    { id: 'CCL', nome: 'Câmara de ciclo climático' },
+    { id: 'BFL', nome: 'Banco de fluxo / contrapressão' },
+    { id: 'EST', nome: 'Bancada de estanqueidade' },
+    { id: 'ACU', nome: 'Câmara semianecoica' },
+    { id: 'DIN', nome: 'Dinamômetro de motor' },
+    { id: 'MUE', nome: 'Máquina universal de ensaios' },
+    { id: 'MET', nome: 'Laboratório metalúrgico' },
+    { id: 'BFX', nome: 'Bancada de fadiga de flexível' },
+    { id: 'MOD', nome: 'Sistema de análise modal' },
+    { id: 'PST', nome: 'Pista de prova / veículo' }
+  ];
+
+  /* capacidade = ensaios simultâneos na unidade; horasPorDia = janela produtiva;
+     diasUteis = true significa que o ensaio pausa em fim de semana. */
+  var EQUIPAMENTOS = [
+    { id: 'BDT-01', nome: 'Burner rig hot-end #1', tipo: 'BDT', capacidade: 1, horasPorDia: 24, diasUteis: false, custoHora: 320, manutencao: [] },
+    { id: 'BDT-02', nome: 'Burner rig hot-end #2', tipo: 'BDT', capacidade: 1, horasPorDia: 24, diasUteis: false, custoHora: 320, manutencao: [{ inicio: '+35', fim: '+45', motivo: 'Revisão do queimador' }] },
+    { id: 'SHK-01', nome: 'Shaker eletrodinâmico 60 kN', tipo: 'SHK', capacidade: 1, horasPorDia: 20, diasUteis: false, custoHora: 260, manutencao: [] },
+    { id: 'HSK-01', nome: 'Hot shaker (vibração a quente)', tipo: 'HSK', capacidade: 1, horasPorDia: 24, diasUteis: false, custoHora: 410, manutencao: [] },
+    { id: 'CNS-01', nome: 'Câmara de névoa salina 1000 L', tipo: 'CNS', capacidade: 4, horasPorDia: 24, diasUteis: false, custoHora: 90, manutencao: [] },
+    { id: 'CCL-01', nome: 'Câmara de ciclo climático VDA', tipo: 'CCL', capacidade: 3, horasPorDia: 24, diasUteis: false, custoHora: 140, manutencao: [{ inicio: '+120', fim: '+127', motivo: 'Calibração anual' }] },
+    { id: 'BFL-01', nome: 'Banco de fluxo a frio', tipo: 'BFL', capacidade: 1, horasPorDia: 8, diasUteis: true, custoHora: 180, manutencao: [] },
+    { id: 'EST-01', nome: 'Bancada de estanqueidade', tipo: 'EST', capacidade: 2, horasPorDia: 8, diasUteis: true, custoHora: 110, manutencao: [] },
+    { id: 'ACU-01', nome: 'Câmara semianecoica', tipo: 'ACU', capacidade: 1, horasPorDia: 8, diasUteis: true, custoHora: 380, manutencao: [] },
+    { id: 'DIN-01', nome: 'Dinamômetro de motor #1', tipo: 'DIN', capacidade: 1, horasPorDia: 20, diasUteis: false, custoHora: 640, manutencao: [] },
+    { id: 'DIN-02', nome: 'Dinamômetro de motor #2', tipo: 'DIN', capacidade: 1, horasPorDia: 20, diasUteis: false, custoHora: 640, manutencao: [{ inicio: '+70', fim: '+82', motivo: 'Troca de motor de ensaio' }] },
+    { id: 'MUE-01', nome: 'Máquina universal 100 kN', tipo: 'MUE', capacidade: 1, horasPorDia: 8, diasUteis: true, custoHora: 150, manutencao: [] },
+    { id: 'MET-01', nome: 'Laboratório metalúrgico', tipo: 'MET', capacidade: 3, horasPorDia: 8, diasUteis: true, custoHora: 130, manutencao: [] },
+    { id: 'BFX-01', nome: 'Bancada de fadiga de flexível #1', tipo: 'BFX', capacidade: 2, horasPorDia: 24, diasUteis: false, custoHora: 170, manutencao: [] },
+    { id: 'BFX-02', nome: 'Bancada de fadiga de flexível #2', tipo: 'BFX', capacidade: 2, horasPorDia: 24, diasUteis: false, custoHora: 170, manutencao: [] },
+    { id: 'MOD-01', nome: 'Análise modal (LMS + martelo)', tipo: 'MOD', capacidade: 1, horasPorDia: 8, diasUteis: true, custoHora: 210, manutencao: [] },
+    { id: 'PST-01', nome: 'Pista de prova / veículo instrumentado', tipo: 'PST', capacidade: 2, horasPorDia: 10, diasUteis: true, custoHora: 520, manutencao: [] }
+  ];
+
+  /* Procedimentos-base: o "o quê" do ensaio, independente do cliente.
+     duracaoHoras e custos referem-se a UMA corrida com amostrasPorCorrida peças. */
+  var PROCEDIMENTOS = [
+    { id: 'FAD-TERM', nome: 'Fadiga térmica — ciclagem hot-end', pecas: ['COL', 'CAT', 'DPF', 'TUB', 'SIS'], equip: 'BDT', horas: 480, amostrasPorCorrida: 1, custoSetup: 12000, custoAmostra: 8500, criticidade: 'Crítica' },
+    { id: 'CHQ-TERM', nome: 'Choque térmico com resfriamento forçado', pecas: ['COL', 'CAT', 'TUB'], equip: 'BDT', horas: 240, amostrasPorCorrida: 1, custoSetup: 8000, custoAmostra: 6000, criticidade: 'Alta' },
+    { id: 'VIB-RND', nome: 'Vibração aleatória e senoidal (PSD)', pecas: ['SIL', 'TUB', 'SUP', 'SEN', 'SIS'], equip: 'SHK', horas: 72, amostrasPorCorrida: 1, custoSetup: 5000, custoAmostra: 3200, criticidade: 'Alta' },
+    { id: 'VIB-QNT', nome: 'Fadiga vibratória a quente', pecas: ['COL', 'CAT', 'SIS'], equip: 'HSK', horas: 300, amostrasPorCorrida: 1, custoSetup: 14000, custoAmostra: 9500, criticidade: 'Crítica' },
+    { id: 'COR-NSS', nome: 'Corrosão em névoa salina (ASTM B117)', pecas: ['TUB', 'SIL', 'PON', 'SUP', 'ISO'], equip: 'CNS', horas: 720, amostrasPorCorrida: 6, custoSetup: 3000, custoAmostra: 900, criticidade: 'Média' },
+    { id: 'COR-CIC', nome: 'Corrosão cíclica acelerada', pecas: ['TUB', 'SIL', 'PON', 'SUP', 'FLX'], equip: 'CCL', horas: 1008, amostrasPorCorrida: 6, custoSetup: 4500, custoAmostra: 1400, criticidade: 'Alta' },
+    { id: 'CTP-FLW', nome: 'Contrapressão e perda de carga', pecas: ['CAT', 'DPF', 'SIL', 'SIS'], equip: 'BFL', horas: 6, amostrasPorCorrida: 1, custoSetup: 1200, custoAmostra: 450, criticidade: 'Média' },
+    { id: 'EST-LEAK', nome: 'Estanqueidade por queda de pressão', pecas: ['SIS', 'SIL', 'TUB', 'FLX', 'SCR'], equip: 'EST', horas: 4, amostrasPorCorrida: 4, custoSetup: 800, custoAmostra: 180, criticidade: 'Média' },
+    { id: 'ACU-NVH', nome: 'Desempenho acústico e ruído de escape', pecas: ['SIL', 'PON', 'SIS'], equip: 'ACU', horas: 16, amostrasPorCorrida: 1, custoSetup: 6500, custoAmostra: 2100, criticidade: 'Alta' },
+    { id: 'MOD-FRQ', nome: 'Análise modal e frequências naturais', pecas: ['SIS', 'SUP', 'SIL', 'TUB'], equip: 'MOD', horas: 12, amostrasPorCorrida: 1, custoSetup: 3800, custoAmostra: 1500, criticidade: 'Média' },
+    { id: 'FLX-FAD', nome: 'Fadiga de junta flexível (deslocamento angular)', pecas: ['FLX'], equip: 'BFX', horas: 336, amostrasPorCorrida: 2, custoSetup: 5200, custoAmostra: 2600, criticidade: 'Alta' },
+    { id: 'CAT-ENV', nome: 'Envelhecimento acelerado de catalisador', pecas: ['CAT', 'DPF'], equip: 'BDT', horas: 600, amostrasPorCorrida: 1, custoSetup: 18000, custoAmostra: 12000, criticidade: 'Crítica' },
+    { id: 'CAT-EFI', nome: 'Eficiência de conversão e light-off', pecas: ['CAT'], equip: 'DIN', horas: 40, amostrasPorCorrida: 1, custoSetup: 15000, custoAmostra: 7400, criticidade: 'Crítica' },
+    { id: 'DPF-REG', nome: 'Carregamento de fuligem e regeneração', pecas: ['DPF'], equip: 'DIN', horas: 120, amostrasPorCorrida: 1, custoSetup: 22000, custoAmostra: 9800, criticidade: 'Crítica' },
+    { id: 'SCR-DOS', nome: 'Dosagem de ureia e uniformidade de mistura', pecas: ['SCR'], equip: 'DIN', horas: 60, amostrasPorCorrida: 1, custoSetup: 16000, custoAmostra: 6200, criticidade: 'Alta' },
+    { id: 'MEC-SUP', nome: 'Fadiga mecânica de suportes e coxins', pecas: ['SUP', 'SIS'], equip: 'MUE', horas: 96, amostrasPorCorrida: 1, custoSetup: 2600, custoAmostra: 1400, criticidade: 'Média' },
+    { id: 'MET-SLD', nome: 'Análise metalográfica de solda', pecas: ['SIS', 'TUB', 'COL', 'SIL'], equip: 'MET', horas: 24, amostrasPorCorrida: 3, custoSetup: 1900, custoAmostra: 700, criticidade: 'Média' },
+    { id: 'TRA-SLD', nome: 'Tração destrutiva de junta soldada', pecas: ['TUB', 'SUP', 'SIL'], equip: 'MUE', horas: 8, amostrasPorCorrida: 5, custoSetup: 1100, custoAmostra: 260, criticidade: 'Média' },
+    { id: 'BUR-PRS', nome: 'Pressão de ruptura (burst)', pecas: ['TUB', 'SIL', 'FLX'], equip: 'MUE', horas: 8, amostrasPorCorrida: 2, custoSetup: 1400, custoAmostra: 620, criticidade: 'Média' },
+    { id: 'ISO-TMP', nome: 'Mapeamento térmico e eficiência de isolamento', pecas: ['ISO', 'COL', 'SIS'], equip: 'BDT', horas: 72, amostrasPorCorrida: 1, custoSetup: 5600, custoAmostra: 2400, criticidade: 'Média' },
+    { id: 'VEI-DUR', nome: 'Durabilidade em veículo / pista de prova', pecas: ['SIS'], equip: 'PST', horas: 900, amostrasPorCorrida: 1, custoSetup: 45000, custoAmostra: 21000, criticidade: 'Crítica' },
+    { id: 'SEN-VID', nome: 'Vida útil de sensor e bossa (ciclagem)', pecas: ['SEN', 'SIS'], equip: 'BDT', horas: 240, amostrasPorCorrida: 2, custoSetup: 4200, custoAmostra: 1800, criticidade: 'Média' },
+    { id: 'CON-INT', nome: 'Corrosão interna por condensado', pecas: ['SIL', 'TUB'], equip: 'CCL', horas: 504, amostrasPorCorrida: 4, custoSetup: 3600, custoAmostra: 1200, criticidade: 'Alta' }
+  ];
+
+  /* Matriz por cliente: qual procedimento é exigido, sob qual norma e em quais fases.
+     fatorCusto / fatorDuracao refletem exigências próprias de cada montadora. */
+  var MATRIZ = {
+    STL: {
+      fatorCusto: 1.00, fatorDuracao: 1.00,
+      itens: [
+        { base: 'FAD-TERM', norma: 'D45 1734', fases: ['DV', 'PV'] },
+        { base: 'CHQ-TERM', norma: 'B21 7110', fases: ['DV'] },
+        { base: 'VIB-RND', norma: 'D45 1727', fases: ['DV', 'PV'] },
+        { base: 'COR-NSS', norma: 'D17 2028', fases: ['DV', 'PV', 'SR'] },
+        { base: 'COR-CIC', norma: 'D17 1058', fases: ['PV'] },
+        { base: 'CTP-FLW', norma: 'D45 1015', fases: ['P0', 'DV', 'PV'] },
+        { base: 'EST-LEAK', norma: 'D45 1016', fases: ['PV', 'PP', 'SR'] },
+        { base: 'ACU-NVH', norma: 'D45 5290', fases: ['P0', 'DV'] },
+        { base: 'MOD-FRQ', norma: 'D45 1721', fases: ['P0', 'DV'] },
+        { base: 'FLX-FAD', norma: 'D45 1748', fases: ['DV', 'PV'] },
+        { base: 'MEC-SUP', norma: 'D45 1750', fases: ['DV'] },
+        { base: 'MET-SLD', norma: 'D25 5401', fases: ['PP', 'SR'] },
+        { base: 'TRA-SLD', norma: 'D25 5410', fases: ['PP', 'SR'] },
+        { base: 'VEI-DUR', norma: 'D45 1800', fases: ['PV'] }
+      ]
+    },
+    VW: {
+      fatorCusto: 1.12, fatorDuracao: 1.00,
+      itens: [
+        { base: 'FAD-TERM', norma: 'PV 1200 / TL 82500', fases: ['DV', 'PV'] },
+        { base: 'CHQ-TERM', norma: 'PV 1201', fases: ['DV'] },
+        { base: 'VIB-RND', norma: 'PV 3906 / PV 3929', fases: ['DV', 'PV'] },
+        { base: 'VIB-QNT', norma: 'PV 3930', fases: ['PV'] },
+        { base: 'COR-NSS', norma: 'PV 1210', fases: ['DV', 'PV'] },
+        { base: 'COR-CIC', norma: 'VDA 233-102', fases: ['PV', 'SR'] },
+        { base: 'CTP-FLW', norma: 'TL 52691', fases: ['P0', 'DV'] },
+        { base: 'EST-LEAK', norma: 'PV 3964', fases: ['PP', 'SR'] },
+        { base: 'ACU-NVH', norma: 'TL 82121', fases: ['P0', 'DV', 'PV'] },
+        { base: 'MOD-FRQ', norma: 'PV 3915', fases: ['P0', 'DV'] },
+        { base: 'CAT-ENV', norma: 'PV 1215', fases: ['PV'] },
+        { base: 'CAT-EFI', norma: 'TL 82126', fases: ['PV', 'PP'] },
+        { base: 'MET-SLD', norma: 'PV 6702', fases: ['PP', 'SR'] },
+        { base: 'SEN-VID', norma: 'PV 2005', fases: ['DV'] },
+        { base: 'ISO-TMP', norma: 'TL 82530', fases: ['DV', 'PV'] }
+      ]
+    },
+    GM: {
+      fatorCusto: 1.05, fatorDuracao: 1.00,
+      itens: [
+        { base: 'FAD-TERM', norma: 'GMW14650', fases: ['DV', 'PV'] },
+        { base: 'CHQ-TERM', norma: 'GMW3103', fases: ['DV'] },
+        { base: 'VIB-RND', norma: 'GMW3172', fases: ['DV', 'PV'] },
+        { base: 'COR-NSS', norma: 'GMW3286', fases: ['DV'] },
+        { base: 'COR-CIC', norma: 'GMW14872', fases: ['DV', 'PV', 'SR'] },
+        { base: 'CTP-FLW', norma: 'GMW16026', fases: ['P0', 'DV'] },
+        { base: 'EST-LEAK', norma: 'GMW15873', fases: ['PP', 'SR'] },
+        { base: 'ACU-NVH', norma: 'GMW15218', fases: ['DV', 'PV'] },
+        { base: 'MOD-FRQ', norma: 'GMW3103-M', fases: ['P0', 'DV'] },
+        { base: 'MEC-SUP', norma: 'GMW14124', fases: ['DV'] },
+        { base: 'TRA-SLD', norma: 'GMW15761', fases: ['PP', 'SR'] },
+        { base: 'BUR-PRS', norma: 'GMW16663', fases: ['DV'] },
+        { base: 'ISO-TMP', norma: 'GMW16346', fases: ['DV', 'PV'] },
+        { base: 'CAT-EFI', norma: 'GMW17010', fases: ['PV', 'PP'] }
+      ]
+    },
+    TOY: {
+      fatorCusto: 1.18, fatorDuracao: 1.10,
+      itens: [
+        { base: 'FAD-TERM', norma: 'TSC7000G', fases: ['DV', 'PV'] },
+        { base: 'VIB-RND', norma: 'TSC7203', fases: ['DV', 'PV'] },
+        { base: 'VIB-QNT', norma: 'TSC7215', fases: ['PV'] },
+        { base: 'COR-NSS', norma: 'TSC7302', fases: ['DV', 'PV'] },
+        { base: 'CTP-FLW', norma: 'TSC1503', fases: ['P0', 'DV'] },
+        { base: 'EST-LEAK', norma: 'TSC1504', fases: ['PP', 'SR'] },
+        { base: 'ACU-NVH', norma: 'TSC7401', fases: ['DV'] },
+        { base: 'MOD-FRQ', norma: 'TSC7210', fases: ['P0', 'DV'] },
+        { base: 'CAT-EFI', norma: 'TSC7551', fases: ['PV', 'PP'] },
+        { base: 'MET-SLD', norma: 'TSC0401', fases: ['PP', 'SR'] },
+        { base: 'FLX-FAD', norma: 'TSC7260', fases: ['DV', 'PV'] },
+        { base: 'VEI-DUR', norma: 'TSC9000', fases: ['PV'] }
+      ]
+    },
+    SCA: {
+      fatorCusto: 1.25, fatorDuracao: 1.40,
+      itens: [
+        { base: 'FAD-TERM', norma: 'STD4319', fases: ['DV', 'PV'] },
+        { base: 'VIB-QNT', norma: 'STD4189', fases: ['PV'] },
+        { base: 'VIB-RND', norma: 'STD4185', fases: ['DV'] },
+        { base: 'COR-CIC', norma: 'STD4445', fases: ['DV', 'PV'] },
+        { base: 'DPF-REG', norma: 'STD4762', fases: ['PV', 'PP'] },
+        { base: 'SCR-DOS', norma: 'STD4771', fases: ['DV', 'PV'] },
+        { base: 'CTP-FLW', norma: 'STD4102', fases: ['P0', 'DV'] },
+        { base: 'EST-LEAK', norma: 'STD4110', fases: ['PP', 'SR'] },
+        { base: 'ISO-TMP', norma: 'STD4520', fases: ['DV'] },
+        { base: 'MEC-SUP', norma: 'STD4225', fases: ['DV', 'PV'] },
+        { base: 'CON-INT', norma: 'STD4478', fases: ['PV'] },
+        { base: 'MET-SLD', norma: 'STD4030', fases: ['PP', 'SR'] },
+        { base: 'VEI-DUR', norma: 'STD9100', fases: ['PV'] }
+      ]
+    },
+    MB: {
+      fatorCusto: 1.30, fatorDuracao: 1.15,
+      itens: [
+        { base: 'FAD-TERM', norma: 'MBN 10494', fases: ['DV', 'PV'] },
+        { base: 'CHQ-TERM', norma: 'MBN 31000', fases: ['DV'] },
+        { base: 'VIB-RND', norma: 'MBN 10284', fases: ['DV', 'PV'] },
+        { base: 'VIB-QNT', norma: 'MBN 10290', fases: ['PV'] },
+        { base: 'COR-CIC', norma: 'MBN 10494-6', fases: ['PV', 'SR'] },
+        { base: 'DPF-REG', norma: 'MBN 11031', fases: ['PV'] },
+        { base: 'SCR-DOS', norma: 'MBN 11040', fases: ['DV', 'PV'] },
+        { base: 'ACU-NVH', norma: 'MBN 10371', fases: ['DV', 'PV'] },
+        { base: 'FLX-FAD', norma: 'MBN 10620', fases: ['DV'] },
+        { base: 'EST-LEAK', norma: 'MBN 10256', fases: ['PP', 'SR'] },
+        { base: 'CAT-ENV', norma: 'MBN 11020', fases: ['PV'] },
+        { base: 'MET-SLD', norma: 'DBL 4919', fases: ['PP', 'SR'] },
+        { base: 'CON-INT', norma: 'MBN 10500', fases: ['PV'] }
+      ]
+    }
+  };
+
+  function arredondarCusto(v) {
+    return Math.round(v / 50) * 50;
+  }
+
+  function arredondarHoras(h) {
+    return h >= 72 ? Math.round(h / 4) * 4 : Math.round(h);
+  }
+
+  /* Expande a matriz em um catálogo plano: uma linha por cliente + procedimento. */
+  function montarCatalogo() {
+    var base = util.indexarPor(PROCEDIMENTOS);
+    var catalogo = [];
+    CLIENTES.forEach(function (cliente) {
+      var m = MATRIZ[cliente.id];
+      if (!m) return;
+      m.itens.forEach(function (item) {
+        var p = base[item.base];
+        if (!p) return;
+        catalogo.push({
+          id: cliente.id + '-' + p.id,
+          clienteId: cliente.id,
+          procedimentoId: p.id,
+          nome: p.nome,
+          norma: item.norma,
+          pecas: item.pecas || p.pecas,
+          fases: item.fases,
+          equipTipo: p.equip,
+          duracaoHoras: arredondarHoras(p.horas * (item.fatorDuracao || m.fatorDuracao)),
+          amostrasPorCorrida: p.amostrasPorCorrida,
+          amostrasPadrao: p.amostrasPorCorrida,
+          custoSetup: arredondarCusto(p.custoSetup * (item.fatorCusto || m.fatorCusto)),
+          custoAmostra: arredondarCusto(p.custoAmostra * (item.fatorCusto || m.fatorCusto)),
+          criticidade: item.criticidade || p.criticidade
+        });
+      });
+    });
+    return catalogo;
+  }
+
+  /* Custo de referência do ensaio na configuração padrão de amostras. */
+  function custoPadrao(teste) {
+    return teste.custoSetup + teste.custoAmostra * teste.amostrasPadrao;
+  }
+
+  function custoDemanda(teste, amostras) {
+    var corridas = Math.max(1, Math.ceil(amostras / (teste.amostrasPorCorrida || 1)));
+    return teste.custoSetup * corridas + teste.custoAmostra * amostras;
+  }
+
+  /* Manutenções são declaradas como deslocamento em dias ('+35') a partir da data-base,
+     para que a base semente continue coerente independentemente de quando for aberta. */
+  function resolverEquipamentos(dataBase) {
+    return EQUIPAMENTOS.map(function (e) {
+      return Object.assign({}, e, {
+        manutencao: (e.manutencao || []).map(function (j) {
+          return {
+            inicio: String(j.inicio).charAt(0) === '+' ? util.addDias(dataBase, Number(j.inicio.slice(1))) : j.inicio,
+            fim: String(j.fim).charAt(0) === '+' ? util.addDias(dataBase, Number(j.fim.slice(1))) : j.fim,
+            motivo: j.motivo
+          };
+        })
+      });
+    });
+  }
+
+  /* Carteira inicial de demandas, para que a tela de planejamento já abra com conteúdo. */
+  function demandasIniciais(dataBase) {
+    var d = function (n) { return util.addDias(dataBase, n); };
+    return [
+      { id: 'DEM-0001', testeId: 'STL-FAD-TERM', projeto: 'P/X-Hatch 1.0 Turbo', peca: 'CAT', fase: 'DV', amostras: 3, dataPecaDisponivel: d(3), dataAlvo: d(60), prioridade: 'Crítica', solicitante: 'D. Vergini', obs: 'Gate DV travado nesta amostra.' },
+      { id: 'DEM-0002', testeId: 'STL-VIB-RND', projeto: 'P/X-Hatch 1.0 Turbo', peca: 'SIS', fase: 'DV', amostras: 2, dataPecaDisponivel: d(5), dataAlvo: d(45), prioridade: 'Alta', solicitante: 'D. Vergini', obs: '' },
+      { id: 'DEM-0003', testeId: 'VW-COR-CIC', projeto: 'MQB Facelift', peca: 'TUB', fase: 'PV', amostras: 12, dataPecaDisponivel: d(10), dataAlvo: d(110), prioridade: 'Alta', solicitante: 'L. Prado', obs: 'Duas corridas de câmara.' },
+      { id: 'DEM-0004', testeId: 'VW-CAT-EFI', projeto: 'MQB Facelift', peca: 'CAT', fase: 'PV', amostras: 2, dataPecaDisponivel: d(14), dataAlvo: d(70), prioridade: 'Crítica', solicitante: 'L. Prado', obs: '' },
+      { id: 'DEM-0005', testeId: 'GM-COR-CIC', projeto: 'GEM BEV Range Ext.', peca: 'SIL', fase: 'DV', amostras: 6, dataPecaDisponivel: d(2), dataAlvo: d(75), prioridade: 'Média', solicitante: 'R. Nakamura', obs: '' },
+      { id: 'DEM-0006', testeId: 'SCA-DPF-REG', projeto: 'Euro 6 Step E', peca: 'DPF', fase: 'PV', amostras: 2, dataPecaDisponivel: d(20), dataAlvo: d(95), prioridade: 'Crítica', solicitante: 'A. Guedes', obs: 'Depende de motor no dinamômetro.' },
+      { id: 'DEM-0007', testeId: 'SCA-SCR-DOS', projeto: 'Euro 6 Step E', peca: 'SCR', fase: 'DV', amostras: 1, dataPecaDisponivel: d(8), dataAlvo: d(55), prioridade: 'Alta', solicitante: 'A. Guedes', obs: '' },
+      { id: 'DEM-0008', testeId: 'MB-FAD-TERM', projeto: 'OM 470 Update', peca: 'COL', fase: 'PV', amostras: 2, dataPecaDisponivel: d(25), dataAlvo: d(105), prioridade: 'Alta', solicitante: 'C. Bittencourt', obs: '' },
+      { id: 'DEM-0009', testeId: 'TOY-ACU-NVH', projeto: 'TNGA-B Hybrid', peca: 'SIL', fase: 'DV', amostras: 2, dataPecaDisponivel: d(6), dataAlvo: d(40), prioridade: 'Média', solicitante: 'M. Ferraz', obs: '' },
+      { id: 'DEM-0010', testeId: 'TOY-FAD-TERM', projeto: 'TNGA-B Hybrid', peca: 'CAT', fase: 'DV', amostras: 2, dataPecaDisponivel: d(12), dataAlvo: d(80), prioridade: 'Alta', solicitante: 'M. Ferraz', obs: '' }
+    ].map(function (dem) { return Object.assign({ status: 'Confirmada', criadoEm: dataBase }, dem); });
+  }
+
+  return {
+    CLIENTES: CLIENTES,
+    TIPOS_PECA: TIPOS_PECA,
+    FASES: FASES,
+    TIPOS_EQUIP: TIPOS_EQUIP,
+    EQUIPAMENTOS: EQUIPAMENTOS,
+    PROCEDIMENTOS: PROCEDIMENTOS,
+    MATRIZ: MATRIZ,
+    montarCatalogo: montarCatalogo,
+    custoPadrao: custoPadrao,
+    custoDemanda: custoDemanda,
+    resolverEquipamentos: resolverEquipamentos,
+    demandasIniciais: demandasIniciais
+  };
+});
+
+</script>
+<script>
+/* Testing Center — planejador de ensaios.
+
+   Regra de alocação:
+   1. Demandas são ordenadas por prioridade, depois por data-alvo e por disponibilidade da peça.
+   2. Cada demanda só pode começar depois que a PEÇA estiver disponível.
+   3. O ensaio ocupa N dias produtivos da unidade; dias não elegíveis (fim de semana em
+      bancada não automatizada, janela de manutenção) pausam o ensaio e empurram a data-fim.
+   4. Entre as unidades compatíveis, vence a que termina mais cedo.
+   Isso é um "earliest-finish first" guloso com capacidade por unidade — determinístico e
+   auditável, que é o que um plano de laboratório precisa ser. */
+(function (root, factory) {
+  var api = factory(
+    typeof module === 'object' && module.exports ? require('./00-util.js') : root.TC.util
+  );
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else (root.TC = root.TC || {}).scheduler = api;
+})(typeof self !== 'undefined' ? self : this, function (util) {
+  'use strict';
+
+  var PESO_PRIORIDADE = { 'Crítica': 0, 'Alta': 1, 'Média': 2, 'Baixa': 3 };
+
+  function pesoPrioridade(p) {
+    var v = PESO_PRIORIDADE[p];
+    return v == null ? 2 : v;
+  }
+
+  function ordenarDemandas(demandas) {
+    return demandas.slice().sort(function (a, b) {
+      var pa = pesoPrioridade(a.prioridade), pb = pesoPrioridade(b.prioridade);
+      if (pa !== pb) return pa - pb;
+      var aa = a.dataAlvo || '9999-12-31', ab = b.dataAlvo || '9999-12-31';
+      if (aa !== ab) return aa < ab ? -1 : 1;
+      var da = a.dataPecaDisponivel || '0000-01-01', db = b.dataPecaDisponivel || '0000-01-01';
+      if (da !== db) return da < db ? -1 : 1;
+      return String(a.id) < String(b.id) ? -1 : 1;
+    });
+  }
+
+  function emManutencao(equip, dia) {
+    var janelas = equip.manutencao || [];
+    for (var i = 0; i < janelas.length; i++) {
+      if (dia >= janelas[i].inicio && dia <= janelas[i].fim) return janelas[i];
+    }
+    return null;
+  }
+
+  /* Dia elegível = a unidade realmente produz nesse dia. */
+  function diaElegivel(equip, dia) {
+    if (equip.diasUteis && util.ehFimDeSemana(dia)) return false;
+    if (emManutencao(equip, dia)) return false;
+    return true;
+  }
+
+  function ocupacaoDoDia(mapa, dia) {
+    return mapa.get(dia) || 0;
+  }
+
+  /* Procura a primeira sequência de `diasNecessarios` dias elegíveis com vaga livre,
+     começando em `inicioMin`. Retorna a lista de dias ocupados ou null. */
+  function buscarJanela(equip, mapa, inicioMin, diasNecessarios, limite) {
+    var cursor = inicioMin;
+    while (cursor <= limite) {
+      if (!diaElegivel(equip, cursor)) { cursor = util.addDias(cursor, 1); continue; }
+      if (ocupacaoDoDia(mapa, cursor) >= equip.capacidade) { cursor = util.addDias(cursor, 1); continue; }
+
+      var dias = [cursor];
+      var probe = util.addDias(cursor, 1);
+      var conflito = null;
+      while (dias.length < diasNecessarios && probe <= limite) {
+        if (!diaElegivel(equip, probe)) { probe = util.addDias(probe, 1); continue; }
+        if (ocupacaoDoDia(mapa, probe) >= equip.capacidade) { conflito = probe; break; }
+        dias.push(probe);
+        probe = util.addDias(probe, 1);
+      }
+
+      if (dias.length === diasNecessarios) return dias;
+      if (conflito) { cursor = util.addDias(conflito, 1); continue; }
+      return null; // estourou o horizonte
+    }
+    return null;
+  }
+
+  function reservar(mapa, dias) {
+    dias.forEach(function (d) { mapa.set(d, (mapa.get(d) || 0) + 1); });
+  }
+
+  /* cfg = { demandas, equipamentos, catalogo, dataBase, horizonteDias } */
+  function planejar(cfg) {
+    var dataBase = cfg.dataBase || util.hojeISO();
+    var horizonte = cfg.horizonteDias || 540;
+    var limite = util.addDias(dataBase, horizonte);
+    var catalogo = util.indexarPor(cfg.catalogo || []);
+    var equipamentos = cfg.equipamentos || [];
+
+    var ocupacao = new Map();
+    equipamentos.forEach(function (e) { ocupacao.set(e.id, new Map()); });
+
+    var alocacoes = [];
+    var naoAlocadas = [];
+
+    var fila = ordenarDemandas((cfg.demandas || []).filter(function (d) {
+      return d.status !== 'Cancelada' && d.status !== 'Concluída';
+    }));
+
+    fila.forEach(function (demanda) {
+      var teste = catalogo[demanda.testeId];
+      if (!teste) {
+        naoAlocadas.push({ demandaId: demanda.id, motivo: 'Ensaio não encontrado no catálogo.' });
+        return;
+      }
+
+      var amostras = Math.max(1, Number(demanda.amostras) || teste.amostrasPadrao || 1);
+      var corridas = Math.max(1, Math.ceil(amostras / (teste.amostrasPorCorrida || 1)));
+      var horas = teste.duracaoHoras * corridas;
+      var custo = teste.custoSetup * corridas + teste.custoAmostra * amostras;
+
+      var candidatos = equipamentos.filter(function (e) { return e.tipo === teste.equipTipo; });
+      if (!candidatos.length) {
+        naoAlocadas.push({
+          demandaId: demanda.id, testeId: teste.id,
+          motivo: 'Nenhuma unidade do tipo ' + teste.equipTipo + ' cadastrada.'
+        });
+        return;
+      }
+
+      var inicioMin = util.maiorData(dataBase, demanda.dataPecaDisponivel || dataBase);
+      var melhor = null;
+
+      candidatos.forEach(function (equip) {
+        var horasDia = equip.horasPorDia || 8;
+        var diasNecessarios = Math.max(1, Math.ceil(horas / horasDia));
+        var dias = buscarJanela(equip, ocupacao.get(equip.id), inicioMin, diasNecessarios, limite);
+        if (!dias) return;
+        var cand = {
+          equip: equip,
+          dias: dias,
+          inicio: dias[0],
+          fim: dias[dias.length - 1],
+          diasProdutivos: diasNecessarios
+        };
+        if (!melhor || cand.fim < melhor.fim || (cand.fim === melhor.fim && cand.inicio < melhor.inicio)) {
+          melhor = cand;
+        }
+      });
+
+      if (!melhor) {
+        naoAlocadas.push({
+          demandaId: demanda.id, testeId: teste.id,
+          motivo: 'Sem janela livre em ' + teste.equipTipo + ' dentro de ' + horizonte + ' dias.'
+        });
+        return;
+      }
+
+      reservar(ocupacao.get(melhor.equip.id), melhor.dias);
+
+      var atraso = demanda.dataAlvo ? Math.max(0, util.diffDias(demanda.dataAlvo, melhor.fim)) : 0;
+      alocacoes.push({
+        demandaId: demanda.id,
+        testeId: teste.id,
+        clienteId: teste.clienteId,
+        equipamentoId: melhor.equip.id,
+        inicio: melhor.inicio,
+        fim: melhor.fim,
+        dias: melhor.dias,
+        diasProdutivos: melhor.diasProdutivos,
+        diasCorridos: util.diffDias(melhor.inicio, melhor.fim) + 1,
+        esperaDias: util.diffDias(inicioMin, melhor.inicio),
+        corridas: corridas,
+        amostras: amostras,
+        horas: horas,
+        custo: custo,
+        atrasoDias: atraso,
+        noPrazo: atraso === 0
+      });
+    });
+
+    return {
+      dataBase: dataBase,
+      alocacoes: alocacoes,
+      naoAlocadas: naoAlocadas,
+      ocupacao: ocupacao,
+      resumo: resumir(alocacoes, naoAlocadas, equipamentos, ocupacao)
+    };
+  }
+
+  function resumir(alocacoes, naoAlocadas, equipamentos, ocupacao) {
+    var custo = util.soma(alocacoes, function (a) { return a.custo; });
+    var horas = util.soma(alocacoes, function (a) { return a.horas; });
+    var noPrazo = alocacoes.filter(function (a) { return a.noPrazo; }).length;
+    var fim = alocacoes.reduce(function (m, a) { return !m || a.fim > m ? a.fim : m; }, null);
+    var inicio = alocacoes.reduce(function (m, a) { return !m || a.inicio < m ? a.inicio : m; }, null);
+
+    var utilizacao = equipamentos.map(function (e) {
+      var mapa = ocupacao.get(e.id) || new Map();
+      var diasOcupados = 0;
+      mapa.forEach(function (v) { diasOcupados += v; });
+      return {
+        equipamentoId: e.id,
+        diasSlot: diasOcupados,
+        diasDistintos: mapa.size,
+        horas: diasOcupados * (e.horasPorDia || 8)
+      };
+    });
+
+    return {
+      testes: alocacoes.length,
+      pendencias: naoAlocadas.length,
+      custoTotal: custo,
+      horasTotais: horas,
+      noPrazo: noPrazo,
+      atrasados: alocacoes.length - noPrazo,
+      aderencia: alocacoes.length ? Math.round((noPrazo / alocacoes.length) * 100) : 100,
+      primeiroInicio: inicio,
+      ultimoFim: fim,
+      utilizacao: utilizacao
+    };
+  }
+
+  return {
+    planejar: planejar,
+    ordenarDemandas: ordenarDemandas,
+    buscarJanela: buscarJanela,
+    diaElegivel: diaElegivel,
+    emManutencao: emManutencao,
+    pesoPrioridade: pesoPrioridade
+  };
+});
+
+</script>
+<script>
+/* Testing Center — estado da aplicação, persistência local e replanejamento automático.
+   Toda mutação de demandas ou equipamentos dispara um novo planejamento: é isso que faz
+   "confirmar a necessidade de um ensaio" cair sozinho na agenda. */
+(function (root) {
+  'use strict';
+  var util = root.TC.util;
+  var seed = root.TC.seed;
+  var scheduler = root.TC.scheduler;
+
+  var CHAVE = 'testing-center:v1';
+  var ouvintes = [];
+
+  var estado = null;
+  var plano = null;
+
+  function estadoInicial() {
+    var dataBase = util.hojeISO();
+    return {
+      versao: 1,
+      dataBase: dataBase,
+      horizonteDias: 540,
+      catalogo: seed.montarCatalogo(),
+      equipamentos: seed.resolverEquipamentos(dataBase),
+      demandas: seed.demandasIniciais(dataBase),
+      sequencia: 11
+    };
+  }
+
+  function carregar() {
+    var bruto = null;
+    try { bruto = root.localStorage.getItem(CHAVE); } catch (e) { bruto = null; }
+    if (bruto) {
+      try {
+        var salvo = JSON.parse(bruto);
+        if (salvo && salvo.versao === 1 && Array.isArray(salvo.demandas)) {
+          estado = salvo;
+          // O catálogo é código, não dado do usuário: sempre remontado a partir da semente.
+          estado.catalogo = seed.montarCatalogo();
+          replanejar();
+          return estado;
+        }
+      } catch (e) { /* base corrompida: recomeça da semente */ }
+    }
+    estado = estadoInicial();
+    replanejar();
+    return estado;
+  }
+
+  function salvar() {
+    try {
+      root.localStorage.setItem(CHAVE, JSON.stringify({
+        versao: estado.versao,
+        dataBase: estado.dataBase,
+        horizonteDias: estado.horizonteDias,
+        equipamentos: estado.equipamentos,
+        demandas: estado.demandas,
+        sequencia: estado.sequencia
+      }));
+    } catch (e) { /* modo privado / cota cheia: segue em memória */ }
+  }
+
+  function replanejar() {
+    plano = scheduler.planejar({
+      demandas: estado.demandas,
+      equipamentos: estado.equipamentos,
+      catalogo: estado.catalogo,
+      dataBase: estado.dataBase,
+      horizonteDias: estado.horizonteDias
+    });
+    return plano;
+  }
+
+  function notificar(evento) {
+    ouvintes.forEach(function (fn) { fn(estado, plano, evento || {}); });
+  }
+
+  function confirmar(alteracao, evento) {
+    alteracao();
+    replanejar();
+    salvar();
+    notificar(evento);
+  }
+
+  /* ---- API pública ---- */
+
+  function subscrever(fn) {
+    ouvintes.push(fn);
+    return function () { ouvintes = ouvintes.filter(function (f) { return f !== fn; }); };
+  }
+
+  function getEstado() { return estado; }
+  function getPlano() { return plano; }
+
+  function proximoId() {
+    var n = estado.sequencia++;
+    return 'DEM-' + String(n).padStart(4, '0');
+  }
+
+  /* Recebe a confirmação de necessidade vinda do catálogo e cria as demandas. */
+  function confirmarNecessidade(itens) {
+    var criadas = [];
+    confirmar(function () {
+      itens.forEach(function (item) {
+        var teste = estado.catalogo.filter(function (t) { return t.id === item.testeId; })[0];
+        if (!teste) return;
+        var demanda = {
+          id: proximoId(),
+          testeId: item.testeId,
+          projeto: item.projeto || 'Sem projeto',
+          peca: item.peca || (teste.pecas && teste.pecas[0]) || '',
+          fase: item.fase || teste.fases[0],
+          amostras: Math.max(1, Number(item.amostras) || teste.amostrasPadrao || 1),
+          dataPecaDisponivel: item.dataPecaDisponivel || estado.dataBase,
+          dataAlvo: item.dataAlvo || '',
+          prioridade: item.prioridade || 'Média',
+          solicitante: item.solicitante || '',
+          obs: item.obs || '',
+          status: 'Confirmada',
+          criadoEm: util.hojeISO()
+        };
+        estado.demandas.push(demanda);
+        criadas.push(demanda);
+      });
+    }, { tipo: 'demandas-criadas', ids: criadas.map(function (d) { return d.id; }) });
+    return criadas;
+  }
+
+  function atualizarDemanda(id, campos) {
+    confirmar(function () {
+      estado.demandas = estado.demandas.map(function (d) {
+        return d.id === id ? Object.assign({}, d, campos) : d;
+      });
+    }, { tipo: 'demanda-atualizada', ids: [id] });
+  }
+
+  function removerDemanda(id) {
+    confirmar(function () {
+      estado.demandas = estado.demandas.filter(function (d) { return d.id !== id; });
+    }, { tipo: 'demanda-removida', ids: [id] });
+  }
+
+  function atualizarEquipamento(id, campos) {
+    confirmar(function () {
+      estado.equipamentos = estado.equipamentos.map(function (e) {
+        return e.id === id ? Object.assign({}, e, campos) : e;
+      });
+    }, { tipo: 'equipamento-atualizado', ids: [id] });
+  }
+
+  function adicionarManutencao(equipId, janela) {
+    confirmar(function () {
+      estado.equipamentos = estado.equipamentos.map(function (e) {
+        if (e.id !== equipId) return e;
+        var lista = (e.manutencao || []).concat([janela]).sort(function (a, b) {
+          return a.inicio < b.inicio ? -1 : 1;
+        });
+        return Object.assign({}, e, { manutencao: lista });
+      });
+    }, { tipo: 'manutencao-adicionada', ids: [equipId] });
+  }
+
+  function removerManutencao(equipId, indice) {
+    confirmar(function () {
+      estado.equipamentos = estado.equipamentos.map(function (e) {
+        if (e.id !== equipId) return e;
+        var lista = (e.manutencao || []).filter(function (_, i) { return i !== indice; });
+        return Object.assign({}, e, { manutencao: lista });
+      });
+    }, { tipo: 'manutencao-removida', ids: [equipId] });
+  }
+
+  function definirDataBase(iso) {
+    confirmar(function () { estado.dataBase = iso; }, { tipo: 'data-base' });
+  }
+
+  function restaurarSemente() {
+    confirmar(function () { estado = estadoInicial(); }, { tipo: 'reset' });
+  }
+
+  function importar(json) {
+    var dados = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!dados || !Array.isArray(dados.demandas)) throw new Error('Arquivo sem lista de demandas.');
+    confirmar(function () {
+      estado.demandas = dados.demandas;
+      if (Array.isArray(dados.equipamentos)) estado.equipamentos = dados.equipamentos;
+      if (dados.dataBase) estado.dataBase = dados.dataBase;
+      estado.sequencia = Math.max(estado.sequencia, (dados.sequencia || 0));
+    }, { tipo: 'importado' });
+  }
+
+  function exportar() {
+    return JSON.stringify({
+      versao: estado.versao,
+      dataBase: estado.dataBase,
+      horizonteDias: estado.horizonteDias,
+      equipamentos: estado.equipamentos,
+      demandas: estado.demandas,
+      sequencia: estado.sequencia
+    }, null, 2);
+  }
+
+  root.TC.store = {
+    carregar: carregar,
+    subscrever: subscrever,
+    getEstado: getEstado,
+    getPlano: getPlano,
+    confirmarNecessidade: confirmarNecessidade,
+    atualizarDemanda: atualizarDemanda,
+    removerDemanda: removerDemanda,
+    atualizarEquipamento: atualizarEquipamento,
+    adicionarManutencao: adicionarManutencao,
+    removerManutencao: removerManutencao,
+    definirDataBase: definirDataBase,
+    restaurarSemente: restaurarSemente,
+    importar: importar,
+    exportar: exportar
+  };
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+/* Testing Center — renderização das telas. */
+(function (root) {
+  'use strict';
+  var util = root.TC.util;
+  var seed = root.TC.seed;
+  var TC = root.TC;
+
+  var CLIENTES = util.indexarPor(seed.CLIENTES);
+  var PECAS = util.indexarPor(seed.TIPOS_PECA);
+  var FASES = util.indexarPor(seed.FASES);
+  var TIPOS_EQUIP = util.indexarPor(seed.TIPOS_EQUIP);
+
+  var filtros = { cliente: '', peca: '', fase: '', equip: '', busca: '', modo: 'lista' };
+  var selecao = new Set();
+  var destaque = new Set();
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+  function nomeCliente(id) { return (CLIENTES[id] || {}).nome || id; }
+  function corCliente(id) { return (CLIENTES[id] || {}).cor || '#7b8798'; }
+  function nomePeca(id) { return (PECAS[id] || {}).nome || id; }
+  function nomeFase(id) { return (FASES[id] || {}).nome || id; }
+  function nomeEquipTipo(id) { return (TIPOS_EQUIP[id] || {}).nome || id; }
+
+  function chipCliente(id) {
+    return '<span class="chip-cliente"><i style="background:' + corCliente(id) + '"></i>' +
+      esc(nomeCliente(id)) + '</span>';
+  }
+
+  function tagFase(f) {
+    return '<span class="tag tag-fase" title="' + esc(nomeFase(f)) + '">' + esc(f) + '</span>';
+  }
+
+  function tagCrit(c) {
+    return '<span class="tag crit-' + util.slug(c) + '">' + esc(c) + '</span>';
+  }
+
+  /* ============================ CATÁLOGO ============================ */
+
+  function catalogoFiltrado(estado) {
+    var busca = util.normalizar(filtros.busca).trim();
+    return estado.catalogo.filter(function (t) {
+      if (filtros.cliente && t.clienteId !== filtros.cliente) return false;
+      if (filtros.peca && t.pecas.indexOf(filtros.peca) === -1) return false;
+      if (filtros.fase && t.fases.indexOf(filtros.fase) === -1) return false;
+      if (filtros.equip && t.equipTipo !== filtros.equip) return false;
+      if (busca) {
+        var alvo = util.normalizar([t.nome, t.norma, nomeCliente(t.clienteId), t.procedimentoId].join(' '));
+        if (alvo.indexOf(busca) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderCatalogo(estado) {
+    var lista = catalogoFiltrado(estado);
+
+    $('#cat-kpis').innerHTML = [
+      kpiInline('Ensaios no filtro', util.numero(lista.length)),
+      kpiInline('Custo do escopo', util.moedaCompacta(util.soma(lista, seed.custoPadrao))),
+      kpiInline('Horas de bancada', util.numero(util.soma(lista, function (t) { return t.duracaoHoras; })) + ' h'),
+      kpiInline('Clientes', String(new Set(lista.map(function (t) { return t.clienteId; })).size))
+    ].join('');
+
+    $('#cat-lista').hidden = filtros.modo !== 'lista';
+    $('#cat-matriz').hidden = filtros.modo !== 'matriz';
+
+    if (filtros.modo === 'lista') renderCatalogoLista(lista);
+    else renderCatalogoMatriz(lista);
+
+    renderBarraSelecao();
+  }
+
+  function kpiInline(rotulo, valor) {
+    return '<div class="kpi-inline"><span>' + esc(rotulo) + '</span><strong>' + esc(valor) + '</strong></div>';
+  }
+
+  function renderCatalogoLista(lista) {
+    if (!lista.length) {
+      $('#cat-tbody').innerHTML = '<tr><td colspan="10" class="vazio">Nenhum ensaio para este filtro.</td></tr>';
+      return;
+    }
+    var linhas = lista.map(function (t) {
+      var marcado = selecao.has(t.id);
+      return '<tr class="' + (marcado ? 'sel' : '') + '" data-teste="' + esc(t.id) + '">' +
+        '<td class="c-check"><input type="checkbox" data-acao="selecionar" data-teste="' + esc(t.id) + '"' +
+          (marcado ? ' checked' : '') + ' aria-label="Selecionar ' + esc(t.nome) + '"></td>' +
+        '<td>' + chipCliente(t.clienteId) + '</td>' +
+        '<td class="c-nome"><strong>' + esc(t.nome) + '</strong><small>' + esc(t.procedimentoId) + '</small></td>' +
+        '<td class="c-norma"><code>' + esc(t.norma) + '</code></td>' +
+        '<td class="c-pecas">' + t.pecas.map(function (p) {
+            return '<span class="tag tag-peca" title="' + esc(nomePeca(p)) + '">' + esc(p) + '</span>';
+          }).join('') + '</td>' +
+        '<td class="c-fases">' + t.fases.map(tagFase).join('') + '</td>' +
+        '<td class="c-equip"><span title="' + esc(nomeEquipTipo(t.equipTipo)) + '">' + esc(nomeEquipTipo(t.equipTipo)) + '</span></td>' +
+        '<td class="num">' + esc(util.duracao(t.duracaoHoras)) + '</td>' +
+        '<td class="num forte">' + esc(util.moeda(seed.custoPadrao(t))) +
+          '<small>' + esc(t.amostrasPadrao) + ' am. · setup ' + esc(util.moedaCompacta(t.custoSetup)) + '</small></td>' +
+        '<td>' + tagCrit(t.criticidade) + '</td>' +
+        '</tr>';
+    });
+    $('#cat-tbody').innerHTML = linhas.join('');
+  }
+
+  /* Matriz procedimento × cliente: leitura rápida de "quem exige o quê". */
+  function renderCatalogoMatriz(lista) {
+    var clientes = seed.CLIENTES.filter(function (c) {
+      return !filtros.cliente || c.id === filtros.cliente;
+    });
+    var porProc = util.agrupar(lista, function (t) { return t.procedimentoId; });
+    var procs = seed.PROCEDIMENTOS.filter(function (p) { return porProc.has(p.id); });
+
+    if (!procs.length) {
+      $('#cat-matriz').innerHTML = '<p class="vazio">Nenhum ensaio para este filtro.</p>';
+      return;
+    }
+
+    var cab = '<tr><th class="mx-proc">Procedimento</th>' + clientes.map(function (c) {
+      return '<th class="mx-cli"><i style="background:' + c.cor + '"></i>' + esc(c.nome) + '</th>';
+    }).join('') + '</tr>';
+
+    var corpo = procs.map(function (p) {
+      var itens = porProc.get(p.id) || [];
+      var porCliente = util.indexarPor(itens, 'clienteId');
+      return '<tr><th class="mx-proc"><strong>' + esc(p.nome) + '</strong><small>' + esc(p.id) +
+        ' · ' + esc(nomeEquipTipo(p.equip)) + '</small></th>' +
+        clientes.map(function (c) {
+          var t = porCliente[c.id];
+          if (!t) return '<td class="mx-cell mx-off">—</td>';
+          return '<td class="mx-cell" data-teste="' + esc(t.id) + '" tabindex="0" role="button" ' +
+            'title="Clique para confirmar necessidade">' +
+            '<code>' + esc(t.norma) + '</code>' +
+            '<span class="mx-val">' + esc(util.moedaCompacta(seed.custoPadrao(t))) + '</span>' +
+            '<span class="mx-dur">' + esc(util.numero(t.duracaoHoras)) + ' h</span>' +
+            '<span class="mx-fases">' + t.fases.join(' · ') + '</span>' +
+            '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+
+    $('#cat-matriz').innerHTML = '<table class="tabela matriz"><thead>' + cab + '</thead><tbody>' + corpo + '</tbody></table>';
+  }
+
+  function renderBarraSelecao() {
+    var barra = $('#cat-selecao');
+    var n = selecao.size;
+    barra.hidden = n === 0;
+    if (n) {
+      var estado = TC.store.getEstado();
+      var itens = estado.catalogo.filter(function (t) { return selecao.has(t.id); });
+      $('#sel-resumo').innerHTML = '<strong>' + n + '</strong> ensaio' + (n > 1 ? 's' : '') +
+        ' · ' + esc(util.moeda(util.soma(itens, seed.custoPadrao))) +
+        ' · ' + esc(util.numero(util.soma(itens, function (t) { return t.duracaoHoras; }))) + ' h';
+    }
+  }
+
+  /* ============================ DEMANDAS ============================ */
+
+  function renderDemandas(estado, plano) {
+    var porDemanda = util.indexarPor(plano.alocacoes, 'demandaId');
+    var motivos = {};
+    plano.naoAlocadas.forEach(function (n) { motivos[n.demandaId] = n.motivo; });
+    var catalogo = util.indexarPor(estado.catalogo);
+
+    var lista = estado.demandas.slice().sort(function (a, b) {
+      var aa = (porDemanda[a.id] || {}).inicio || '9999';
+      var bb = (porDemanda[b.id] || {}).inicio || '9999';
+      return aa < bb ? -1 : aa > bb ? 1 : 0;
+    });
+
+    if (!lista.length) {
+      $('#dem-tbody').innerHTML = '<tr><td colspan="11" class="vazio">' +
+        'Nenhuma necessidade confirmada. Vá ao catálogo, selecione os ensaios e confirme.</td></tr>';
+      $('#dem-kpis').innerHTML = '';
+      return;
+    }
+
+    $('#dem-kpis').innerHTML = [
+      kpiInline('Demandas', util.numero(lista.length)),
+      kpiInline('Planejadas', util.numero(plano.alocacoes.length)),
+      kpiInline('Sem janela', util.numero(plano.naoAlocadas.length)),
+      kpiInline('Custo confirmado', util.moedaCompacta(plano.resumo.custoTotal))
+    ].join('');
+
+    $('#dem-tbody').innerHTML = lista.map(function (d) {
+      var t = catalogo[d.testeId] || {};
+      var a = porDemanda[d.id];
+      var novo = destaque.has(d.id) ? ' novo' : '';
+      var situacao;
+      if (a) {
+        situacao = '<span class="tag ' + (a.noPrazo ? 'ok' : 'alerta') + '">' +
+          (a.noPrazo ? 'No prazo' : 'Atraso ' + a.atrasoDias + 'd') + '</span>';
+      } else {
+        situacao = '<span class="tag erro" title="' + esc(motivos[d.id] || '') + '">Sem janela</span>';
+      }
+      return '<tr class="' + novo + '" data-demanda="' + esc(d.id) + '">' +
+        '<td class="mono">' + esc(d.id) + '</td>' +
+        '<td>' + chipCliente(t.clienteId) + '</td>' +
+        '<td class="c-nome"><strong>' + esc(t.nome || d.testeId) + '</strong><small>' + esc(t.norma || '') + '</small></td>' +
+        '<td>' + esc(d.projeto) + '<small class="sub">' + esc(nomePeca(d.peca)) + '</small></td>' +
+        '<td>' + tagFase(d.fase) + '</td>' +
+        '<td class="num"><input class="mini" type="number" min="1" step="1" value="' + esc(d.amostras) +
+          '" data-campo="amostras" data-demanda="' + esc(d.id) + '" aria-label="Amostras"></td>' +
+        '<td><input class="mini" type="date" value="' + esc(d.dataPecaDisponivel || '') +
+          '" data-campo="dataPecaDisponivel" data-demanda="' + esc(d.id) + '" aria-label="Peça disponível"></td>' +
+        '<td><input class="mini" type="date" value="' + esc(d.dataAlvo || '') +
+          '" data-campo="dataAlvo" data-demanda="' + esc(d.id) + '" aria-label="Data alvo"></td>' +
+        '<td>' + selectPrioridade(d) + '</td>' +
+        '<td class="c-plan">' + (a
+          ? '<strong>' + esc(util.dataCurta(a.inicio)) + ' → ' + esc(util.dataCurta(a.fim)) + '</strong>' +
+            '<small>' + esc(a.equipamentoId) + ' · ' + esc(util.moedaCompacta(a.custo)) + '</small>'
+          : '<span class="sub">—</span>') + '<br>' + situacao + '</td>' +
+        '<td class="c-acoes"><button class="btn-icone" data-acao="remover-demanda" data-demanda="' +
+          esc(d.id) + '" title="Remover demanda">✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function selectPrioridade(d) {
+    var ops = ['Crítica', 'Alta', 'Média', 'Baixa'];
+    return '<select class="mini prio-' + util.slug(d.prioridade) + '" data-campo="prioridade" data-demanda="' +
+      esc(d.id) + '" aria-label="Prioridade">' + ops.map(function (o) {
+        return '<option value="' + o + '"' + (o === d.prioridade ? ' selected' : '') + '>' + o + '</option>';
+      }).join('') + '</select>';
+  }
+
+  /* ============================ PLANEJAMENTO (GANTT) ============================ */
+
+  var LARGURA_DIA = 13;
+
+  function renderPlano(estado, plano) {
+    var r = plano.resumo;
+    $('#plan-kpis').innerHTML = [
+      kpiCard('Ensaios planejados', util.numero(r.testes), r.pendencias ? r.pendencias + ' sem janela' : 'todos alocados', r.pendencias ? 'alerta' : 'ok'),
+      kpiCard('Custo do plano', util.moedaCompacta(r.custoTotal), util.moeda(r.custoTotal), ''),
+      kpiCard('Horas de bancada', util.numero(r.horasTotais) + ' h', util.numero(r.horasTotais / 24, 0) + ' dias-equipamento', ''),
+      kpiCard('Aderência à data-alvo', r.aderencia + '%', r.atrasados + ' com atraso', r.atrasados ? 'alerta' : 'ok'),
+      kpiCard('Janela do plano', r.primeiroInicio ? util.dataCurta(r.primeiroInicio) + ' → ' + util.dataCurta(r.ultimoFim) : '—',
+        r.ultimoFim ? util.dataLonga(r.ultimoFim) : 'sem alocações', '')
+    ].join('');
+
+    renderGantt(estado, plano);
+    renderPendencias(estado, plano);
+  }
+
+  function kpiCard(rotulo, valor, nota, tom) {
+    return '<div class="kpi ' + tom + '"><span class="kpi-rot">' + esc(rotulo) + '</span>' +
+      '<strong class="kpi-val">' + esc(valor) + '</strong>' +
+      '<span class="kpi-nota">' + esc(nota) + '</span></div>';
+  }
+
+  function renderGantt(estado, plano) {
+    var alvo = $('#gantt');
+    if (!plano.alocacoes.length) {
+      alvo.innerHTML = '<p class="vazio">Nada planejado ainda — confirme necessidades no catálogo.</p>';
+      return;
+    }
+
+    var inicio = util.addDias(plano.resumo.primeiroInicio, -2);
+    var fim = util.addDias(plano.resumo.ultimoFim, 3);
+    var total = util.diffDias(inicio, fim) + 1;
+    var largura = total * LARGURA_DIA;
+
+    var catalogo = util.indexarPor(estado.catalogo);
+    var demandas = util.indexarPor(estado.demandas);
+    var porEquip = util.agrupar(plano.alocacoes, function (a) { return a.equipamentoId; });
+
+    // Cabeçalho: faixa de meses + marcas semanais.
+    var meses = [];
+    var cursor = inicio;
+    while (cursor <= fim) {
+      var chave = cursor.slice(0, 7);
+      var ultimo = meses[meses.length - 1];
+      if (ultimo && ultimo.chave === chave) ultimo.dias++;
+      else meses.push({ chave: chave, dias: 1, rotulo: util.rotuloMes(cursor) });
+      cursor = util.addDias(cursor, 1);
+    }
+
+    var faixaMeses = meses.map(function (m) {
+      return '<div class="g-mes" style="width:' + (m.dias * LARGURA_DIA) + 'px">' + esc(m.rotulo) + '</div>';
+    }).join('');
+
+    var marcas = [];
+    for (var i = 0; i < total; i++) {
+      var dia = util.addDias(inicio, i);
+      if (util.diaDaSemana(dia) === 1) {
+        marcas.push('<div class="g-marca" style="left:' + (i * LARGURA_DIA) + 'px">' + util.dataCurta(dia) + '</div>');
+      }
+    }
+
+    // Camada de fundo: fins de semana e o marcador de hoje.
+    var fundo = [];
+    for (var j = 0; j < total; j++) {
+      var d2 = util.addDias(inicio, j);
+      if (util.ehFimDeSemana(d2)) {
+        fundo.push('<div class="g-fds" style="left:' + (j * LARGURA_DIA) + 'px;width:' + LARGURA_DIA + 'px"></div>');
+      }
+    }
+    var hoje = util.hojeISO();
+    var offHoje = util.diffDias(inicio, hoje);
+    if (offHoje >= 0 && offHoje < total) {
+      fundo.push('<div class="g-hoje" style="left:' + (offHoje * LARGURA_DIA) + 'px" title="Hoje"></div>');
+    }
+
+    var linhas = estado.equipamentos.map(function (eq) {
+      var itens = (porEquip.get(eq.id) || []).slice().sort(function (a, b) {
+        return a.inicio < b.inicio ? -1 : 1;
+      });
+      var faixas = distribuirFaixas(itens);
+      var altura = Math.max(48, faixas.length * 26 + 10);
+
+      var manut = (eq.manutencao || []).map(function (m) {
+        if (m.fim < inicio || m.inicio > fim) return '';
+        var ini = m.inicio < inicio ? inicio : m.inicio;
+        var f = m.fim > fim ? fim : m.fim;
+        return '<div class="g-manut" style="left:' + (util.diffDias(inicio, ini) * LARGURA_DIA) + 'px;width:' +
+          ((util.diffDias(ini, f) + 1) * LARGURA_DIA) + 'px" title="Manutenção: ' + esc(m.motivo || '') +
+          ' (' + esc(util.dataCurta(m.inicio)) + '–' + esc(util.dataCurta(m.fim)) + ')"></div>';
+      }).join('');
+
+      var barras = faixas.map(function (faixa, idx) {
+        return faixa.map(function (a) {
+          var t = catalogo[a.testeId] || {};
+          var dem = demandas[a.demandaId] || {};
+          var left = util.diffDias(inicio, a.inicio) * LARGURA_DIA;
+          var w = (util.diffDias(a.inicio, a.fim) + 1) * LARGURA_DIA;
+          var titulo = [
+            t.nome + ' (' + t.norma + ')',
+            nomeCliente(a.clienteId) + ' · ' + dem.projeto,
+            'Fase ' + dem.fase + ' · ' + a.amostras + ' amostra(s) · ' + a.corridas + ' corrida(s)',
+            util.dataLonga(a.inicio) + ' → ' + util.dataLonga(a.fim),
+            a.diasProdutivos + ' dias produtivos · ' + util.numero(a.horas) + ' h · ' + util.moeda(a.custo),
+            dem.dataAlvo ? (a.noPrazo ? 'Dentro da data-alvo' : 'Atraso de ' + a.atrasoDias + ' dia(s)') : 'Sem data-alvo'
+          ].join('\n');
+          return '<div class="g-barra' + (a.noPrazo ? '' : ' atrasada') + (destaque.has(a.demandaId) ? ' novo' : '') +
+            '" data-demanda="' + esc(a.demandaId) + '" tabindex="0"' +
+            ' style="left:' + left + 'px;width:' + w + 'px;top:' + (idx * 26 + 5) + 'px;--cor:' + corCliente(a.clienteId) + '"' +
+            ' title="' + esc(titulo) + '">' +
+            '<span class="g-rot">' + esc(t.procedimentoId || '') + ' · ' + esc(dem.projeto || '') + '</span></div>';
+        }).join('');
+      }).join('');
+
+      return '<div class="g-linha" style="height:' + altura + 'px">' +
+        '<div class="g-lbl"><strong>' + esc(eq.id) + '</strong><small>' + esc(eq.nome) + '</small>' +
+        '<small class="sub">cap. ' + eq.capacidade + ' · ' + eq.horasPorDia + ' h/dia</small></div>' +
+        '<div class="g-pista" style="width:' + largura + 'px">' + manut + barras + '</div>' +
+        '</div>';
+    }).join('');
+
+    alvo.innerHTML =
+      '<div class="g-wrap">' +
+        '<div class="g-topo">' +
+          '<div class="g-lbl g-lbl-topo">Equipamento</div>' +
+          '<div class="g-pista g-pista-topo" style="width:' + largura + 'px">' +
+            '<div class="g-meses">' + faixaMeses + '</div>' +
+            '<div class="g-marcas">' + marcas.join('') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="g-corpo">' +
+          '<div class="g-lbl-col"></div>' +
+          '<div class="g-fundo" style="width:' + largura + 'px">' + fundo.join('') + '</div>' +
+          linhas +
+        '</div>' +
+      '</div>';
+  }
+
+  /* Empacota alocações que se sobrepõem em faixas distintas dentro da mesma unidade
+     (uma unidade com capacidade > 1 roda ensaios em paralelo). */
+  function distribuirFaixas(itens) {
+    var faixas = [];
+    itens.forEach(function (a) {
+      for (var i = 0; i < faixas.length; i++) {
+        var ultima = faixas[i][faixas[i].length - 1];
+        if (ultima.fim < a.inicio) { faixas[i].push(a); return; }
+      }
+      faixas.push([a]);
+    });
+    return faixas;
+  }
+
+  function renderPendencias(estado, plano) {
+    var alvo = $('#plan-pendencias');
+    var atrasadas = plano.alocacoes.filter(function (a) { return !a.noPrazo; });
+    if (!plano.naoAlocadas.length && !atrasadas.length) {
+      alvo.innerHTML = '<p class="ok-msg">Todos os ensaios confirmados couberam na agenda dentro da data-alvo.</p>';
+      return;
+    }
+    var demandas = util.indexarPor(estado.demandas);
+    var catalogo = util.indexarPor(estado.catalogo);
+    var blocos = [];
+
+    if (atrasadas.length) {
+      blocos.push('<h3 class="risco">Ensaios que estouram a data-alvo (' + atrasadas.length + ')</h3><ul class="lista-risco">' +
+        atrasadas.map(function (a) {
+          var d = demandas[a.demandaId] || {}; var t = catalogo[a.testeId] || {};
+          return '<li><strong>' + esc(t.nome) + '</strong> — ' + esc(nomeCliente(a.clienteId)) + ' / ' + esc(d.projeto) +
+            ' <span class="tag alerta">+' + a.atrasoDias + ' d</span>' +
+            '<small>termina em ' + esc(util.dataLonga(a.fim)) + ' · alvo ' + esc(util.dataLonga(d.dataAlvo)) +
+            ' · ' + esc(a.equipamentoId) + (a.esperaDias ? ' · ' + a.esperaDias + ' d de fila' : '') + '</small></li>';
+        }).join('') + '</ul>');
+    }
+    if (plano.naoAlocadas.length) {
+      blocos.push('<h3 class="risco">Sem janela no horizonte (' + plano.naoAlocadas.length + ')</h3><ul class="lista-risco">' +
+        plano.naoAlocadas.map(function (n) {
+          var d = demandas[n.demandaId] || {}; var t = catalogo[n.testeId] || {};
+          return '<li><strong>' + esc(t.nome || n.demandaId) + '</strong> — ' + esc(d.projeto || '') +
+            '<small>' + esc(n.motivo) + '</small></li>';
+        }).join('') + '</ul>');
+    }
+    alvo.innerHTML = blocos.join('');
+  }
+
+  /* ============================ EQUIPAMENTOS ============================ */
+
+  function renderEquipamentos(estado, plano) {
+    var uso = util.indexarPor(plano.resumo.utilizacao, 'equipamentoId');
+    var horizonte = plano.resumo.ultimoFim
+      ? util.diffDias(estado.dataBase, plano.resumo.ultimoFim) + 1
+      : 30;
+
+    $('#equip-lista').innerHTML = estado.equipamentos.map(function (e) {
+      var u = uso[e.id] || { diasSlot: 0, horas: 0 };
+      var capacidadeDias = horizonte * e.capacidade;
+      var pct = capacidadeDias ? Math.min(100, Math.round((u.diasSlot / capacidadeDias) * 100)) : 0;
+      var manut = (e.manutencao || []).map(function (m, i) {
+        return '<li><span>' + esc(util.dataCurta(m.inicio)) + ' – ' + esc(util.dataCurta(m.fim)) + '</span>' +
+          '<em>' + esc(m.motivo || 'Manutenção') + '</em>' +
+          '<button class="btn-icone" data-acao="remover-manut" data-equip="' + esc(e.id) + '" data-idx="' + i +
+          '" title="Remover janela">✕</button></li>';
+      }).join('');
+
+      return '<article class="card-equip">' +
+        '<header><div><strong>' + esc(e.id) + '</strong><span>' + esc(e.nome) + '</span></div>' +
+        '<span class="tag tag-tipo" title="' + esc(nomeEquipTipo(e.tipo)) + '">' + esc(e.tipo) + '</span></header>' +
+        '<div class="uso"><div class="uso-barra"><i style="width:' + pct + '%"></i></div>' +
+        '<span>' + pct + '% de ocupação · ' + util.numero(u.horas) + ' h no plano</span></div>' +
+        '<div class="campos">' +
+          '<label>Capacidade<input type="number" min="1" step="1" value="' + e.capacidade +
+            '" data-campo-equip="capacidade" data-equip="' + esc(e.id) + '"></label>' +
+          '<label>Horas/dia<input type="number" min="1" max="24" step="1" value="' + e.horasPorDia +
+            '" data-campo-equip="horasPorDia" data-equip="' + esc(e.id) + '"></label>' +
+          '<label class="check"><input type="checkbox" data-campo-equip="diasUteis" data-equip="' + esc(e.id) + '"' +
+            (e.diasUteis ? ' checked' : '') + '>Só dias úteis</label>' +
+        '</div>' +
+        '<div class="manut"><span class="rot">Paradas programadas</span>' +
+          (manut ? '<ul>' + manut + '</ul>' : '<p class="sub">Nenhuma parada programada.</p>') +
+          '<form class="form-manut" data-equip="' + esc(e.id) + '">' +
+            '<input type="date" name="inicio" required aria-label="Início da parada">' +
+            '<input type="date" name="fim" required aria-label="Fim da parada">' +
+            '<input type="text" name="motivo" placeholder="Motivo" aria-label="Motivo">' +
+            '<button type="submit" class="btn-sec">Adicionar</button>' +
+          '</form>' +
+        '</div>' +
+        '</article>';
+    }).join('');
+  }
+
+  /* ============================ VISÃO POR CLIENTE ============================ */
+
+  function renderVisao(estado, plano) {
+    var catalogo = util.indexarPor(estado.catalogo);
+    var demandas = util.indexarPor(estado.demandas);
+
+    var porCliente = util.agrupar(plano.alocacoes, function (a) { return a.clienteId; });
+    var linhasCliente = seed.CLIENTES.map(function (c) {
+      var itens = porCliente.get(c.id) || [];
+      var catalogoCliente = estado.catalogo.filter(function (t) { return t.clienteId === c.id; });
+      return {
+        cliente: c,
+        planejados: itens.length,
+        disponiveis: catalogoCliente.length,
+        custo: util.soma(itens, function (a) { return a.custo; }),
+        horas: util.soma(itens, function (a) { return a.horas; }),
+        custoCatalogo: util.soma(catalogoCliente, seed.custoPadrao),
+        atrasados: itens.filter(function (a) { return !a.noPrazo; }).length
+      };
+    }).sort(function (a, b) { return b.custo - a.custo; });
+
+    var maxCusto = Math.max.apply(null, linhasCliente.map(function (l) { return l.custo; }).concat([1]));
+    var maxHoras = Math.max.apply(null, linhasCliente.map(function (l) { return l.horas; }).concat([1]));
+
+    var tabelaCliente = '<table class="tabela"><thead><tr>' +
+      '<th>Cliente</th><th class="num">Ensaios no catálogo</th><th class="num">Confirmados</th><th class="num">Horas</th>' +
+      '<th class="num">Custo planejado</th><th>Distribuição do custo</th><th class="num">Fora do prazo</th>' +
+      '</tr></thead><tbody>' +
+      linhasCliente.map(function (l) {
+        return '<tr>' +
+          '<td>' + chipCliente(l.cliente.id) + '</td>' +
+          '<td class="num">' + l.disponiveis + '<small class="sub">' + esc(util.moedaCompacta(l.custoCatalogo)) + ' se full scope</small></td>' +
+          '<td class="num forte">' + l.planejados + '</td>' +
+          '<td class="num">' + util.numero(l.horas) + ' h</td>' +
+          '<td class="num forte">' + esc(util.moeda(l.custo)) + '</td>' +
+          '<td class="c-barra"><div class="barra"><i style="width:' + Math.round((l.custo / maxCusto) * 100) +
+            '%;background:' + l.cliente.cor + '"></i></div></td>' +
+          '<td class="num">' + (l.atrasados ? '<span class="tag alerta">' + l.atrasados + '</span>' : '<span class="sub">0</span>') + '</td>' +
+          '</tr>';
+      }).join('') + '</tbody></table>';
+
+    var porFase = util.agrupar(plano.alocacoes, function (a) { return (demandas[a.demandaId] || {}).fase || '—'; });
+    var barrasFase = seed.FASES.map(function (f) {
+      var itens = porFase.get(f.id) || [];
+      var custo = util.soma(itens, function (a) { return a.custo; });
+      return { rotulo: f.id, sub: f.nome, valor: custo, n: itens.length };
+    }).filter(function (b) { return b.n > 0; });
+
+    var porEquipTipo = util.agrupar(plano.alocacoes, function (a) {
+      return (catalogo[a.testeId] || {}).equipTipo || '—';
+    });
+    var barrasEquip = [];
+    porEquipTipo.forEach(function (itens, tipo) {
+      barrasEquip.push({
+        rotulo: tipo, sub: nomeEquipTipo(tipo),
+        valor: util.soma(itens, function (a) { return a.horas; }), n: itens.length
+      });
+    });
+    barrasEquip.sort(function (a, b) { return b.valor - a.valor; });
+
+    $('#visao-conteudo').innerHTML =
+      '<section class="painel"><h2>Carteira por cliente</h2>' +
+        '<p class="sub">Catálogo disponível × necessidade já confirmada e alocada na agenda.</p>' +
+        tabelaCliente + '</section>' +
+      '<div class="grid-2">' +
+        painelBarras('Custo confirmado por fase', barrasFase, util.moedaCompacta, 'n ensaios') +
+        painelBarras('Horas de bancada por tipo de equipamento', barrasEquip, function (v) { return util.numero(v) + ' h'; }, 'n ensaios') +
+      '</div>';
+
+    void maxHoras;
+  }
+
+  function painelBarras(titulo, barras, fmt, unidade) {
+    if (!barras.length) {
+      return '<section class="painel"><h2>' + esc(titulo) + '</h2><p class="vazio">Sem dados no plano atual.</p></section>';
+    }
+    var max = Math.max.apply(null, barras.map(function (b) { return b.valor; }).concat([1]));
+    return '<section class="painel"><h2>' + esc(titulo) + '</h2><ul class="barras">' +
+      barras.map(function (b) {
+        return '<li><span class="b-rot" title="' + esc(b.sub) + '">' + esc(b.rotulo) + '</span>' +
+          '<div class="barra"><i style="width:' + Math.round((b.valor / max) * 100) + '%"></i></div>' +
+          '<span class="b-val">' + esc(fmt(b.valor)) + '<small>' + b.n + ' ensaio' + (b.n > 1 ? 's' : '') + '</small></span></li>';
+      }).join('') + '</ul></section>';
+  }
+
+  /* ============================ CABEÇALHO ============================ */
+
+  function renderCabecalho(estado, plano) {
+    var r = plano.resumo;
+    $('#top-kpis').innerHTML = [
+      '<div class="top-kpi"><span>Ensaios na agenda</span><strong>' + util.numero(r.testes) + '</strong></div>',
+      '<div class="top-kpi"><span>Custo planejado</span><strong>' + esc(util.moedaCompacta(r.custoTotal)) + '</strong></div>',
+      '<div class="top-kpi"><span>Horas de bancada</span><strong>' + util.numero(r.horasTotais) + ' h</strong></div>',
+      '<div class="top-kpi ' + (r.atrasados ? 'alerta' : 'ok') + '"><span>Aderência</span><strong>' + r.aderencia + '%</strong></div>'
+    ].join('');
+  }
+
+  root.TC.views = {
+    filtros: filtros,
+    selecao: selecao,
+    destaque: destaque,
+    esc: esc,
+    $: $,
+    $$: $$,
+    nomeCliente: nomeCliente,
+    nomePeca: nomePeca,
+    catalogoFiltrado: catalogoFiltrado,
+    renderCatalogo: renderCatalogo,
+    renderBarraSelecao: renderBarraSelecao,
+    renderDemandas: renderDemandas,
+    renderPlano: renderPlano,
+    renderEquipamentos: renderEquipamentos,
+    renderVisao: renderVisao,
+    renderCabecalho: renderCabecalho
+  };
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+/* Testing Center — controlador: navegação, eventos e exportações. */
+(function (root) {
+  'use strict';
+  var util = root.TC.util;
+  var seed = root.TC.seed;
+  var store = root.TC.store;
+  var views = root.TC.views;
+
+  var $ = views.$;
+  var $$ = views.$$;
+  var esc = views.esc;
+  var filtros = views.filtros;
+  var selecao = views.selecao;
+  var destaque = views.destaque;
+
+  var abaAtual = 'catalogo';
+  var temporizadorDestaque = null;
+
+  function render() {
+    var estado = store.getEstado();
+    var plano = store.getPlano();
+    views.renderCabecalho(estado, plano);
+    if (abaAtual === 'catalogo') views.renderCatalogo(estado);
+    if (abaAtual === 'demandas') views.renderDemandas(estado, plano);
+    if (abaAtual === 'plano') views.renderPlano(estado, plano);
+    if (abaAtual === 'equipamentos') views.renderEquipamentos(estado, plano);
+    if (abaAtual === 'visao') views.renderVisao(estado, plano);
+  }
+
+  function irPara(aba) {
+    abaAtual = aba;
+    $$('.aba').forEach(function (b) {
+      var ativo = b.dataset.aba === aba;
+      b.classList.toggle('ativa', ativo);
+      b.setAttribute('aria-selected', ativo ? 'true' : 'false');
+    });
+    $$('.vista').forEach(function (v) { v.hidden = v.id !== 'view-' + aba; });
+    render();
+  }
+
+  /* ---------- filtros do catálogo ---------- */
+
+  function preencherFiltros() {
+    opcoes('#f-cliente', seed.CLIENTES, 'Todos os clientes');
+    opcoes('#f-peca', seed.TIPOS_PECA, 'Todas as peças');
+    opcoes('#f-fase', seed.FASES, 'Todas as fases');
+    opcoes('#f-equip', seed.TIPOS_EQUIP, 'Todos os equipamentos');
+  }
+
+  function opcoes(sel, lista, rotuloVazio) {
+    $(sel).innerHTML = '<option value="">' + esc(rotuloVazio) + '</option>' +
+      lista.map(function (i) {
+        return '<option value="' + esc(i.id) + '">' + esc(i.nome) + '</option>';
+      }).join('');
+  }
+
+  /* ---------- modal de confirmação de necessidade ---------- */
+
+  function abrirConfirmacao() {
+    if (!selecao.size) return;
+    var estado = store.getEstado();
+    var itens = estado.catalogo.filter(function (t) { return selecao.has(t.id); });
+
+    var fasesDisponiveis = [];
+    seed.FASES.forEach(function (f) {
+      if (itens.some(function (t) { return t.fases.indexOf(f.id) !== -1; })) fasesDisponiveis.push(f);
+    });
+
+    $('#conf-fase').innerHTML = fasesDisponiveis.map(function (f) {
+      return '<option value="' + esc(f.id) + '"' + (f.id === filtros.fase ? ' selected' : '') + '>' +
+        esc(f.nome) + '</option>';
+    }).join('');
+
+    $('#conf-peca-disp').value = util.addDias(estado.dataBase, 7);
+    $('#conf-alvo').value = util.addDias(estado.dataBase, 90);
+
+    $('#conf-itens').innerHTML = itens.map(function (t) {
+      var pecas = t.pecas.map(function (p) {
+        return '<option value="' + esc(p) + '"' + (p === filtros.peca ? ' selected' : '') + '>' +
+          esc(views.nomePeca(p)) + '</option>';
+      }).join('');
+      return '<li data-teste="' + esc(t.id) + '">' +
+        '<div class="ci-nome"><strong>' + esc(t.nome) + '</strong>' +
+        '<small>' + esc(views.nomeCliente(t.clienteId)) + ' · ' + esc(t.norma) + ' · ' +
+        esc(util.duracao(t.duracaoHoras)) + '</small></div>' +
+        '<label class="ci-peca">Peça<select data-conf="peca">' + pecas + '</select></label>' +
+        '<label class="ci-am">Amostras<input type="number" min="1" step="1" value="' + t.amostrasPadrao +
+          '" data-conf="amostras"></label>' +
+        '<span class="ci-custo" data-custo>' + esc(util.moeda(seed.custoPadrao(t))) + '</span>' +
+        '</li>';
+    }).join('');
+
+    atualizarTotalConfirmacao();
+    $('#dlg-confirmar').showModal();
+  }
+
+  function atualizarTotalConfirmacao() {
+    var estado = store.getEstado();
+    var catalogo = util.indexarPor(estado.catalogo);
+    var total = 0, horas = 0;
+    $$('#conf-itens li').forEach(function (li) {
+      var t = catalogo[li.dataset.teste];
+      if (!t) return;
+      var amostras = Math.max(1, Number(li.querySelector('[data-conf="amostras"]').value) || 1);
+      var custo = seed.custoDemanda(t, amostras);
+      var corridas = Math.max(1, Math.ceil(amostras / (t.amostrasPorCorrida || 1)));
+      li.querySelector('[data-custo]').textContent = util.moeda(custo);
+      total += custo;
+      horas += t.duracaoHoras * corridas;
+    });
+    $('#conf-total').innerHTML = '<span>Custo estimado</span><strong>' + esc(util.moeda(total)) +
+      '</strong><span>· ' + esc(util.numero(horas)) + ' h de bancada</span>';
+  }
+
+  function submeterConfirmacao(ev) {
+    ev.preventDefault();
+    var projeto = $('#conf-projeto').value.trim() || 'Sem projeto';
+    var fase = $('#conf-fase').value;
+    var dataPeca = $('#conf-peca-disp').value;
+    var dataAlvo = $('#conf-alvo').value;
+    var prioridade = $('#conf-prioridade').value;
+    var solicitante = $('#conf-solicitante').value.trim();
+    var obs = $('#conf-obs').value.trim();
+
+    var estado = store.getEstado();
+    var catalogo = util.indexarPor(estado.catalogo);
+
+    var itens = $$('#conf-itens li').map(function (li) {
+      var t = catalogo[li.dataset.teste] || {};
+      return {
+        testeId: li.dataset.teste,
+        projeto: projeto,
+        peca: li.querySelector('[data-conf="peca"]').value,
+        // Se a fase escolhida não vale para este ensaio, cai na primeira fase prevista pela norma.
+        fase: (t.fases || []).indexOf(fase) !== -1 ? fase : (t.fases || [fase])[0],
+        amostras: Number(li.querySelector('[data-conf="amostras"]').value) || 1,
+        dataPecaDisponivel: dataPeca,
+        dataAlvo: dataAlvo,
+        prioridade: prioridade,
+        solicitante: solicitante,
+        obs: obs
+      };
+    });
+
+    var criadas = store.confirmarNecessidade(itens);
+    $('#dlg-confirmar').close();
+    selecao.clear();
+
+    marcarDestaque(criadas.map(function (d) { return d.id; }));
+    irPara('plano');
+    anunciar(criadas.length + ' ensaio(s) confirmado(s) e alocado(s) na agenda.');
+  }
+
+  function marcarDestaque(ids) {
+    destaque.clear();
+    ids.forEach(function (id) { destaque.add(id); });
+    clearTimeout(temporizadorDestaque);
+    temporizadorDestaque = setTimeout(function () { destaque.clear(); render(); }, 6000);
+  }
+
+  function anunciar(msg) {
+    var el = $('#aviso');
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(anunciar._t);
+    anunciar._t = setTimeout(function () { el.hidden = true; }, 5000);
+  }
+
+  /* ---------- exportações ---------- */
+
+  function baixar(nome, conteudo, tipo) {
+    var blob = new Blob([conteudo], { type: tipo + ';charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function csv(linhas) {
+    return '﻿' + linhas.map(function (l) {
+      return l.map(function (c) {
+        var s = String(c == null ? '' : c);
+        return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(';');
+    }).join('\n');
+  }
+
+  function exportarCatalogo() {
+    var lista = views.catalogoFiltrado(store.getEstado());
+    var linhas = [['Cliente', 'Procedimento', 'Código', 'Norma', 'Peças', 'Fases', 'Equipamento',
+      'Duração (h)', 'Amostras padrão', 'Custo setup (R$)', 'Custo por amostra (R$)', 'Custo padrão (R$)', 'Criticidade']];
+    lista.forEach(function (t) {
+      linhas.push([views.nomeCliente(t.clienteId), t.nome, t.procedimentoId, t.norma,
+        t.pecas.join(' / '), t.fases.join(' / '), t.equipTipo, t.duracaoHoras, t.amostrasPadrao,
+        t.custoSetup, t.custoAmostra, seed.custoPadrao(t), t.criticidade]);
+    });
+    baixar('catalogo-ensaios.csv', csv(linhas), 'text/csv');
+  }
+
+  function exportarPlano() {
+    var estado = store.getEstado();
+    var plano = store.getPlano();
+    var catalogo = util.indexarPor(estado.catalogo);
+    var demandas = util.indexarPor(estado.demandas);
+    var linhas = [['Demanda', 'Cliente', 'Projeto', 'Ensaio', 'Norma', 'Peça', 'Fase', 'Equipamento',
+      'Início', 'Fim', 'Dias produtivos', 'Amostras', 'Corridas', 'Horas', 'Custo (R$)', 'Data alvo', 'Atraso (dias)']];
+    plano.alocacoes.forEach(function (a) {
+      var t = catalogo[a.testeId] || {}; var d = demandas[a.demandaId] || {};
+      linhas.push([a.demandaId, views.nomeCliente(a.clienteId), d.projeto, t.nome, t.norma,
+        views.nomePeca(d.peca), d.fase, a.equipamentoId, a.inicio, a.fim, a.diasProdutivos,
+        a.amostras, a.corridas, a.horas, a.custo, d.dataAlvo || '', a.atrasoDias]);
+    });
+    plano.naoAlocadas.forEach(function (n) {
+      var d = demandas[n.demandaId] || {}; var t = catalogo[n.testeId] || {};
+      linhas.push([n.demandaId, views.nomeCliente(t.clienteId), d.projeto, t.nome, t.norma,
+        views.nomePeca(d.peca), d.fase, 'NÃO ALOCADO', '', '', '', d.amostras, '', '', '', d.dataAlvo || '', n.motivo]);
+    });
+    baixar('planejamento-ensaios.csv', csv(linhas), 'text/csv');
+  }
+
+  /* ---------- eventos ---------- */
+
+  function ligarEventos() {
+    $$('.aba').forEach(function (b) {
+      b.addEventListener('click', function () { irPara(b.dataset.aba); });
+    });
+
+    ['cliente', 'peca', 'fase', 'equip'].forEach(function (campo) {
+      $('#f-' + campo).addEventListener('change', function (e) {
+        filtros[campo] = e.target.value;
+        render();
+      });
+    });
+
+    var t = null;
+    $('#f-busca').addEventListener('input', function (e) {
+      clearTimeout(t);
+      var v = e.target.value;
+      t = setTimeout(function () { filtros.busca = v; render(); }, 150);
+    });
+
+    $$('[data-modo]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        filtros.modo = b.dataset.modo;
+        $$('[data-modo]').forEach(function (x) { x.classList.toggle('ativa', x === b); });
+        render();
+      });
+    });
+
+    $('#f-limpar').addEventListener('click', function () {
+      filtros.cliente = filtros.peca = filtros.fase = filtros.equip = filtros.busca = '';
+      ['cliente', 'peca', 'fase', 'equip'].forEach(function (c) { $('#f-' + c).value = ''; });
+      $('#f-busca').value = '';
+      render();
+    });
+
+    // Catálogo: seleção e clique na matriz.
+    $('#view-catalogo').addEventListener('click', function (ev) {
+      var chk = ev.target.closest('[data-acao="selecionar"]');
+      if (chk) {
+        if (chk.checked) selecao.add(chk.dataset.teste); else selecao.delete(chk.dataset.teste);
+        chk.closest('tr').classList.toggle('sel', chk.checked);
+        views.renderBarraSelecao();
+        return;
+      }
+      var linha = ev.target.closest('tr[data-teste]');
+      if (linha && !ev.target.closest('input')) {
+        var box = linha.querySelector('[data-acao="selecionar"]');
+        box.checked = !box.checked;
+        box.dispatchEvent(new Event('click', { bubbles: true }));
+        return;
+      }
+      var celula = ev.target.closest('.mx-cell[data-teste]');
+      if (celula) {
+        selecao.clear();
+        selecao.add(celula.dataset.teste);
+        abrirConfirmacao();
+      }
+    });
+
+    $('#view-catalogo').addEventListener('keydown', function (ev) {
+      var celula = ev.target.closest && ev.target.closest('.mx-cell[data-teste]');
+      if (celula && (ev.key === 'Enter' || ev.key === ' ')) {
+        ev.preventDefault();
+        selecao.clear(); selecao.add(celula.dataset.teste); abrirConfirmacao();
+      }
+    });
+
+    $('#cat-todos').addEventListener('change', function (e) {
+      var lista = views.catalogoFiltrado(store.getEstado());
+      if (e.target.checked) lista.forEach(function (x) { selecao.add(x.id); });
+      else lista.forEach(function (x) { selecao.delete(x.id); });
+      render();
+    });
+
+    $('#sel-confirmar').addEventListener('click', abrirConfirmacao);
+    $('#sel-limpar').addEventListener('click', function () { selecao.clear(); render(); });
+
+    $('#form-confirmar').addEventListener('submit', submeterConfirmacao);
+    $('#conf-cancelar').addEventListener('click', function () { $('#dlg-confirmar').close(); });
+    $('#conf-itens').addEventListener('input', atualizarTotalConfirmacao);
+
+    // Demandas: edição inline e remoção.
+    $('#view-demandas').addEventListener('change', function (ev) {
+      var alvo = ev.target.closest('[data-campo][data-demanda]');
+      if (!alvo) return;
+      var valor = alvo.type === 'number' ? Math.max(1, Number(alvo.value) || 1) : alvo.value;
+      var campos = {};
+      campos[alvo.dataset.campo] = valor;
+      store.atualizarDemanda(alvo.dataset.demanda, campos);
+    });
+
+    $('#view-demandas').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('[data-acao="remover-demanda"]');
+      if (!btn) return;
+      var id = btn.dataset.demanda;
+      if (confirm('Remover a demanda ' + id + ' do planejamento?')) store.removerDemanda(id);
+    });
+
+    // Equipamentos: capacidade, jornada e paradas.
+    $('#view-equipamentos').addEventListener('change', function (ev) {
+      var alvo = ev.target.closest('[data-campo-equip][data-equip]');
+      if (!alvo) return;
+      var campo = alvo.dataset.campoEquip;
+      var valor = alvo.type === 'checkbox' ? alvo.checked : Math.max(1, Number(alvo.value) || 1);
+      if (campo === 'horasPorDia') valor = Math.min(24, valor);
+      var campos = {};
+      campos[campo] = valor;
+      store.atualizarEquipamento(alvo.dataset.equip, campos);
+    });
+
+    $('#view-equipamentos').addEventListener('submit', function (ev) {
+      var form = ev.target.closest('.form-manut');
+      if (!form) return;
+      ev.preventDefault();
+      var inicio = form.inicio.value, fim = form.fim.value;
+      if (!inicio || !fim) return;
+      if (fim < inicio) { anunciar('A data final da parada não pode ser anterior à inicial.'); return; }
+      store.adicionarManutencao(form.dataset.equip, {
+        inicio: inicio, fim: fim, motivo: form.motivo.value.trim() || 'Manutenção'
+      });
+    });
+
+    $('#view-equipamentos').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('[data-acao="remover-manut"]');
+      if (!btn) return;
+      store.removerManutencao(btn.dataset.equip, Number(btn.dataset.idx));
+    });
+
+    // Gantt: clicar numa barra leva à demanda correspondente.
+    $('#view-plano').addEventListener('click', function (ev) {
+      var barra = ev.target.closest('.g-barra[data-demanda]');
+      if (!barra) return;
+      marcarDestaque([barra.dataset.demanda]);
+      irPara('demandas');
+    });
+
+    $('#btn-exportar-catalogo').addEventListener('click', exportarCatalogo);
+    $('#btn-exportar-plano').addEventListener('click', exportarPlano);
+    $('#btn-exportar-json').addEventListener('click', function () {
+      baixar('testing-center.json', store.exportar(), 'application/json');
+    });
+    $('#btn-importar').addEventListener('click', function () { $('#file-importar').click(); });
+    $('#file-importar').addEventListener('change', function (ev) {
+      var arquivo = ev.target.files && ev.target.files[0];
+      if (!arquivo) return;
+      var leitor = new FileReader();
+      leitor.onload = function () {
+        try { store.importar(String(leitor.result)); anunciar('Base importada e replanejada.'); }
+        catch (e) { anunciar('Não foi possível importar: ' + e.message); }
+      };
+      leitor.readAsText(arquivo);
+      ev.target.value = '';
+    });
+    $('#btn-reset').addEventListener('click', function () {
+      if (confirm('Restaurar a base de exemplo? As demandas atuais serão descartadas.')) {
+        store.restaurarSemente();
+        selecao.clear();
+        anunciar('Base de exemplo restaurada.');
+      }
+    });
+  }
+
+  function iniciar() {
+    store.carregar();
+    store.subscrever(function () { render(); });
+    preencherFiltros();
+    ligarEventos();
+    irPara('catalogo');
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testing Center — Validação de Sistemas de Exaustão</title>
+<meta name="description" content="Catálogo de ensaios por cliente, custo e tempo de execução, com planejamento automático por disponibilidade de equipamento e de peça.">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <span class="logo" aria-hidden="true">◎</span>
+    <div>
+      <h1>Testing Center</h1>
+      <p>Validação de produto e processo — sistemas de exaustão</p>
+    </div>
+  </div>
+  <div id="top-kpis" class="top-kpis"></div>
+  <div class="acoes-topo">
+    <button id="btn-exportar-json" class="btn-sec" title="Baixar a base atual em JSON">Exportar base</button>
+    <button id="btn-importar" class="btn-sec" title="Carregar uma base salva">Importar</button>
+    <input type="file" id="file-importar" accept="application/json" hidden>
+    <button id="btn-reset" class="btn-sec perigo" title="Voltar à base de exemplo">Restaurar</button>
+  </div>
+</header>
+
+<nav class="abas" role="tablist" aria-label="Seções">
+  <button class="aba ativa" data-aba="catalogo" role="tab" aria-selected="true">Catálogo por cliente</button>
+  <button class="aba" data-aba="demandas" role="tab" aria-selected="false">Necessidades confirmadas</button>
+  <button class="aba" data-aba="plano" role="tab" aria-selected="false">Planejamento</button>
+  <button class="aba" data-aba="equipamentos" role="tab" aria-selected="false">Equipamentos</button>
+  <button class="aba" data-aba="visao" role="tab" aria-selected="false">Visão gerencial</button>
+</nav>
+
+<p id="aviso" class="aviso" role="status" hidden></p>
+
+<main>
+
+  <!-- ================= CATÁLOGO ================= -->
+  <section id="view-catalogo" class="vista" role="tabpanel">
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Catálogo de ensaios por cliente</h2>
+        <p class="sub">Todo procedimento exigido por cada montadora, com norma, peças aplicáveis,
+          fase do projeto, equipamento, tempo de execução e custo. Selecione o que precisa e confirme —
+          a necessidade entra automaticamente no planejamento.</p>
+      </div>
+      <button id="btn-exportar-catalogo" class="btn-sec">Exportar CSV</button>
+    </div>
+
+    <div class="filtros">
+      <label>Cliente<select id="f-cliente"></select></label>
+      <label>Tipo de peça<select id="f-peca"></select></label>
+      <label>Fase do projeto<select id="f-fase"></select></label>
+      <label>Equipamento<select id="f-equip"></select></label>
+      <label class="cresce">Busca<input id="f-busca" type="search" placeholder="ensaio, norma, código…"></label>
+      <button id="f-limpar" class="btn-sec">Limpar</button>
+      <div class="segmentado" role="group" aria-label="Modo de exibição">
+        <button class="ativa" data-modo="lista">Lista</button>
+        <button data-modo="matriz">Matriz</button>
+      </div>
+    </div>
+
+    <div id="cat-kpis" class="kpis-inline"></div>
+
+    <div id="cat-lista" class="rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th class="c-check"><input type="checkbox" id="cat-todos" aria-label="Selecionar todos os ensaios do filtro"></th>
+            <th>Cliente</th>
+            <th>Ensaio</th>
+            <th>Norma</th>
+            <th>Peças</th>
+            <th>Fases</th>
+            <th>Equipamento</th>
+            <th class="num">Duração</th>
+            <th class="num">Custo padrão</th>
+            <th>Criticidade</th>
+          </tr>
+        </thead>
+        <tbody id="cat-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="cat-matriz" class="rolagem" hidden></div>
+
+    <div id="cat-selecao" class="barra-selecao" hidden>
+      <span id="sel-resumo"></span>
+      <div>
+        <button id="sel-limpar" class="btn-sec">Limpar seleção</button>
+        <button id="sel-confirmar" class="btn">Confirmar necessidade →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DEMANDAS ================= -->
+  <section id="view-demandas" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Necessidades confirmadas</h2>
+        <p class="sub">Cada linha é um ensaio confirmado. Alterar amostras, disponibilidade da peça,
+          data-alvo ou prioridade replaneja a agenda na hora.</p>
+      </div>
+    </div>
+    <div id="dem-kpis" class="kpis-inline"></div>
+    <div class="rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>ID</th><th>Cliente</th><th>Ensaio</th><th>Projeto / peça</th><th>Fase</th>
+            <th class="num">Amostras</th><th>Peça disponível</th><th>Data alvo</th><th>Prioridade</th>
+            <th>Alocação</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="dem-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= PLANEJAMENTO ================= -->
+  <section id="view-plano" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Planejamento de bancada</h2>
+        <p class="sub">Alocação automática por prioridade, disponibilidade da peça e capacidade do
+          equipamento. Fins de semana, paradas de manutenção e jornada de cada bancada são respeitados.</p>
+      </div>
+      <button id="btn-exportar-plano" class="btn-sec">Exportar CSV</button>
+    </div>
+    <div id="plan-kpis" class="kpis"></div>
+    <div id="gantt" class="gantt"></div>
+    <div class="legenda">
+      <span><i class="lg-barra"></i> ensaio alocado (cor = cliente)</span>
+      <span><i class="lg-atraso"></i> termina depois da data-alvo</span>
+      <span><i class="lg-manut"></i> parada de manutenção</span>
+      <span><i class="lg-fds"></i> fim de semana</span>
+      <span><i class="lg-hoje"></i> hoje</span>
+    </div>
+    <div id="plan-pendencias" class="pendencias"></div>
+  </section>
+
+  <!-- ================= EQUIPAMENTOS ================= -->
+  <section id="view-equipamentos" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Equipamentos e disponibilidade</h2>
+        <p class="sub">Capacidade simultânea, jornada e paradas programadas. Qualquer alteração
+          aqui reprograma imediatamente todos os ensaios afetados.</p>
+      </div>
+    </div>
+    <div id="equip-lista" class="grid-equip"></div>
+  </section>
+
+  <!-- ================= VISÃO GERENCIAL ================= -->
+  <section id="view-visao" class="vista" role="tabpanel" hidden>
+    <div class="cabecalho-vista">
+      <div>
+        <h2>Visão gerencial</h2>
+        <p class="sub">Onde o orçamento e as horas de bancada estão comprometidos.</p>
+      </div>
+    </div>
+    <div id="visao-conteudo"></div>
+  </section>
+
+</main>
+
+<!-- ================= MODAL DE CONFIRMAÇÃO ================= -->
+<dialog id="dlg-confirmar" class="modal">
+  <form id="form-confirmar" method="dialog">
+    <h2>Confirmar necessidade de ensaio</h2>
+    <p class="sub">Ao confirmar, os ensaios entram na fila e são alocados automaticamente na primeira
+      janela livre de equipamento a partir da data em que a peça estiver disponível.</p>
+
+    <div class="campos-modal">
+      <label>Projeto<input id="conf-projeto" type="text" placeholder="ex.: MQB Facelift" required></label>
+      <label>Fase do projeto<select id="conf-fase"></select></label>
+      <label>Peça disponível em<input id="conf-peca-disp" type="date" required></label>
+      <label>Data alvo (gate)<input id="conf-alvo" type="date"></label>
+      <label>Prioridade<select id="conf-prioridade">
+        <option>Crítica</option><option>Alta</option><option selected>Média</option><option>Baixa</option>
+      </select></label>
+      <label>Solicitante<input id="conf-solicitante" type="text" placeholder="ex.: D. Vergini"></label>
+      <label class="largo">Observações<input id="conf-obs" type="text" placeholder="opcional"></label>
+    </div>
+
+    <ul id="conf-itens" class="itens-modal"></ul>
+    <div id="conf-total" class="total-modal"></div>
+
+    <menu class="acoes-modal">
+      <button type="button" id="conf-cancelar" class="btn-sec">Cancelar</button>
+      <button type="submit" class="btn">Confirmar e planejar</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="assets/js/00-util.js"></script>
+<script src="assets/js/10-seed.js"></script>
+<script src="assets/js/20-scheduler.js"></script>
+<script src="assets/js/30-store.js"></script>
+<script src="assets/js/40-views.js"></script>
+<script src="assets/js/50-app.js"></script>
+</body>
+</html>

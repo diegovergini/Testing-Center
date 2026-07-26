@@ -1,0 +1,20 @@
+{
+  "name": "testing-center",
+  "version": "1.0.0",
+  "description": "Catálogo de ensaios de validação de sistemas de exaustão por cliente, com custo, tempo de execução e planejamento automático por disponibilidade de equipamento e de peça.",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build": "node build.js",
+    "start": "node --run serve",
+    "serve": "node -e \"const h=require('node:http'),f=require('node:fs'),p=require('node:path');h.createServer((q,s)=>{const u=q.url.split('?')[0];const a=p.join(__dirname,u==='/'?'index.html':u);f.readFile(a,(e,d)=>{if(e){s.writeHead(404);return s.end('404');}const t={'.html':'text/html','.css':'text/css','.js':'text/javascript'}[p.extname(a)]||'text/plain';s.writeHead(200,{'content-type':t+'; charset=utf-8'});s.end(d);});}).listen(8080,()=>console.log('http://localhost:8080'))\""
+  },
+  "keywords": [
+    "validacao",
+    "ensaios",
+    "sistema-de-exaustao",
+    "planejamento",
+    "laboratorio"
+  ],
+  "license": "UNLICENSED"
+}
