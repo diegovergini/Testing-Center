@@ -1,0 +1,11 @@
+{
+  "name": "testing-center",
+  "version": "1.0.0",
+  "description": "Catálogo de testes físicos de sistemas de exaustão com planejamento automático por disponibilidade de equipamento e de peça.",
+  "private": true,
+  "scripts": {
+    "serve": "python3 -m http.server 8080",
+    "test": "node --test tests/scheduler.test.js"
+  },
+  "license": "MIT"
+}
