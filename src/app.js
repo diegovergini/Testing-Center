@@ -134,5 +134,11 @@
   }
 
   TC.app = { iniciar: iniciar, ir: ir, ROTAS: ROTAS };
-  document.addEventListener('DOMContentLoaded', iniciar);
+
+  /* Em página embutida o documento já pode estar pronto quando este script roda. */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : this);

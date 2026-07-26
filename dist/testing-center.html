@@ -1,0 +1,2633 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Testing Center — validação de sistemas de exaustão</title>
+  <meta name="description" content="Catálogo de testes físicos, custo, tempo de execução e planejamento automático por disponibilidade de equipamento e de peça.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+  <style>
+/* Testing Center — folha de estilo única.
+   O tema segue a preferência do sistema, mas um atributo data-theme no elemento raiz
+   tem precedência, para hospedagens que oferecem um alternador próprio. */
+
+:root, :root[data-theme="light"] {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e2e8f0;
+  --border-forte: #cbd5e1;
+  --texto: #17222f;
+  --texto-fraco: #64748b;
+  --marca: #0f5c8c;
+  --marca-fraca: #e3f0f8;
+  --hot: #c2410c;
+  --hot-bg: #fff1e8;
+  --cold: #0369a1;
+  --cold-bg: #e6f3fb;
+  --ambos: #6d28d9;
+  --ambos-bg: #f1ebfd;
+  --ok: #15803d;
+  --ok-bg: #e6f5ec;
+  --alerta: #b45309;
+  --alerta-bg: #fdf3e3;
+  --erro: #b91c1c;
+  --erro-bg: #fdecec;
+  --sombra: 0 1px 2px rgba(15, 32, 51, .06), 0 4px 12px rgba(15, 32, 51, .05);
+  --raio: 10px;
+}
+
+/* O :not() evita que a preferência do sistema sobreponha uma escolha explícita de tema claro. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1520;
+    --surface: #16202e;
+    --surface-2: #1b2735;
+    --border: #26374b;
+    --border-forte: #354a63;
+    --texto: #e7eef6;
+    --texto-fraco: #94a9bf;
+    --marca: #4aa3d8;
+    --marca-fraca: #17324a;
+    --hot: #fb923c;
+    --hot-bg: #3a2113;
+    --cold: #56b4e6;
+    --cold-bg: #12303f;
+    --ambos: #a78bfa;
+    --ambos-bg: #2b2148;
+    --ok: #4ade80;
+    --ok-bg: #12321f;
+    --alerta: #fbbf24;
+    --alerta-bg: #392b10;
+    --erro: #f87171;
+    --erro-bg: #3a1717;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .28);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1520;
+  --surface: #16202e;
+  --surface-2: #1b2735;
+  --border: #26374b;
+  --border-forte: #354a63;
+  --texto: #e7eef6;
+  --texto-fraco: #94a9bf;
+  --marca: #4aa3d8;
+  --marca-fraca: #17324a;
+  --hot: #fb923c;
+  --hot-bg: #3a2113;
+  --cold: #56b4e6;
+  --cold-bg: #12303f;
+  --ambos: #a78bfa;
+  --ambos-bg: #2b2148;
+  --ok: #4ade80;
+  --ok-bg: #12321f;
+  --alerta: #fbbf24;
+  --alerta-bg: #392b10;
+  --erro: #f87171;
+  --erro-bg: #3a1717;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .28);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--texto);
+  /* Pilha do sistema: nenhuma fonte externa a carregar, nenhum fallback silencioso. */
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Estrutura ---------- */
+
+.app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+.lateral {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.marca { display: flex; align-items: center; gap: 10px; padding: 0 8px 18px; }
+.marca .logo {
+  width: 34px; height: 34px; border-radius: 9px; flex: none;
+  background: linear-gradient(140deg, var(--marca), #12b3a8);
+  display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px;
+}
+.marca h1 { font-size: 15px; margin: 0; line-height: 1.15; }
+.marca span { color: var(--texto-fraco); font-size: 11px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px; cursor: pointer;
+  color: var(--texto-fraco); font-weight: 500; border: none; background: none;
+  width: 100%; text-align: left; font-size: 13.5px;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--texto); }
+.nav-item.ativo { background: var(--marca-fraca); color: var(--marca); font-weight: 600; }
+.nav-item .contador {
+  margin-left: auto; background: var(--border); color: var(--texto-fraco);
+  border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 600;
+}
+.nav-item.ativo .contador { background: var(--marca); color: #fff; }
+
+.nav-titulo {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--texto-fraco); padding: 14px 10px 6px; font-weight: 700;
+}
+
+/* min-width:0 impede que o Gantt (largura fixa em px) estique a coluna do grid
+   e empurre o restante da página para fora da tela. */
+.conteudo { padding: 22px 26px 60px; max-width: 1500px; min-width: 0; }
+
+.cabecalho { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.cabecalho h2 { margin: 0 0 3px; font-size: 20px; }
+.cabecalho p { margin: 0; color: var(--texto-fraco); font-size: 13px; max-width: 68ch; }
+.cabecalho .acoes { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- Componentes ---------- */
+
+.cartao {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--raio); box-shadow: var(--sombra);
+}
+.cartao + .cartao { margin-top: 16px; }
+.cartao-topo {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.cartao-topo h3 { margin: 0; font-size: 14px; }
+.cartao-corpo { padding: 16px; }
+
+.botao {
+  border: 1px solid var(--border-forte); background: var(--surface); color: var(--texto);
+  padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;
+  font-family: inherit; display: inline-flex; align-items: center; gap: 6px;
+}
+.botao:hover { background: var(--surface-2); }
+.botao.primario { background: var(--marca); border-color: var(--marca); color: #fff; }
+.botao.primario:hover { filter: brightness(1.08); }
+.botao.perigo { color: var(--erro); border-color: var(--erro); background: transparent; }
+.botao.perigo:hover { background: var(--erro-bg); }
+.botao.pequeno { padding: 4px 9px; font-size: 12px; }
+.botao:disabled { opacity: .5; cursor: not-allowed; }
+
+input, select, textarea {
+  font: inherit; color: var(--texto); background: var(--surface);
+  border: 1px solid var(--border-forte); border-radius: 8px; padding: 7px 9px; width: 100%;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--marca); outline-offset: -1px; }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--texto-fraco); margin-bottom: 4px; }
+.campo { margin-bottom: 12px; }
+.grade-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 14px; }
+
+.filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.filtros .campo { margin: 0; min-width: 150px; }
+.filtros .campo.busca { flex: 1; min-width: 220px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--texto-fraco); padding: 9px 12px; border-bottom: 1px solid var(--border);
+  white-space: nowrap; background: var(--surface-2);
+}
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr:last-child td { border-bottom: none; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabela-rolagem { overflow-x: auto; }
+
+.etiqueta {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  background: var(--surface-2); color: var(--texto-fraco); border: 1px solid var(--border);
+}
+.etiqueta.hot { background: var(--hot-bg); color: var(--hot); border-color: transparent; }
+.etiqueta.cold { background: var(--cold-bg); color: var(--cold); border-color: transparent; }
+.etiqueta.ambos { background: var(--ambos-bg); color: var(--ambos); border-color: transparent; }
+.etiqueta.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.etiqueta.alerta { background: var(--alerta-bg); color: var(--alerta); border-color: transparent; }
+.etiqueta.erro { background: var(--erro-bg); color: var(--erro); border-color: transparent; }
+.etiqueta.marca { background: var(--marca-fraca); color: var(--marca); border-color: transparent; }
+
+.fases { display: flex; gap: 3px; flex-wrap: nowrap; }
+.fase-chip {
+  font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+  background: var(--surface-2); color: var(--texto-fraco); border: 1px solid var(--border);
+}
+.fase-chip.on { background: var(--marca-fraca); color: var(--marca); border-color: transparent; }
+
+.sub { color: var(--texto-fraco); font-size: 12px; }
+.forte { font-weight: 600; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; white-space: nowrap; }
+
+.vazio { padding: 44px 20px; text-align: center; color: var(--texto-fraco); }
+.vazio strong { display: block; color: var(--texto); margin-bottom: 4px; font-size: 14px; }
+
+/* ---------- Indicadores ---------- */
+
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.indicador {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--raio);
+  padding: 14px 16px; box-shadow: var(--sombra);
+}
+.indicador .rotulo { font-size: 11.5px; color: var(--texto-fraco); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.indicador .valor { font-size: 23px; font-weight: 700; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.indicador .nota { font-size: 12px; color: var(--texto-fraco); margin-top: 2px; }
+
+/* ---------- Barras ---------- */
+
+.barra-trilho { display: block; height: 7px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; min-width: 90px; }
+.barra-valor { display: block; height: 100%; background: var(--marca); }
+.barra-valor.alerta { background: var(--alerta); }
+.barra-valor.erro { background: var(--erro); }
+
+/* ---------- Gantt ---------- */
+
+.gantt { overflow-x: auto; }
+.gantt-grade { min-width: max-content; }
+.gantt-linha { display: grid; grid-template-columns: 230px 1fr; align-items: stretch; }
+.gantt-linha + .gantt-linha { border-top: 1px solid var(--border); }
+.gantt-rotulo {
+  padding: 8px 12px; border-right: 1px solid var(--border); position: sticky; left: 0;
+  background: var(--surface); z-index: 2; display: flex; flex-direction: column; justify-content: center;
+}
+.gantt-rotulo .nome { font-weight: 600; font-size: 12.5px; }
+.gantt-faixa { position: relative; height: 40px; }
+.gantt-linha.cabecalho .gantt-faixa { height: 34px; }
+.gantt-linha.cabecalho .gantt-rotulo { background: var(--surface-2); }
+.gantt-linha.cabecalho { background: var(--surface-2); position: sticky; top: 0; z-index: 3; }
+.gantt-dia { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--border); }
+.gantt-dia.fds { background: var(--surface-2); }
+.gantt-dia.manutencao { background: repeating-linear-gradient(45deg, var(--alerta-bg), var(--alerta-bg) 5px, transparent 5px, transparent 10px); }
+.gantt-dia.hoje { border-right: 2px solid var(--marca); }
+.gantt-mes { position: absolute; top: 2px; font-size: 11px; font-weight: 700; color: var(--texto-fraco); padding-left: 5px; white-space: nowrap; }
+.gantt-numero { position: absolute; bottom: 3px; font-size: 9.5px; color: var(--texto-fraco); text-align: center; }
+.gantt-barra {
+  position: absolute; top: 6px; height: 28px; border-radius: 6px; padding: 0 7px;
+  display: flex; align-items: center; font-size: 11.5px; font-weight: 600; color: #fff;
+  overflow: hidden; white-space: nowrap; cursor: pointer; background: var(--marca);
+  border: 1px solid rgba(0, 0, 0, .12);
+}
+.gantt-barra.hot { background: var(--hot); }
+.gantt-barra.cold { background: var(--cold); }
+.gantt-barra.ambos { background: var(--ambos); }
+.gantt-barra.atrasado { outline: 2px solid var(--erro); outline-offset: 1px; }
+.gantt-barra:hover { filter: brightness(1.12); }
+.legenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--texto-fraco); align-items: center; }
+.legenda i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- Modal ---------- */
+
+.modal-fundo {
+  position: fixed; inset: 0; background: rgba(11, 20, 31, .55);
+  display: grid; place-items: center; padding: 20px; z-index: 50;
+}
+.modal {
+  background: var(--surface); border-radius: 12px; width: min(640px, 100%);
+  max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+  border: 1px solid var(--border);
+}
+.modal-topo { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+.modal-topo h3 { margin: 0; font-size: 15px; }
+.modal-topo .fechar { margin-left: auto; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--texto-fraco); line-height: 1; }
+.modal-corpo { padding: 18px; }
+.modal-pe { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+.aviso {
+  padding: 10px 12px; border-radius: 8px; font-size: 12.5px;
+  background: var(--marca-fraca); color: var(--marca); margin-bottom: 14px;
+}
+.aviso.alerta { background: var(--alerta-bg); color: var(--alerta); }
+.aviso.erro { background: var(--erro-bg); color: var(--erro); }
+
+.notificacao {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--texto); color: var(--bg); padding: 10px 18px; border-radius: 30px;
+  font-size: 13px; font-weight: 500; z-index: 80; box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+}
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .lateral { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .marca { padding-bottom: 0; width: 100%; }
+  .nav-titulo { display: none; }
+  .nav-item { width: auto; }
+  .conteudo { padding: 16px; }
+}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="lateral" id="lateral">
+      <div class="marca">
+        <div class="logo">TC</div>
+        <div>
+          <h1>Testing Center</h1>
+          <span>Validação de exaustão</span>
+        </div>
+      </div>
+      <nav id="menu"></nav>
+    </aside>
+    <main class="conteudo" id="conteudo"></main>
+  </div>
+
+  <script>
+/* Utilitários gerais: datas (sempre em UTC, formato ISO YYYY-MM-DD), moeda e DOM. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+
+  var MS_DIA = 86400000;
+  var NOMES_DIA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  var NOMES_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  /* Converte 'YYYY-MM-DD' em Date UTC à meia-noite. */
+  function paraData(iso) {
+    var p = String(iso).slice(0, 10).split('-');
+    return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+  }
+
+  function paraISO(data) {
+    return data.toISOString().slice(0, 10);
+  }
+
+  function somaDias(iso, dias) {
+    return paraISO(new Date(paraData(iso).getTime() + dias * MS_DIA));
+  }
+
+  function diffDias(isoA, isoB) {
+    return Math.round((paraData(isoB) - paraData(isoA)) / MS_DIA);
+  }
+
+  function diaDaSemana(iso) {
+    return paraData(iso).getUTCDay();
+  }
+
+  function hoje() {
+    return paraISO(new Date());
+  }
+
+  function maiorData(a, b) {
+    return diffDias(a, b) > 0 ? b : a;
+  }
+
+  /* '2026-07-26' -> '26/jul' ou '26/07/2026' quando completo. */
+  function formatarData(iso, completo) {
+    if (!iso) return '—';
+    var d = paraData(iso);
+    if (completo) {
+      return String(d.getUTCDate()).padStart(2, '0') + '/' +
+        String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + d.getUTCFullYear();
+    }
+    return String(d.getUTCDate()).padStart(2, '0') + '/' + NOMES_MES[d.getUTCMonth()];
+  }
+
+  function formatarMoeda(valor) {
+    return 'R$ ' + Number(valor || 0).toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+  }
+
+  /* Horas -> '72 h (3 d)' para leitura rápida no catálogo. */
+  function formatarHoras(horas) {
+    if (horas < 24) return horas + ' h';
+    var dias = horas / 24;
+    return horas + ' h (' + (Math.round(dias * 10) / 10) + ' d)';
+  }
+
+  function escapar(texto) {
+    return String(texto == null ? '' : texto)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function id(prefixo) {
+    return prefixo + '-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+  }
+
+  function porId(lista, chave) {
+    for (var i = 0; i < lista.length; i++) if (lista[i].id === chave) return lista[i];
+    return null;
+  }
+
+  TC.util = {
+    MS_DIA: MS_DIA,
+    NOMES_DIA: NOMES_DIA,
+    paraData: paraData,
+    paraISO: paraISO,
+    somaDias: somaDias,
+    diffDias: diffDias,
+    diaDaSemana: diaDaSemana,
+    hoje: hoje,
+    maiorData: maiorData,
+    formatarData: formatarData,
+    formatarMoeda: formatarMoeda,
+    formatarHoras: formatarHoras,
+    escapar: escapar,
+    id: id,
+    porId: porId
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = TC.util;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Dados de partida: clientes, fases de projeto, equipamentos, catálogo de testes e peças.
+   Tudo é editável na aplicação — isto é apenas o estado inicial. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+
+  /* Fases de projeto na sequência do APQP. */
+  var FASES = [
+    { id: 'CONCEITO', nome: 'Conceito', descricao: 'Estudos de viabilidade e seleção de material' },
+    { id: 'DV', nome: 'DV — Design Validation', descricao: 'Validação de projeto com protótipos' },
+    { id: 'PV', nome: 'PV — Product Validation', descricao: 'Validação com peças de ferramental definitivo' },
+    { id: 'PPAP', nome: 'PPAP', descricao: 'Aprovação de peça de produção' },
+    { id: 'SERIE', nome: 'Série', descricao: 'Monitoramento e requalificação periódica' }
+  ];
+
+  var AREAS = [
+    { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
+    { id: 'COLD', nome: 'Cold End', descricao: 'Silencioso, ressonador, tubos, ponteira, coxins' },
+    { id: 'AMBOS', nome: 'Hot & Cold End', descricao: 'Aplicável aos dois lados do sistema' }
+  ];
+
+  var PRIORIDADES = [
+    { id: 'ALTA', nome: 'Alta', peso: 0 },
+    { id: 'MEDIA', nome: 'Média', peso: 1 },
+    { id: 'BAIXA', nome: 'Baixa', peso: 2 }
+  ];
+
+  var CLIENTES = [
+    { id: 'CLI-FOR', nome: 'Forvia Faurecia', segmento: 'Tier 1' },
+    { id: 'CLI-TEN', nome: 'Tenneco / Walker', segmento: 'Tier 1' },
+    { id: 'CLI-EBE', nome: 'Eberspächer', segmento: 'Tier 1' },
+    { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
+    { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
+    { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
+  ];
+
+  /* positions = quantos ensaios o equipamento roda em paralelo.
+     continuo = true -> ensaio corre 24 h/dia sem operador (câmaras, bancos de gás).
+     diasUteis = dias da semana em que o equipamento opera (0 = domingo). */
+  var EQUIPAMENTOS = [
+    { id: 'SHK-01', nome: 'Shaker eletrodinâmico 3 eixos', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 480, manutencao: [] },
+    { id: 'SHK-02', nome: 'Shaker com câmara térmica (vibração a quente)', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 690, manutencao: [] },
+    { id: 'HGB-01', nome: 'Banco de gás quente (burner rig)', posicoes: 2, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
+    { id: 'TSC-01', nome: 'Câmara de choque térmico', posicoes: 2, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 290, manutencao: [] },
+    { id: 'CCT-01', nome: 'Câmara de corrosão cíclica (VDA / ASTM)', posicoes: 6, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 150, manutencao: [] },
+    { id: 'RDS-01', nome: 'Simulador de estrada 4 postes', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 820, manutencao: [] },
+    { id: 'FLW-01', nome: 'Banco de fluxo / perda de carga', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 240, manutencao: [] },
+    { id: 'ACU-01', nome: 'Câmara semi-anecoica', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 560, manutencao: [] },
+    { id: 'LEK-01', nome: 'Bancada de estanqueidade (hélio)', posicoes: 2, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 130, manutencao: [] },
+    { id: 'UTM-01', nome: 'Máquina universal de ensaios', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 180, manutencao: [] },
+    { id: 'GRV-01', nome: 'Câmara de gravelometria', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 200, manutencao: [] },
+    { id: 'CMM-01', nome: 'Máquina de medição por coordenadas', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 210, manutencao: [] },
+    { id: 'MET-01', nome: 'Laboratório metalográfico', posicoes: 2, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 160, manutencao: [] }
+  ];
+
+  /* Catálogo de procedimentos.
+     custoBase = mão de obra, preparação, instrumentação e insumos (não inclui hora-máquina nem amostras).
+     horasSetup + horasEnsaio alimentam tanto o custo quanto o planejamento.
+     clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos. */
+  var TESTES = [
+    {
+      id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente',
+      clientes: ['CLI-VW', 'CLI-SCA'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
+      horasSetup: 8, horasEnsaio: 600, amostras: 2, custoBase: 12800,
+      descricao: 'Ciclagem de gás quente com gradiente térmico para avaliar trincas em soldas e cones.'
+    },
+    {
+      id: 'TP-HOT-02', nome: 'Choque térmico acelerado', norma: 'ISO 19453-5',
+      clientes: [],
+      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV', 'PPAP'],
+      horasSetup: 4, horasEnsaio: 336, amostras: 2, custoBase: 6400,
+      descricao: 'Ciclos rápidos entre −40 °C e 950 °C para verificar integridade de juntas e revestimentos.'
+    },
+    {
+      id: 'TP-HOT-03', nome: 'Vibração a quente (hot vibration)', norma: 'LV 124 / cliente',
+      clientes: ['CLI-VW', 'CLI-FOR'],
+      area: 'HOT', equipamentoId: 'SHK-02', fases: ['DV', 'PV'],
+      horasSetup: 12, horasEnsaio: 240, amostras: 2, custoBase: 15200,
+      descricao: 'Vibração aleatória com peça aquecida, reproduzindo o carregamento do coletor em serviço.'
+    },
+    {
+      id: 'TP-HOT-04', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54',
+      clientes: [],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['CONCEITO', 'DV'],
+      horasSetup: 4, horasEnsaio: 1000, amostras: 3, custoBase: 9800,
+      descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico/austenítico.'
+    },
+    {
+      id: 'TP-HOT-05', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX',
+      clientes: ['CLI-FOR', 'CLI-TEN'],
+      area: 'HOT', equipamentoId: 'SHK-02', fases: ['DV', 'PV'],
+      horasSetup: 6, horasEnsaio: 180, amostras: 3, custoBase: 7300,
+      descricao: 'Deslocamento angular e axial cíclico a quente até 1 milhão de ciclos.'
+    },
+    {
+      id: 'TP-HOT-06', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV', 'PPAP'],
+      horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
+      descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
+    },
+    {
+      id: 'TP-HOT-07', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente',
+      clientes: ['CLI-VW', 'CLI-SCA'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
+      horasSetup: 6, horasEnsaio: 480, amostras: 2, custoBase: 16900,
+      descricao: 'Envelhecimento térmico do washcoat equivalente à vida útil do veículo.'
+    },
+    {
+      id: 'TP-COL-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3',
+      clientes: [],
+      area: 'COLD', equipamentoId: 'SHK-01', fases: ['DV', 'PV'],
+      horasSetup: 8, horasEnsaio: 72, amostras: 2, custoBase: 5600,
+      descricao: 'Perfil PSD por eixo representando a vida em estrada do silencioso e suportes.'
+    },
+    {
+      id: 'TP-COL-02', nome: 'Corrosão cíclica VDA 233-102', norma: 'VDA 233-102',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-EBE'],
+      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'SERIE'],
+      horasSetup: 3, horasEnsaio: 1512, amostras: 3, custoBase: 4200,
+      descricao: 'Doze semanas de ciclos de salmoura, umidade e frio para avaliar aluminizado e inox.'
+    },
+    {
+      id: 'TP-COL-03', nome: 'Névoa salina neutra 480 h', norma: 'ASTM B117',
+      clientes: [],
+      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PPAP', 'SERIE'],
+      horasSetup: 2, horasEnsaio: 480, amostras: 3, custoBase: 2400,
+      descricao: 'Ensaio de referência para revestimentos e proteção de solda.'
+    },
+    {
+      id: 'TP-COL-04', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544',
+      clientes: [],
+      area: 'COLD', equipamentoId: 'FLW-01', fases: ['CONCEITO', 'DV', 'PV', 'PPAP'],
+      horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
+      descricao: 'Levantamento da curva de contrapressão em função da vazão.'
+    },
+    {
+      id: 'TP-COL-05', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820',
+      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
+      area: 'COLD', equipamentoId: 'ACU-01', fases: ['CONCEITO', 'DV', 'PV'],
+      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
+      descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
+    },
+    {
+      id: 'TP-COL-06', nome: 'Ruído de passagem e tailpipe noise', norma: 'ISO 362',
+      clientes: ['CLI-STL', 'CLI-VW'],
+      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'PPAP'],
+      horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
+      descricao: 'Verificação do nível sonoro do sistema completo montado no veículo.'
+    },
+    {
+      id: 'TP-COL-07', nome: 'Gravelometria (impacto de pedras)', norma: 'ISO 20567-1',
+      clientes: ['CLI-TEN', 'CLI-STL'],
+      area: 'COLD', equipamentoId: 'GRV-01', fases: ['DV', 'PV'],
+      horasSetup: 2, horasEnsaio: 12, amostras: 2, custoBase: 2900,
+      descricao: 'Projeção de granalha para avaliar resistência do revestimento externo e da ponteira.'
+    },
+    {
+      id: 'TP-COL-08', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR',
+      clientes: ['CLI-EBE'],
+      area: 'COLD', equipamentoId: 'UTM-01', fases: ['DV', 'PV'],
+      horasSetup: 3, horasEnsaio: 120, amostras: 5, custoBase: 3400,
+      descricao: 'Carregamento cíclico do isolador de borracha até perda de rigidez especificada.'
+    },
+    {
+      id: 'TP-AMB-01', nome: 'Estanqueidade por hélio', norma: 'Procedimento interno LAB-LEAK',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'PPAP', 'SERIE'],
+      horasSetup: 1, horasEnsaio: 4, amostras: 3, custoBase: 900,
+      descricao: 'Detecção de vazamento em soldas e flanges com traçador de hélio.'
+    },
+    {
+      id: 'TP-AMB-02', nome: 'Durabilidade em simulador de estrada', norma: 'Perfil de pista do cliente',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
+      area: 'AMBOS', equipamentoId: 'RDS-01', fases: ['PV'],
+      horasSetup: 24, horasEnsaio: 320, amostras: 1, custoBase: 28500,
+      descricao: 'Sistema completo montado no veículo, reproduzindo o ciclo de durabilidade de pista.'
+    },
+    {
+      id: 'TP-AMB-03', nome: 'Análise dimensional em CMM', norma: 'Desenho do cliente',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'PPAP', 'SERIE'],
+      horasSetup: 3, horasEnsaio: 10, amostras: 5, custoBase: 2100,
+      descricao: 'Layout dimensional completo para o dossiê de PPAP.'
+    },
+    {
+      id: 'TP-AMB-04', nome: 'Análise metalográfica de solda', norma: 'ISO 17639',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV', 'PPAP'],
+      horasSetup: 2, horasEnsaio: 16, amostras: 4, custoBase: 3100,
+      descricao: 'Macrografia e micrografia para penetração, porosidade e tamanho de grão.'
+    },
+    {
+      id: 'TP-AMB-05', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['CONCEITO', 'PPAP', 'SERIE'],
+      horasSetup: 1, horasEnsaio: 6, amostras: 6, custoBase: 1500,
+      descricao: 'Caracterização mecânica do inox de entrada por lote.'
+    }
+  ];
+
+  /* Peças em validação. dataAmostras = quando o lote de amostras chega ao laboratório;
+     nenhum ensaio pode começar antes dessa data. */
+  var PECAS = [
+    { id: 'PC-001', nome: 'Coletor de escape 1.0 TSI', clienteId: 'CLI-VW', programa: 'VW MQB-A0 / EA211', area: 'HOT', dataAmostras: '2026-08-03', quantidade: 8, custoAmostra: 3800 },
+    { id: 'PC-002', nome: 'Catalisador close-coupled', clienteId: 'CLI-VW', programa: 'VW MQB-A0 / EA211', area: 'HOT', dataAmostras: '2026-08-17', quantidade: 6, custoAmostra: 5400 },
+    { id: 'PC-003', nome: 'Downpipe com flexível', clienteId: 'CLI-FOR', programa: 'Fiat 270 Hybrid', area: 'HOT', dataAmostras: '2026-08-10', quantidade: 10, custoAmostra: 2200 },
+    { id: 'PC-004', nome: 'Silencioso traseiro', clienteId: 'CLI-FOR', programa: 'Fiat 270 Hybrid', area: 'COLD', dataAmostras: '2026-08-24', quantidade: 8, custoAmostra: 1650 },
+    { id: 'PC-005', nome: 'Ressonador intermediário', clienteId: 'CLI-TEN', programa: 'Stellantis P1H', area: 'COLD', dataAmostras: '2026-09-07', quantidade: 12, custoAmostra: 980 },
+    { id: 'PC-006', nome: 'Ponteira cromada dupla', clienteId: 'CLI-TEN', programa: 'Stellantis P1H', area: 'COLD', dataAmostras: '2026-09-14', quantidade: 10, custoAmostra: 740 },
+    { id: 'PC-007', nome: 'Módulo DPF pesado', clienteId: 'CLI-SCA', programa: 'Scania Euro 6 Step E', area: 'HOT', dataAmostras: '2026-09-21', quantidade: 4, custoAmostra: 14200 },
+    { id: 'PC-008', nome: 'Coxim de suspensão do sistema', clienteId: 'CLI-EBE', programa: 'GM Gemini BEV Range Ext.', area: 'COLD', dataAmostras: '2026-08-31', quantidade: 30, custoAmostra: 120 },
+    { id: 'PC-009', nome: 'Tubo intermediário conformado', clienteId: 'CLI-STL', programa: 'Stellantis SmallWide', area: 'COLD', dataAmostras: '2026-10-05', quantidade: 10, custoAmostra: 860 }
+  ];
+
+  TC.data = {
+    FASES: FASES,
+    AREAS: AREAS,
+    PRIORIDADES: PRIORIDADES,
+    seed: function () {
+      return {
+        clientes: JSON.parse(JSON.stringify(CLIENTES)),
+        equipamentos: JSON.parse(JSON.stringify(EQUIPAMENTOS)),
+        testes: JSON.parse(JSON.stringify(TESTES)),
+        pecas: JSON.parse(JSON.stringify(PECAS)),
+        demandas: []
+      };
+    }
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = TC.data;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Motor de planejamento.
+   Recebe as demandas confirmadas e devolve a alocação em equipamento/posição,
+   respeitando: data de chegada das amostras, calendário e manutenção do equipamento,
+   número de posições em paralelo, prioridade e prazo. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
+  var dados = TC.data || (typeof require !== 'undefined' ? require('./data.js') : null);
+
+  var HORIZONTE_DIAS = 1095; /* 3 anos: além disso consideramos a demanda impossível de alocar. */
+
+  function ehDiaUtil(equipamento, iso) {
+    return equipamento.diasUteis.indexOf(util.diaDaSemana(iso)) !== -1;
+  }
+
+  function emManutencao(equipamento, iso) {
+    var janelas = equipamento.manutencao || [];
+    for (var i = 0; i < janelas.length; i++) {
+      if (util.diffDias(janelas[i].inicio, iso) >= 0 && util.diffDias(iso, janelas[i].fim) >= 0) return true;
+    }
+    return false;
+  }
+
+  /* Quantos dias de operação o ensaio consome neste equipamento.
+     Equipamento contínuo roda 24 h/dia; os demais, apenas as horas do turno. */
+  function diasDeOperacao(teste, equipamento) {
+    var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+    var horasPorDia = equipamento.continuo ? 24 : (equipamento.horasDia || 8);
+    return Math.max(1, Math.ceil(horas / horasPorDia));
+  }
+
+  /* A partir de uma data de início, devolve a janela de calendário que o ensaio ocupa.
+     Dias não úteis dentro da janela continuam ocupando a posição (a peça segue montada).
+     Devolve null se a janela atravessar uma parada de manutenção. */
+  function calcularJanela(equipamento, inicio, diasNecessarios) {
+    var cursor = inicio;
+    var contados = 0;
+    var guarda = 0;
+    while (contados < diasNecessarios && guarda++ < HORIZONTE_DIAS) {
+      if (emManutencao(equipamento, cursor)) return null;
+      if (ehDiaUtil(equipamento, cursor)) contados++;
+      if (contados < diasNecessarios) cursor = util.somaDias(cursor, 1);
+    }
+    return contados === diasNecessarios ? { inicio: inicio, fim: cursor } : null;
+  }
+
+  function sobrepoe(a, b) {
+    return util.diffDias(a.inicio, b.fim) >= 0 && util.diffDias(b.inicio, a.fim) >= 0;
+  }
+
+  function primeiroConflito(reservas, janela) {
+    for (var i = 0; i < reservas.length; i++) {
+      if (sobrepoe(reservas[i], janela)) return reservas[i];
+    }
+    return null;
+  }
+
+  /* Procura a primeira janela livre numa posição, a partir de dataMinima. */
+  function buscarJanela(equipamento, reservas, dataMinima, diasNecessarios) {
+    var cursor = dataMinima;
+    var limite = util.somaDias(dataMinima, HORIZONTE_DIAS);
+    var guarda = 0;
+    while (util.diffDias(cursor, limite) > 0 && guarda++ < HORIZONTE_DIAS) {
+      if (!ehDiaUtil(equipamento, cursor) || emManutencao(equipamento, cursor)) {
+        cursor = util.somaDias(cursor, 1);
+        continue;
+      }
+      var janela = calcularJanela(equipamento, cursor, diasNecessarios);
+      if (!janela) { cursor = util.somaDias(cursor, 1); continue; }
+      var conflito = primeiroConflito(reservas, janela);
+      if (conflito) { cursor = util.somaDias(conflito.fim, 1); continue; }
+      return janela;
+    }
+    return null;
+  }
+
+  function pesoPrioridade(id) {
+    var p = util.porId(dados.PRIORIDADES, id);
+    return p ? p.peso : 9;
+  }
+
+  /* Custo de uma demanda: mão de obra/insumos + hora-máquina + amostras consumidas. */
+  function custoDemanda(demanda, teste, equipamento, peca) {
+    if (!teste) return { horas: 0, custoBase: 0, custoEquipamento: 0, custoAmostras: 0, total: 0 };
+    var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+    var quantidade = demanda && demanda.quantidade ? demanda.quantidade : teste.amostras;
+    var custoEquipamento = horas * (equipamento ? equipamento.custoHora : 0);
+    var custoAmostras = quantidade * (peca ? peca.custoAmostra || 0 : 0);
+    var custoBase = teste.custoBase || 0;
+    return {
+      horas: horas,
+      quantidade: quantidade,
+      custoBase: custoBase,
+      custoEquipamento: custoEquipamento,
+      custoAmostras: custoAmostras,
+      total: custoBase + custoEquipamento + custoAmostras
+    };
+  }
+
+  /* Custo de referência do catálogo, sem peça associada. */
+  function custoCatalogo(teste, equipamento) {
+    return custoDemanda(null, teste, equipamento, null);
+  }
+
+  var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
+
+  /* Planeja todas as demandas ativas. Não altera o estado recebido. */
+  function planejar(estado, dataBase) {
+    var hoje = dataBase || util.hoje();
+    var equipamentos = estado.equipamentos;
+    var reservas = {}; /* equipamentoId -> array por posição */
+
+    equipamentos.forEach(function (eq) {
+      reservas[eq.id] = [];
+      for (var i = 0; i < eq.posicoes; i++) reservas[eq.id].push([]);
+    });
+
+    var ativas = estado.demandas.filter(function (d) { return ATIVAS.indexOf(d.status) !== -1; });
+
+    var fixas = ativas.filter(function (d) { return !!d.inicioFixo; });
+    var livres = ativas.filter(function (d) { return !d.inicioFixo; });
+
+    fixas.sort(function (a, b) { return util.diffDias(b.inicioFixo, a.inicioFixo); });
+    livres.sort(function (a, b) {
+      var dp = pesoPrioridade(a.prioridade) - pesoPrioridade(b.prioridade);
+      if (dp !== 0) return dp;
+      if (a.prazo && b.prazo) {
+        var dd = util.diffDias(b.prazo, a.prazo);
+        if (dd !== 0) return dd;
+      } else if (a.prazo !== b.prazo) {
+        return a.prazo ? -1 : 1;
+      }
+      return util.diffDias(b.criadoEm || hoje, a.criadoEm || hoje);
+    });
+
+    var alocacoes = [];
+
+    function processar(demanda) {
+      var teste = util.porId(estado.testes, demanda.testeId);
+      var peca = util.porId(estado.pecas, demanda.pecaId);
+      var equipamento = teste ? util.porId(equipamentos, teste.equipamentoId) : null;
+      var custo = custoDemanda(demanda, teste, equipamento, peca);
+
+      var base = {
+        demandaId: demanda.id,
+        demanda: demanda,
+        teste: teste,
+        peca: peca,
+        equipamento: equipamento,
+        custo: custo,
+        posicao: null,
+        inicio: null,
+        fim: null,
+        motivo: null
+      };
+
+      if (!teste || !equipamento) {
+        base.motivo = !teste ? 'Procedimento não encontrado no catálogo.'
+          : 'Equipamento "' + teste.equipamentoId + '" não cadastrado.';
+        alocacoes.push(base);
+        return;
+      }
+
+      var dias = diasDeOperacao(teste, equipamento);
+      var disponibilidadePeca = peca ? peca.dataAmostras : hoje;
+      var dataMinima = util.maiorData(hoje, disponibilidadePeca);
+      if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
+
+      var melhor = null;
+      for (var p = 0; p < equipamento.posicoes; p++) {
+        var janela;
+        if (demanda.inicioFixo) {
+          janela = calcularJanela(equipamento, demanda.inicioFixo, dias);
+          if (janela && primeiroConflito(reservas[equipamento.id][p], janela)) janela = null;
+        } else {
+          janela = buscarJanela(equipamento, reservas[equipamento.id][p], dataMinima, dias);
+        }
+        if (!janela) continue;
+        if (!melhor || util.diffDias(janela.inicio, melhor.janela.inicio) > 0) {
+          melhor = { posicao: p, janela: janela };
+        }
+      }
+
+      if (!melhor) {
+        base.motivo = demanda.inicioFixo
+          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) + ' indisponível em todas as posições de ' + equipamento.id + '.'
+          : 'Sem janela livre em ' + equipamento.id + ' dentro do horizonte de planejamento.';
+        base.diasOperacao = dias;
+        alocacoes.push(base);
+        return;
+      }
+
+      reservas[equipamento.id][melhor.posicao].push(melhor.janela);
+
+      base.posicao = melhor.posicao;
+      base.inicio = melhor.janela.inicio;
+      base.fim = melhor.janela.fim;
+      base.diasOperacao = dias;
+      base.esperaAmostra = util.diffDias(hoje, disponibilidadePeca) > 0
+        ? util.diffDias(hoje, disponibilidadePeca) : 0;
+      base.esperaFila = util.diffDias(dataMinima, melhor.janela.inicio);
+      base.folga = demanda.prazo ? util.diffDias(melhor.janela.fim, demanda.prazo) : null;
+      base.atrasado = base.folga !== null && base.folga < 0;
+      alocacoes.push(base);
+    }
+
+    fixas.forEach(processar);
+    livres.forEach(processar);
+
+    alocacoes.sort(function (a, b) {
+      if (!a.inicio && !b.inicio) return 0;
+      if (!a.inicio) return 1;
+      if (!b.inicio) return -1;
+      return util.diffDias(b.inicio, a.inicio);
+    });
+
+    return {
+      alocacoes: alocacoes,
+      agendadas: alocacoes.filter(function (a) { return !!a.inicio; }),
+      bloqueadas: alocacoes.filter(function (a) { return !a.inicio; })
+    };
+  }
+
+  TC.scheduler = {
+    planejar: planejar,
+    custoDemanda: custoDemanda,
+    custoCatalogo: custoCatalogo,
+    diasDeOperacao: diasDeOperacao,
+    calcularJanela: calcularJanela,
+    buscarJanela: buscarJanela,
+    ehDiaUtil: ehDiaUtil,
+    emManutencao: emManutencao,
+    STATUS_ATIVOS: ATIVAS
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = TC.scheduler;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Estado da aplicação: persistência em localStorage, CRUD e exportação/importação. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util;
+
+  var CHAVE = 'testing-center/v1';
+  var estado = null;
+  var ouvintes = [];
+
+  function carregar() {
+    try {
+      var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
+      if (bruto) {
+        var lido = JSON.parse(bruto);
+        if (lido && lido.testes && lido.equipamentos) return lido;
+      }
+    } catch (e) {
+      console.warn('Não foi possível ler os dados salvos, recomeçando do catálogo padrão.', e);
+    }
+    return TC.data.seed();
+  }
+
+  function salvar() {
+    try {
+      if (global.localStorage) global.localStorage.setItem(CHAVE, JSON.stringify(estado));
+    } catch (e) {
+      console.warn('Não foi possível salvar no navegador.', e);
+    }
+  }
+
+  function notificar() {
+    ouvintes.forEach(function (fn) { fn(estado); });
+  }
+
+  function commit() {
+    salvar();
+    notificar();
+  }
+
+  var store = {
+    init: function () {
+      estado = carregar();
+      return estado;
+    },
+    get: function () { return estado; },
+    aoMudar: function (fn) { ouvintes.push(fn); },
+
+    /* ---- Demandas ---- */
+    criarDemanda: function (dados) {
+      var demanda = {
+        id: util.id('DM'),
+        testeId: dados.testeId,
+        pecaId: dados.pecaId,
+        clienteId: dados.clienteId,
+        fase: dados.fase,
+        prioridade: dados.prioridade || 'MEDIA',
+        quantidade: Number(dados.quantidade) || 1,
+        prazo: dados.prazo || '',
+        inicioFixo: dados.inicioFixo || '',
+        observacao: dados.observacao || '',
+        status: 'PENDENTE',
+        criadoEm: util.hoje()
+      };
+      estado.demandas.push(demanda);
+      commit();
+      return demanda;
+    },
+    atualizarDemanda: function (id, campos) {
+      var d = util.porId(estado.demandas, id);
+      if (!d) return null;
+      Object.keys(campos).forEach(function (k) { d[k] = campos[k]; });
+      commit();
+      return d;
+    },
+    removerDemanda: function (id) {
+      estado.demandas = estado.demandas.filter(function (d) { return d.id !== id; });
+      commit();
+    },
+
+    /* ---- Catálogo de testes ---- */
+    salvarTeste: function (teste) {
+      var existente = teste.id ? util.porId(estado.testes, teste.id) : null;
+      if (existente) {
+        Object.keys(teste).forEach(function (k) { existente[k] = teste[k]; });
+      } else {
+        teste.id = teste.id || util.id('TP');
+        estado.testes.push(teste);
+      }
+      commit();
+      return teste;
+    },
+    removerTeste: function (id) {
+      estado.testes = estado.testes.filter(function (t) { return t.id !== id; });
+      estado.demandas = estado.demandas.filter(function (d) { return d.testeId !== id; });
+      commit();
+    },
+
+    /* ---- Equipamentos ---- */
+    salvarEquipamento: function (equipamento) {
+      var existente = equipamento.id ? util.porId(estado.equipamentos, equipamento.id) : null;
+      if (existente) {
+        Object.keys(equipamento).forEach(function (k) { existente[k] = equipamento[k]; });
+      } else {
+        equipamento.manutencao = equipamento.manutencao || [];
+        estado.equipamentos.push(equipamento);
+      }
+      commit();
+      return equipamento;
+    },
+    removerEquipamento: function (id) {
+      estado.equipamentos = estado.equipamentos.filter(function (e) { return e.id !== id; });
+      commit();
+    },
+    adicionarManutencao: function (equipamentoId, janela) {
+      var eq = util.porId(estado.equipamentos, equipamentoId);
+      if (!eq) return;
+      eq.manutencao = eq.manutencao || [];
+      eq.manutencao.push({ id: util.id('MN'), inicio: janela.inicio, fim: janela.fim, motivo: janela.motivo || 'Manutenção' });
+      commit();
+    },
+    removerManutencao: function (equipamentoId, janelaId) {
+      var eq = util.porId(estado.equipamentos, equipamentoId);
+      if (!eq) return;
+      eq.manutencao = (eq.manutencao || []).filter(function (m) { return m.id !== janelaId; });
+      commit();
+    },
+
+    /* ---- Peças ---- */
+    salvarPeca: function (peca) {
+      var existente = peca.id ? util.porId(estado.pecas, peca.id) : null;
+      if (existente) {
+        Object.keys(peca).forEach(function (k) { existente[k] = peca[k]; });
+      } else {
+        peca.id = peca.id || util.id('PC');
+        estado.pecas.push(peca);
+      }
+      commit();
+      return peca;
+    },
+    removerPeca: function (id) {
+      estado.pecas = estado.pecas.filter(function (p) { return p.id !== id; });
+      commit();
+    },
+
+    /* ---- Clientes ---- */
+    salvarCliente: function (cliente) {
+      var existente = cliente.id ? util.porId(estado.clientes, cliente.id) : null;
+      if (existente) {
+        Object.keys(cliente).forEach(function (k) { existente[k] = cliente[k]; });
+      } else {
+        cliente.id = cliente.id || util.id('CLI');
+        estado.clientes.push(cliente);
+      }
+      commit();
+      return cliente;
+    },
+
+    /* ---- Backup ---- */
+    exportar: function () {
+      return JSON.stringify(estado, null, 2);
+    },
+    importar: function (texto) {
+      var lido = JSON.parse(texto);
+      if (!lido.testes || !lido.equipamentos) throw new Error('Arquivo sem catálogo de testes ou equipamentos.');
+      lido.demandas = lido.demandas || [];
+      lido.pecas = lido.pecas || [];
+      lido.clientes = lido.clientes || [];
+      estado = lido;
+      commit();
+    },
+    restaurarPadrao: function () {
+      estado = TC.data.seed();
+      commit();
+    }
+  };
+
+  TC.store = store;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Peças de interface reaproveitadas pelas telas: modal, notificação, etiquetas e filtros. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util;
+  var e = util.escapar;
+
+  function el(html) {
+    var t = document.createElement('template');
+    t.innerHTML = html.trim();
+    return t.content.firstElementChild;
+  }
+
+  var modalAberto = null;
+
+  function fecharModal() {
+    if (modalAberto) { modalAberto.remove(); modalAberto = null; }
+  }
+
+  /* opcoes: { titulo, corpo (HTML), confirmar, aoConfirmar(formulario) -> bool|undefined, largura } */
+  function modal(opcoes) {
+    fecharModal();
+    var fundo = el(
+      '<div class="modal-fundo">' +
+        '<div class="modal" role="dialog" aria-modal="true">' +
+          '<div class="modal-topo"><h3>' + e(opcoes.titulo) + '</h3>' +
+            '<button class="fechar" aria-label="Fechar">&times;</button></div>' +
+          '<form class="modal-corpo"></form>' +
+          '<div class="modal-pe">' +
+            '<button type="button" class="botao cancelar">Cancelar</button>' +
+            (opcoes.confirmar === null ? '' :
+              '<button type="button" class="botao primario confirmar">' + e(opcoes.confirmar || 'Salvar') + '</button>') +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+    fundo.querySelector('.modal-corpo').innerHTML = opcoes.corpo;
+    if (opcoes.largura) fundo.querySelector('.modal').style.width = opcoes.largura;
+
+    var formulario = fundo.querySelector('.modal-corpo');
+    formulario.addEventListener('submit', function (ev) { ev.preventDefault(); confirmar(); });
+
+    function confirmar() {
+      if (!opcoes.aoConfirmar) return fecharModal();
+      var valores = {};
+      formulario.querySelectorAll('[name]').forEach(function (campo) {
+        if (campo.type === 'checkbox') {
+          if (campo.dataset.grupo) {
+            valores[campo.name] = valores[campo.name] || [];
+            if (campo.checked) valores[campo.name].push(campo.value);
+          } else {
+            valores[campo.name] = campo.checked;
+          }
+        } else {
+          valores[campo.name] = campo.value;
+        }
+      });
+      if (opcoes.aoConfirmar(valores, formulario) !== false) fecharModal();
+    }
+
+    fundo.querySelector('.fechar').onclick = fecharModal;
+    fundo.querySelector('.cancelar').onclick = fecharModal;
+    var btn = fundo.querySelector('.confirmar');
+    if (btn) btn.onclick = confirmar;
+    fundo.addEventListener('mousedown', function (ev) { if (ev.target === fundo) fecharModal(); });
+
+    document.body.appendChild(fundo);
+    modalAberto = fundo;
+    var primeiro = formulario.querySelector('input, select, textarea');
+    if (primeiro) primeiro.focus();
+    return fundo;
+  }
+
+  function confirmarAcao(mensagem, aoConfirmar) {
+    modal({
+      titulo: 'Confirmar',
+      corpo: '<p style="margin:0">' + e(mensagem) + '</p>',
+      confirmar: 'Confirmar',
+      aoConfirmar: function () { aoConfirmar(); }
+    });
+  }
+
+  var temporizador = null;
+  function notificar(mensagem) {
+    var antigo = document.querySelector('.notificacao');
+    if (antigo) antigo.remove();
+    var n = el('<div class="notificacao">' + e(mensagem) + '</div>');
+    document.body.appendChild(n);
+    clearTimeout(temporizador);
+    temporizador = setTimeout(function () { n.remove(); }, 3200);
+  }
+
+  function etiquetaArea(area) {
+    var mapa = { HOT: ['hot', 'Hot End'], COLD: ['cold', 'Cold End'], AMBOS: ['ambos', 'Hot & Cold'] };
+    var m = mapa[area] || ['', area];
+    return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
+  }
+
+  function chipsFases(fasesDoTeste) {
+    return '<span class="fases">' + TC.data.FASES.map(function (f) {
+      var ativo = fasesDoTeste && fasesDoTeste.indexOf(f.id) !== -1;
+      return '<span class="fase-chip' + (ativo ? ' on' : '') + '" title="' + e(f.nome) + '">' +
+        e(f.id === 'CONCEITO' ? 'CON' : f.id) + '</span>';
+    }).join('') + '</span>';
+  }
+
+  var STATUS = {
+    PENDENTE: ['marca', 'Pendente'],
+    EM_ANDAMENTO: ['alerta', 'Em andamento'],
+    CONCLUIDO: ['ok', 'Concluído'],
+    CANCELADO: ['', 'Cancelado']
+  };
+
+  function etiquetaStatus(status) {
+    var m = STATUS[status] || ['', status];
+    return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
+  }
+
+  function etiquetaPrioridade(prioridade) {
+    var mapa = { ALTA: 'erro', MEDIA: 'alerta', BAIXA: '' };
+    var p = util.porId(TC.data.PRIORIDADES, prioridade);
+    return '<span class="etiqueta ' + (mapa[prioridade] || '') + '">' + e(p ? p.nome : prioridade) + '</span>';
+  }
+
+  function opcoes(lista, selecionado, rotuloVazio) {
+    var html = rotuloVazio ? '<option value="">' + e(rotuloVazio) + '</option>' : '';
+    return html + lista.map(function (item) {
+      return '<option value="' + e(item.id) + '"' + (item.id === selecionado ? ' selected' : '') + '>' +
+        e(item.nome) + '</option>';
+    }).join('');
+  }
+
+  function vazio(titulo, texto) {
+    return '<div class="vazio"><strong>' + e(titulo) + '</strong>' + e(texto || '') + '</div>';
+  }
+
+  TC.ui = {
+    el: el,
+    modal: modal,
+    fecharModal: fecharModal,
+    confirmarAcao: confirmarAcao,
+    notificar: notificar,
+    etiquetaArea: etiquetaArea,
+    etiquetaStatus: etiquetaStatus,
+    etiquetaPrioridade: etiquetaPrioridade,
+    chipsFases: chipsFases,
+    opcoes: opcoes,
+    vazio: vazio,
+    STATUS: STATUS
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Catálogo de testes: o que existe, quanto custa e quanto tempo leva.
+   É daqui que sai a confirmação de necessidade que alimenta o planejamento. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  function aplicaAoCliente(teste, clienteId) {
+    if (!clienteId) return true;
+    return !teste.clientes || !teste.clientes.length || teste.clientes.indexOf(clienteId) !== -1;
+  }
+
+  function filtrar(estado, f) {
+    var busca = (f.busca || '').toLowerCase();
+    return estado.testes.filter(function (t) {
+      if (f.area && t.area !== f.area && t.area !== 'AMBOS') return false;
+      if (f.fase && (t.fases || []).indexOf(f.fase) === -1) return false;
+      if (!aplicaAoCliente(t, f.clienteId)) return false;
+      if (f.equipamentoId && t.equipamentoId !== f.equipamentoId) return false;
+      if (busca) {
+        var alvo = (t.id + ' ' + t.nome + ' ' + (t.norma || '') + ' ' + (t.descricao || '')).toLowerCase();
+        if (alvo.indexOf(busca) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function linha(estado, teste) {
+    var equipamento = util.porId(estado.equipamentos, teste.equipamentoId);
+    var custo = TC.scheduler.custoCatalogo(teste, equipamento);
+    var dias = equipamento ? TC.scheduler.diasDeOperacao(teste, equipamento) : null;
+    var clientes = (teste.clientes || []).map(function (id) {
+      var c = util.porId(estado.clientes, id);
+      return c ? c.nome : id;
+    });
+
+    return '<tr data-teste="' + e(teste.id) + '">' +
+      '<td><span class="mono">' + e(teste.id) + '</span></td>' +
+      '<td>' +
+        '<div class="forte">' + e(teste.nome) + '</div>' +
+        '<div class="sub">' + e(teste.norma || '—') +
+          (clientes.length ? ' · exigido por ' + e(clientes.join(', ')) : ' · procedimento padrão') +
+        '</div>' +
+      '</td>' +
+      '<td>' + ui.etiquetaArea(teste.area) + '</td>' +
+      '<td>' + ui.chipsFases(teste.fases) + '</td>' +
+      '<td>' +
+        (equipamento
+          ? '<div class="forte">' + e(equipamento.id) + '</div><div class="sub">' + e(equipamento.nome) + '</div>'
+          : '<span class="etiqueta erro">não cadastrado</span>') +
+      '</td>' +
+      '<td class="num">' + e(String(custo.horas)) + ' h' +
+        '<div class="sub">' + (dias ? dias + ' d na bancada' : '—') + '</div></td>' +
+      '<td class="num">' + e(String(teste.amostras)) + '</td>' +
+      '<td class="num forte" title="Mão de obra ' + e(util.formatarMoeda(custo.custoBase)) +
+        ' + hora-máquina ' + e(util.formatarMoeda(custo.custoEquipamento)) + '">' +
+        e(util.formatarMoeda(custo.total)) +
+        '<div class="sub">+ amostras</div></td>' +
+      '<td class="num">' +
+        '<button class="botao primario pequeno confirmar">Confirmar necessidade</button> ' +
+        '<button class="botao pequeno editar" title="Editar procedimento">Editar</button>' +
+      '</td>' +
+    '</tr>';
+  }
+
+  /* ---- Formulário de confirmação de necessidade ---- */
+
+  function abrirConfirmacao(ctx, teste) {
+    var estado = ctx.estado;
+    var equipamento = util.porId(estado.equipamentos, teste.equipamentoId);
+
+    function pecasDoCliente(clienteId) {
+      return estado.pecas.filter(function (p) {
+        if (clienteId && p.clienteId !== clienteId) return false;
+        if (teste.area !== 'AMBOS' && p.area !== teste.area) return false;
+        return true;
+      });
+    }
+
+    /* Abre já num cliente que tenha peça compatível, para não cair num formulário sem saída. */
+    function escolherClientePadrao() {
+      var candidatos = [ctx.filtros.clienteId]
+        .concat(teste.clientes || [])
+        .concat(estado.clientes.map(function (c) { return c.id; }));
+      for (var i = 0; i < candidatos.length; i++) {
+        if (candidatos[i] && pecasDoCliente(candidatos[i]).length) return candidatos[i];
+      }
+      return ctx.filtros.clienteId || (estado.clientes[0] && estado.clientes[0].id) || '';
+    }
+    var clientePadrao = escolherClientePadrao();
+
+    var fasesDisponiveis = TC.data.FASES.filter(function (f) {
+      return (teste.fases || []).indexOf(f.id) !== -1;
+    });
+    var fasePadrao = ctx.filtros.fase && (teste.fases || []).indexOf(ctx.filtros.fase) !== -1
+      ? ctx.filtros.fase : (fasesDisponiveis[0] ? fasesDisponiveis[0].id : '');
+
+    var corpo =
+      '<div class="aviso">' +
+        e(teste.nome) + ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
+        e(equipamento ? equipamento.id : '?') + '</strong> por ' +
+        e(equipamento ? TC.scheduler.diasDeOperacao(teste, equipamento) + ' dia(s)' : '—') +
+        '. A data de início é calculada automaticamente pela disponibilidade da peça e do equipamento.' +
+      '</div>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Cliente</label><select name="clienteId">' +
+          ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
+        '<div class="campo"><label>Peça a ensaiar</label><select name="pecaId"></select></div>' +
+        '<div class="campo"><label>Fase de projeto</label><select name="fase">' +
+          ui.opcoes(fasesDisponiveis.length ? fasesDisponiveis : TC.data.FASES, fasePadrao) + '</select></div>' +
+        '<div class="campo"><label>Prioridade</label><select name="prioridade">' +
+          ui.opcoes(TC.data.PRIORIDADES, 'MEDIA') + '</select></div>' +
+        '<div class="campo"><label>Amostras a consumir</label>' +
+          '<input type="number" name="quantidade" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
+        '<div class="campo"><label>Prazo do cliente (opcional)</label><input type="date" name="prazo"></div>' +
+        '<div class="campo"><label>Forçar início em (opcional)</label><input type="date" name="inicioFixo"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Observação</label>' +
+        '<textarea name="observacao" rows="2" placeholder="Ex.: repetir com material alternativo"></textarea></div>' +
+      '<div class="campo" id="previa"></div>';
+
+    var janela = ui.modal({
+      titulo: 'Confirmar necessidade de teste',
+      corpo: corpo,
+      confirmar: 'Confirmar e planejar',
+      aoConfirmar: function (v) {
+        if (!v.pecaId) {
+          ui.notificar('Cadastre uma peça compatível para este cliente antes de confirmar.');
+          return false;
+        }
+        var demanda = TC.store.criarDemanda({
+          testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId, fase: v.fase,
+          prioridade: v.prioridade, quantidade: v.quantidade, prazo: v.prazo,
+          inicioFixo: v.inicioFixo, observacao: v.observacao
+        });
+        var plano = TC.scheduler.planejar(TC.store.get());
+        var alocacao = plano.alocacoes.filter(function (a) { return a.demandaId === demanda.id; })[0];
+        if (alocacao && alocacao.inicio) {
+          ui.notificar('Planejado em ' + alocacao.equipamento.id + ': ' +
+            util.formatarData(alocacao.inicio, true) + ' → ' + util.formatarData(alocacao.fim, true));
+        } else {
+          ui.notificar('Demanda criada, mas sem janela disponível — veja o planejamento.');
+        }
+        ctx.ir('planejamento');
+      }
+    });
+
+    var selCliente = janela.querySelector('[name=clienteId]');
+    var selPeca = janela.querySelector('[name=pecaId]');
+    var previa = janela.querySelector('#previa');
+    var botaoConfirmar = janela.querySelector('.confirmar');
+
+    function atualizarPecas() {
+      var lista = pecasDoCliente(selCliente.value);
+      var area = util.porId(TC.data.AREAS, teste.area);
+      selPeca.innerHTML = lista.length
+        ? lista.map(function (p) {
+            return '<option value="' + e(p.id) + '">' + e(p.nome) + ' — amostras em ' +
+              e(util.formatarData(p.dataAmostras, true)) + '</option>';
+          }).join('')
+        : '<option value="">Nenhuma peça ' + e(area ? area.nome : '') + ' deste cliente</option>';
+      selPeca.disabled = !lista.length;
+      botaoConfirmar.disabled = !lista.length;
+      atualizarPrevia();
+    }
+
+    function atualizarPrevia() {
+      var peca = util.porId(estado.pecas, selPeca.value);
+      if (!peca) {
+        var nomeCliente = util.porId(estado.clientes, selCliente.value);
+        previa.innerHTML = '<div class="aviso erro">Este cliente não tem peça ' +
+          e((util.porId(TC.data.AREAS, teste.area) || {}).nome || '') +
+          ' cadastrada. Cadastre a peça em <strong>Peças e amostras</strong> ou escolha outro cliente' +
+          (nomeCliente ? ' (atual: ' + e(nomeCliente.nome) + ')' : '') + '.</div>';
+        return;
+      }
+      var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
+      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, equipamento, peca);
+      previa.innerHTML =
+        '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
+        'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
+        ' + ' + e(String(custo.horas)) + ' h de ' + e(equipamento ? equipamento.id : '—') + ' ' +
+        e(util.formatarMoeda(custo.custoEquipamento)) +
+        ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
+        (peca ? '. Amostras disponíveis a partir de ' + e(util.formatarData(peca.dataAmostras, true)) + '.' : '.') +
+        '</div>';
+    }
+
+    selCliente.addEventListener('change', atualizarPecas);
+    selPeca.addEventListener('change', atualizarPrevia);
+    janela.querySelector('[name=quantidade]').addEventListener('input', atualizarPrevia);
+    atualizarPecas();
+  }
+
+  /* ---- Formulário de procedimento ---- */
+
+  function abrirEdicao(ctx, teste) {
+    var estado = ctx.estado;
+    var novo = !teste;
+    teste = teste || { id: '', nome: '', norma: '', area: 'COLD', clientes: [], fases: ['DV'], equipamentoId: estado.equipamentos[0].id, horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
+
+    var corpo =
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Código</label><input name="id" value="' + e(teste.id) + '"' +
+          (novo ? ' placeholder="TP-COL-09"' : ' readonly') + '></div>' +
+        '<div class="campo"><label>Nome do procedimento</label><input name="nome" value="' + e(teste.nome) + '" required></div>' +
+        '<div class="campo"><label>Norma / referência</label><input name="norma" value="' + e(teste.norma || '') + '"></div>' +
+        '<div class="campo"><label>Área do sistema</label><select name="area">' +
+          ui.opcoes(TC.data.AREAS, teste.area) + '</select></div>' +
+        '<div class="campo"><label>Equipamento</label><select name="equipamentoId">' +
+          ui.opcoes(estado.equipamentos, teste.equipamentoId) + '</select></div>' +
+        '<div class="campo"><label>Horas de setup</label><input type="number" name="horasSetup" min="0" step="0.5" value="' + e(String(teste.horasSetup)) + '"></div>' +
+        '<div class="campo"><label>Horas de ensaio</label><input type="number" name="horasEnsaio" min="0" step="0.5" value="' + e(String(teste.horasEnsaio)) + '"></div>' +
+        '<div class="campo"><label>Amostras necessárias</label><input type="number" name="amostras" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
+        '<div class="campo"><label>Custo de mão de obra e insumos (R$)</label><input type="number" name="custoBase" min="0" step="100" value="' + e(String(teste.custoBase)) + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Fases de projeto em que se aplica</label><div>' +
+        TC.data.FASES.map(function (f) {
+          return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
+            '<input type="checkbox" name="fases" data-grupo="1" value="' + e(f.id) + '" style="width:auto"' +
+            ((teste.fases || []).indexOf(f.id) !== -1 ? ' checked' : '') + '>' + e(f.nome) + '</label>';
+        }).join('') +
+      '</div></div>' +
+      '<div class="campo"><label>Exigido pelos clientes (nenhum = procedimento padrão)</label><div>' +
+        estado.clientes.map(function (c) {
+          return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
+            '<input type="checkbox" name="clientes" data-grupo="1" value="' + e(c.id) + '" style="width:auto"' +
+            ((teste.clientes || []).indexOf(c.id) !== -1 ? ' checked' : '') + '>' + e(c.nome) + '</label>';
+        }).join('') +
+      '</div></div>' +
+      '<div class="campo"><label>Descrição</label><textarea name="descricao" rows="2">' + e(teste.descricao || '') + '</textarea></div>';
+
+    ui.modal({
+      titulo: novo ? 'Novo procedimento' : 'Editar ' + teste.id,
+      corpo: corpo,
+      confirmar: 'Salvar procedimento',
+      aoConfirmar: function (v) {
+        if (!v.nome) { ui.notificar('Informe o nome do procedimento.'); return false; }
+        TC.store.salvarTeste({
+          id: v.id || undefined, nome: v.nome, norma: v.norma, area: v.area,
+          equipamentoId: v.equipamentoId, fases: v.fases || [], clientes: v.clientes || [],
+          horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
+          amostras: Number(v.amostras) || 1, custoBase: Number(v.custoBase) || 0,
+          descricao: v.descricao
+        });
+        ui.notificar('Procedimento salvo.');
+      }
+    });
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado, f = ctx.filtros;
+    var lista = filtrar(estado, f);
+
+    var totalHoras = 0, totalCusto = 0;
+    lista.forEach(function (t) {
+      var eq = util.porId(estado.equipamentos, t.equipamentoId);
+      var c = TC.scheduler.custoCatalogo(t, eq);
+      totalHoras += c.horas; totalCusto += c.total;
+    });
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Catálogo de testes</h2>' +
+        '<p>Todos os procedimentos de validação por área do sistema, fase de projeto e cliente, com tempo de bancada e custo. Confirme a necessidade de um teste e ele entra no planejamento automaticamente.</p></div>' +
+        '<div class="acoes"><button class="botao primario" id="novo">+ Novo procedimento</button></div>' +
+      '</div>' +
+      '<div class="indicadores">' +
+        '<div class="indicador"><div class="rotulo">Procedimentos listados</div><div class="valor">' + lista.length +
+          '</div><div class="nota">de ' + estado.testes.length + ' no catálogo</div></div>' +
+        '<div class="indicador"><div class="rotulo">Tempo total de bancada</div><div class="valor">' +
+          Math.round(totalHoras) + ' h</div><div class="nota">se todos forem executados uma vez</div></div>' +
+        '<div class="indicador"><div class="rotulo">Custo do pacote</div><div class="valor">' +
+          util.formatarMoeda(totalCusto) + '</div><div class="nota">sem o custo das amostras</div></div>' +
+      '</div>' +
+      '<div class="cartao">' +
+        '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
+          '<div class="campo busca"><label>Buscar</label><input id="f-busca" placeholder="nome, código ou norma" value="' + e(f.busca || '') + '"></div>' +
+          '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
+          '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
+          '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
+          '<div class="campo"><label>Equipamento</label><select id="f-equip">' + ui.opcoes(estado.equipamentos, f.equipamentoId, 'Todos') + '</select></div>' +
+        '</div></div>' +
+        (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
+          '<th>Código</th><th>Procedimento</th><th>Área</th><th>Fases</th><th>Equipamento</th>' +
+          '<th class="num">Duração</th><th class="num">Amostras</th><th class="num">Custo estimado</th><th></th>' +
+          '</tr></thead><tbody>' + lista.map(function (t) { return linha(estado, t); }).join('') +
+          '</tbody></table></div>'
+          : ui.vazio('Nenhum procedimento encontrado', 'Ajuste os filtros ou cadastre um novo procedimento.')) +
+      '</div>';
+
+    container.querySelector('#novo').onclick = function () { abrirEdicao(ctx, null); };
+
+    function liga(id, campo) {
+      var alvo = container.querySelector(id);
+      alvo.addEventListener(alvo.tagName === 'SELECT' ? 'change' : 'input', function () {
+        f[campo] = alvo.value;
+        ctx.atualizar();
+      });
+    }
+    liga('#f-cliente', 'clienteId');
+    liga('#f-area', 'area');
+    liga('#f-fase', 'fase');
+    liga('#f-equip', 'equipamentoId');
+
+    var busca = container.querySelector('#f-busca');
+    var atraso;
+    busca.addEventListener('input', function () {
+      clearTimeout(atraso);
+      atraso = setTimeout(function () {
+        f.busca = busca.value;
+        ctx.atualizar();
+        var novoCampo = container.querySelector('#f-busca');
+        if (novoCampo) { novoCampo.focus(); novoCampo.setSelectionRange(novoCampo.value.length, novoCampo.value.length); }
+      }, 250);
+    });
+
+    container.querySelectorAll('tr[data-teste]').forEach(function (tr) {
+      var teste = util.porId(estado.testes, tr.dataset.teste);
+      tr.querySelector('.confirmar').onclick = function () { abrirConfirmacao(ctx, teste); };
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(ctx, teste); };
+    });
+  }
+
+  TC.views = TC.views || {};
+  TC.views.catalogo = { render: render, abrirConfirmacao: abrirConfirmacao };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Demandas: testes cuja necessidade já foi confirmada, com a janela que o motor calculou. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  function filtrar(alocacoes, f) {
+    return alocacoes.filter(function (a) {
+      var d = a.demanda;
+      if (f.clienteId && d.clienteId !== f.clienteId) return false;
+      if (f.fase && d.fase !== f.fase) return false;
+      if (f.area && a.teste && a.teste.area !== f.area && a.teste.area !== 'AMBOS') return false;
+      if (f.status && d.status !== f.status) return false;
+      return true;
+    });
+  }
+
+  function celulaJanela(a) {
+    if (!a.inicio) {
+      return '<span class="etiqueta erro">Sem janela</span><div class="sub">' + e(a.motivo || '') + '</div>';
+    }
+    var extras = [];
+    if (a.esperaAmostra) extras.push('aguarda amostra ' + a.esperaAmostra + ' d');
+    if (a.esperaFila > 0) extras.push('fila ' + a.esperaFila + ' d');
+    return '<span class="forte">' + e(util.formatarData(a.inicio, true)) + ' → ' + e(util.formatarData(a.fim, true)) + '</span>' +
+      '<div class="sub">' + e(a.equipamento.id + ' · pos. ' + (a.posicao + 1) +
+        (extras.length ? ' · ' + extras.join(' · ') : '')) + '</div>';
+  }
+
+  function celulaPrazo(a) {
+    if (!a.demanda.prazo) return '<span class="sub">sem prazo</span>';
+    var texto = util.formatarData(a.demanda.prazo, true);
+    if (a.folga === null || a.folga === undefined) return texto;
+    var etiqueta = a.folga < 0
+      ? '<span class="etiqueta erro">' + Math.abs(a.folga) + ' d de atraso</span>'
+      : '<span class="etiqueta ' + (a.folga < 7 ? 'alerta' : 'ok') + '">' + a.folga + ' d de folga</span>';
+    return texto + '<div style="margin-top:3px">' + etiqueta + '</div>';
+  }
+
+  function linha(a) {
+    var d = a.demanda;
+    return '<tr data-demanda="' + e(d.id) + '">' +
+      '<td>' +
+        '<div class="forte">' + e(a.teste ? a.teste.nome : d.testeId) + '</div>' +
+        '<div class="sub"><span class="mono">' + e(d.testeId) + '</span>' +
+          (a.teste ? ' · ' + e(a.teste.norma || '') : '') + '</div>' +
+      '</td>' +
+      '<td>' +
+        '<div>' + e(a.peca ? a.peca.nome : '—') + '</div>' +
+        '<div class="sub">' + e(a.peca ? a.peca.programa : '') + '</div>' +
+      '</td>' +
+      '<td>' + (a.teste ? ui.etiquetaArea(a.teste.area) : '') + '</td>' +
+      '<td><span class="etiqueta">' + e(d.fase || '—') + '</span></td>' +
+      '<td>' + ui.etiquetaPrioridade(d.prioridade) + '</td>' +
+      '<td class="num">' + e(String(d.quantidade)) + '</td>' +
+      '<td>' + celulaJanela(a) + '</td>' +
+      '<td>' + celulaPrazo(a) + '</td>' +
+      '<td class="num forte">' + e(util.formatarMoeda(a.custo.total)) + '</td>' +
+      '<td>' + ui.etiquetaStatus(d.status) + '</td>' +
+      '<td class="num" style="white-space:nowrap">' +
+        '<button class="botao pequeno editar">Editar</button> ' +
+        '<button class="botao pequeno perigo excluir" title="Remover demanda">✕</button>' +
+      '</td>' +
+    '</tr>';
+  }
+
+  function abrirEdicao(ctx, demanda, alocacao) {
+    var estado = ctx.estado;
+    var teste = util.porId(estado.testes, demanda.testeId);
+    var pecas = estado.pecas.filter(function (p) {
+      return !demanda.clienteId || p.clienteId === demanda.clienteId;
+    });
+    var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
+    var fases = TC.data.FASES;
+
+    var corpo =
+      '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
+        (alocacao && alocacao.inicio
+          ? ' · planejado para ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
+            ' em ' + e(alocacao.equipamento.id)
+          : ' · ainda sem janela') +
+      '</div>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
+        '<div class="campo"><label>Peça</label><select name="pecaId">' +
+          pecas.map(function (p) {
+            return '<option value="' + e(p.id) + '"' + (p.id === demanda.pecaId ? ' selected' : '') + '>' + e(p.nome) + '</option>';
+          }).join('') + '</select></div>' +
+        '<div class="campo"><label>Fase</label><select name="fase">' + ui.opcoes(fases, demanda.fase) + '</select></div>' +
+        '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
+        '<div class="campo"><label>Status</label><select name="status">' + ui.opcoes(statusLista, demanda.status) + '</select></div>' +
+        '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
+        '<div class="campo"><label>Prazo</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
+        '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
+
+    ui.modal({
+      titulo: 'Editar demanda',
+      corpo: corpo,
+      confirmar: 'Salvar e replanejar',
+      aoConfirmar: function (v) {
+        TC.store.atualizarDemanda(demanda.id, {
+          clienteId: v.clienteId, pecaId: v.pecaId, fase: v.fase, prioridade: v.prioridade,
+          status: v.status, quantidade: Number(v.quantidade) || 1, prazo: v.prazo,
+          inicioFixo: v.inicioFixo, observacao: v.observacao
+        });
+        ui.notificar('Demanda atualizada e planejamento recalculado.');
+      }
+    });
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado, f = ctx.filtros;
+    var todas = ctx.plano.alocacoes;
+    var lista = filtrar(todas, f);
+
+    var custoTotal = 0, atrasadas = 0, semJanela = 0;
+    lista.forEach(function (a) {
+      custoTotal += a.custo.total;
+      if (a.atrasado) atrasadas++;
+      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
+    });
+
+    var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Demandas de teste</h2>' +
+        '<p>Cada necessidade confirmada no catálogo vira uma linha aqui e é reagendada automaticamente sempre que a prioridade, o prazo ou a disponibilidade muda.</p></div>' +
+        '<div class="acoes"><button class="botao" id="csv">Exportar CSV</button>' +
+        '<button class="botao primario" id="ir-catalogo">+ Confirmar novo teste</button></div>' +
+      '</div>' +
+      '<div class="indicadores">' +
+        '<div class="indicador"><div class="rotulo">Demandas</div><div class="valor">' + lista.length + '</div>' +
+          '<div class="nota">' + lista.filter(function (a) { return a.demanda.status === 'PENDENTE'; }).length + ' pendentes</div></div>' +
+        '<div class="indicador"><div class="rotulo">Custo comprometido</div><div class="valor">' + util.formatarMoeda(custoTotal) + '</div>' +
+          '<div class="nota">mão de obra + máquina + amostras</div></div>' +
+        '<div class="indicador"><div class="rotulo">Fora do prazo</div><div class="valor" style="color:' + (atrasadas ? 'var(--erro)' : 'inherit') + '">' + atrasadas + '</div>' +
+          '<div class="nota">terminam depois do prazo do cliente</div></div>' +
+        '<div class="indicador"><div class="rotulo">Sem janela</div><div class="valor" style="color:' + (semJanela ? 'var(--alerta)' : 'inherit') + '">' + semJanela + '</div>' +
+          '<div class="nota">equipamento ausente ou lotado</div></div>' +
+      '</div>' +
+      '<div class="cartao">' +
+        '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
+          '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
+          '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
+          '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
+          '<div class="campo"><label>Status</label><select id="f-status">' + ui.opcoes(statusLista, f.status, 'Todos') + '</select></div>' +
+        '</div></div>' +
+        (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
+          '<th>Procedimento</th><th>Peça</th><th>Área</th><th>Fase</th><th>Prioridade</th><th class="num">Amostras</th>' +
+          '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
+          '</tr></thead><tbody>' + lista.map(linha).join('') + '</tbody></table></div>'
+          : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
+      '</div>';
+
+    container.querySelector('#ir-catalogo').onclick = function () { ctx.ir('catalogo'); };
+    container.querySelector('#csv').onclick = function () { exportarCsv(lista); };
+
+    ['cliente:clienteId', 'area:area', 'fase:fase', 'status:status'].forEach(function (par) {
+      var p = par.split(':');
+      var alvo = container.querySelector('#f-' + p[0]);
+      alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });
+    });
+
+    container.querySelectorAll('tr[data-demanda]').forEach(function (tr) {
+      var alocacao = null;
+      lista.forEach(function (a) { if (a.demandaId === tr.dataset.demanda) alocacao = a; });
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(ctx, alocacao.demanda, alocacao); };
+      tr.querySelector('.excluir').onclick = function () {
+        ui.confirmarAcao('Remover a demanda de "' + (alocacao.teste ? alocacao.teste.nome : '') + '"?', function () {
+          TC.store.removerDemanda(tr.dataset.demanda);
+          ui.notificar('Demanda removida.');
+        });
+      };
+    });
+  }
+
+  function exportarCsv(lista) {
+    var cabecalho = ['Codigo', 'Procedimento', 'Peca', 'Cliente', 'Fase', 'Prioridade', 'Amostras',
+      'Equipamento', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status'];
+    var linhas = lista.map(function (a) {
+      return [
+        a.demanda.testeId,
+        a.teste ? a.teste.nome : '',
+        a.peca ? a.peca.nome : '',
+        a.demanda.clienteId,
+        a.demanda.fase,
+        a.demanda.prioridade,
+        a.demanda.quantidade,
+        a.equipamento ? a.equipamento.id : '',
+        a.inicio || '',
+        a.fim || '',
+        a.demanda.prazo || '',
+        a.folga === null || a.folga === undefined ? '' : a.folga,
+        a.custo.total,
+        a.demanda.status
+      ].map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';');
+    });
+    var conteudo = '﻿' + [cabecalho.join(';')].concat(linhas).join('\n');
+    var url = URL.createObjectURL(new Blob([conteudo], { type: 'text/csv;charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'demandas-de-teste-' + util.hoje() + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    ui.notificar('CSV exportado.');
+  }
+
+  TC.views = TC.views || {};
+  TC.views.demandas = {
+    render: render,
+    /* Usado pelo Gantt: clicar numa barra abre a demanda correspondente. */
+    abrirDetalhe: function (ctx, alocacao) { abrirEdicao(ctx, alocacao.demanda, alocacao); }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Planejamento: linha do tempo por equipamento e posição, gerada pelo motor de alocação. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  var ZOOMS = [
+    { id: '9', nome: 'Trimestre', largura: 9 },
+    { id: '16', nome: 'Mês', largura: 16 },
+    { id: '30', nome: 'Semana', largura: 30 }
+  ];
+
+  /* Começa mostrando só o que tem ensaio alocado: o laboratório tem muito mais
+     posições do que demandas em curso e a lista completa esconde o que interessa. */
+  var preferencias = { zoom: '16', somenteOcupados: true };
+
+  function segundaFeiraDe(iso) {
+    var dia = util.diaDaSemana(iso);
+    return util.somaDias(iso, dia === 0 ? -6 : 1 - dia);
+  }
+
+  function intervalo(alocacoes, hoje) {
+    var inicio = hoje, fim = util.somaDias(hoje, 30);
+    alocacoes.forEach(function (a) {
+      if (!a.inicio) return;
+      if (util.diffDias(a.inicio, inicio) > 0) inicio = a.inicio;
+      if (util.diffDias(fim, a.fim) > 0) fim = a.fim;
+    });
+    inicio = segundaFeiraDe(inicio);
+    fim = util.somaDias(fim, 10);
+    var dias = util.diffDias(inicio, fim) + 1;
+    if (dias > 730) { dias = 730; fim = util.somaDias(inicio, 729); }
+    return { inicio: inicio, fim: fim, dias: dias };
+  }
+
+  /* A faixa começa sempre numa segunda-feira, então o fim de semana e as linhas de dia
+     podem ser desenhados com dois gradientes que se repetem, em vez de milhares de divs. */
+  function fundoDaFaixa(largura) {
+    var semana = largura * 7;
+    return 'background-image:' +
+      'linear-gradient(to right, transparent 0, transparent ' + (largura * 5) + 'px, var(--surface-2) ' + (largura * 5) + 'px, var(--surface-2) ' + semana + 'px),' +
+      'linear-gradient(to right, var(--border) 0, var(--border) 1px, transparent 1px);' +
+      'background-size:' + semana + 'px 100%,' + largura + 'px 100%;';
+  }
+
+  function cabecalhoTempo(faixa, largura) {
+    var html = '';
+    var mesAtual = '';
+    for (var i = 0; i < faixa.dias; i++) {
+      var dia = util.somaDias(faixa.inicio, i);
+      var d = util.paraData(dia);
+      var mes = d.getUTCFullYear() + '-' + d.getUTCMonth();
+      if (mes !== mesAtual) {
+        mesAtual = mes;
+        html += '<div class="gantt-mes" style="left:' + (i * largura) + 'px">' +
+          e(util.formatarData(dia).split('/')[1].toUpperCase()) + ' ' + d.getUTCFullYear() + '</div>';
+      }
+      if (largura >= 16 && util.diaDaSemana(dia) === 1) {
+        html += '<div class="gantt-numero" style="left:' + (i * largura) + 'px;width:' + (largura * 5) + 'px">' +
+          e(util.formatarData(dia)) + '</div>';
+      }
+    }
+    return html;
+  }
+
+  function marcadorHoje(faixa, largura, hoje) {
+    var offset = util.diffDias(faixa.inicio, hoje);
+    if (offset < 0 || offset >= faixa.dias) return '';
+    return '<div class="gantt-dia hoje" title="Hoje" style="left:' + (offset * largura) + 'px;width:' + largura + 'px"></div>';
+  }
+
+  function blocosManutencao(equipamento, faixa, largura) {
+    return (equipamento.manutencao || []).map(function (m) {
+      var ini = Math.max(0, util.diffDias(faixa.inicio, m.inicio));
+      var fimOffset = util.diffDias(faixa.inicio, m.fim);
+      if (fimOffset < 0 || ini >= faixa.dias) return '';
+      var largura_ = (Math.min(faixa.dias - 1, fimOffset) - ini + 1) * largura;
+      return '<div class="gantt-dia manutencao" title="' + e(m.motivo || 'Manutenção') + '" style="left:' +
+        (ini * largura) + 'px;width:' + largura_ + 'px"></div>';
+    }).join('');
+  }
+
+  function barra(a, faixa, largura) {
+    var offset = util.diffDias(faixa.inicio, a.inicio);
+    var dias = util.diffDias(a.inicio, a.fim) + 1;
+    if (offset + dias < 0 || offset >= faixa.dias) return '';
+    var classe = { HOT: 'hot', COLD: 'cold', AMBOS: 'ambos' }[a.teste.area] || '';
+    var titulo = a.teste.nome + '\n' + (a.peca ? a.peca.nome + ' · ' + a.peca.programa : '') +
+      '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
+      '\n' + a.custo.horas + ' h · ' + util.formatarMoeda(a.custo.total) +
+      (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
+    return '<div class="gantt-barra ' + classe + (a.atrasado ? ' atrasado' : '') + '" ' +
+      'data-demanda="' + e(a.demandaId) + '" title="' + e(titulo) + '" ' +
+      'style="left:' + (offset * largura) + 'px;width:' + Math.max(largura, dias * largura - 3) + 'px">' +
+      e(a.teste.nome) + '</div>';
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado, f = ctx.filtros, hoje = ctx.hoje;
+    var largura = Number((util.porId(ZOOMS, preferencias.zoom) || ZOOMS[1]).largura);
+
+    var visiveis = ctx.plano.agendadas.filter(function (a) {
+      if (f.clienteId && a.demanda.clienteId !== f.clienteId) return false;
+      if (f.fase && a.demanda.fase !== f.fase) return false;
+      if (f.area && a.teste.area !== f.area && a.teste.area !== 'AMBOS') return false;
+      return true;
+    });
+
+    var faixa = intervalo(visiveis, hoje);
+    var porPosicao = {};
+    visiveis.forEach(function (a) {
+      var chave = a.equipamento.id + '#' + a.posicao;
+      (porPosicao[chave] = porPosicao[chave] || []).push(a);
+    });
+
+    var linhas = '';
+    estado.equipamentos.forEach(function (eq) {
+      for (var p = 0; p < eq.posicoes; p++) {
+        var chave = eq.id + '#' + p;
+        var itens = porPosicao[chave] || [];
+        if (preferencias.somenteOcupados && !itens.length) continue;
+        var diasOcupados = itens.reduce(function (soma, a) { return soma + util.diffDias(a.inicio, a.fim) + 1; }, 0);
+        var ocupacao = Math.min(100, Math.round(diasOcupados / faixa.dias * 100));
+        linhas +=
+          '<div class="gantt-linha">' +
+            '<div class="gantt-rotulo">' +
+              '<span class="nome">' + e(eq.id) + (eq.posicoes > 1 ? ' <span class="sub">pos. ' + (p + 1) + '</span>' : '') + '</span>' +
+              '<span class="sub" title="' + e(eq.nome) + '">' + e(eq.nome.length > 30 ? eq.nome.slice(0, 29) + '…' : eq.nome) + '</span>' +
+              '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">' +
+                '<span class="barra-trilho" style="flex:1"><span class="barra-valor' +
+                  (ocupacao > 85 ? ' erro' : ocupacao > 60 ? ' alerta' : '') +
+                  '" style="width:' + ocupacao + '%"></span></span>' +
+                '<span class="sub">' + ocupacao + '%</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="gantt-faixa" style="width:' + (faixa.dias * largura) + 'px;' + fundoDaFaixa(largura) + '">' +
+              blocosManutencao(eq, faixa, largura) +
+              marcadorHoje(faixa, largura, hoje) +
+              itens.map(function (a) { return barra(a, faixa, largura); }).join('') +
+            '</div>' +
+          '</div>';
+      }
+    });
+
+    var bloqueadas = ctx.plano.bloqueadas;
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Planejamento</h2>' +
+        '<p>Alocação automática por prioridade e prazo, respeitando a chegada das amostras, o calendário de cada equipamento, as paradas de manutenção e o número de posições em paralelo.</p></div>' +
+        '<div class="acoes">' +
+          '<select id="zoom" style="width:auto">' + ui.opcoes(ZOOMS, preferencias.zoom) + '</select>' +
+          '<button class="botao" id="ocupados">' + (preferencias.somenteOcupados ? 'Mostrar todos os recursos' : 'Só recursos ocupados') + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cartao">' +
+        '<div class="cartao-topo">' +
+          '<div class="filtros" style="flex:1">' +
+            '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
+            '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
+            '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
+          '</div>' +
+          '<div class="legenda">' +
+            '<span><i style="background:var(--hot)"></i>Hot End</span>' +
+            '<span><i style="background:var(--cold)"></i>Cold End</span>' +
+            '<span><i style="background:var(--ambos)"></i>Hot &amp; Cold</span>' +
+            '<span><i style="background:var(--alerta-bg);border:1px solid var(--alerta)"></i>Manutenção</span>' +
+            '<span><i style="border:2px solid var(--erro)"></i>Fora do prazo</span>' +
+          '</div>' +
+        '</div>' +
+        (visiveis.length || linhas
+          ? '<div class="gantt"><div class="gantt-grade">' +
+              '<div class="gantt-linha cabecalho">' +
+                '<div class="gantt-rotulo"><span class="nome">Equipamento</span>' +
+                  '<span class="sub">' + e(util.formatarData(faixa.inicio, true)) + ' → ' + e(util.formatarData(util.somaDias(faixa.inicio, faixa.dias - 1), true)) + '</span></div>' +
+                '<div class="gantt-faixa" style="width:' + (faixa.dias * largura) + 'px;' + fundoDaFaixa(largura) + '">' +
+                  cabecalhoTempo(faixa, largura) + marcadorHoje(faixa, largura, hoje) +
+                '</div>' +
+              '</div>' + linhas +
+            '</div></div>'
+          : ui.vazio('Nada planejado ainda', 'Confirme a necessidade de um teste no catálogo para vê-lo aqui.')) +
+      '</div>' +
+      (bloqueadas.length
+        ? '<div class="cartao"><div class="cartao-topo"><h3>Demandas sem janela (' + bloqueadas.length + ')</h3></div>' +
+          '<div class="tabela-rolagem"><table><thead><tr><th>Procedimento</th><th>Peça</th><th>Motivo</th><th></th></tr></thead><tbody>' +
+          bloqueadas.map(function (a) {
+            return '<tr><td class="forte">' + e(a.teste ? a.teste.nome : a.demanda.testeId) + '</td>' +
+              '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
+              '<td><span class="etiqueta erro">' + e(a.motivo) + '</span></td>' +
+              '<td class="num"><button class="botao pequeno ver" data-demanda="' + e(a.demandaId) + '">Abrir</button></td></tr>';
+          }).join('') + '</tbody></table></div></div>'
+        : '');
+
+    var zoom = container.querySelector('#zoom');
+    zoom.onchange = function () { preferencias.zoom = zoom.value; ctx.atualizar(); };
+    container.querySelector('#ocupados').onclick = function () {
+      preferencias.somenteOcupados = !preferencias.somenteOcupados;
+      ctx.atualizar();
+    };
+    ['cliente:clienteId', 'area:area', 'fase:fase'].forEach(function (par) {
+      var p = par.split(':');
+      var alvo = container.querySelector('#f-' + p[0]);
+      alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });
+    });
+
+    container.querySelectorAll('[data-demanda]').forEach(function (elemento) {
+      elemento.onclick = function () {
+        var id = elemento.dataset.demanda;
+        var alvo = null;
+        ctx.plano.alocacoes.forEach(function (a) { if (a.demandaId === id) alvo = a; });
+        if (alvo) TC.views.demandas.abrirDetalhe(ctx, alvo);
+      };
+    });
+
+    var rolagem = container.querySelector('.gantt');
+    if (rolagem) {
+      var offsetHoje = util.diffDias(faixa.inicio, hoje) * largura;
+      rolagem.scrollLeft = Math.max(0, offsetHoje - 120);
+    }
+  }
+
+  TC.views = TC.views || {};
+  TC.views.planejamento = { render: render };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Equipamentos: capacidade, calendário, custo-hora e paradas de manutenção.
+   É este cadastro que limita o planejamento. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  var SEMANA = [
+    { valor: 1, nome: 'Seg' }, { valor: 2, nome: 'Ter' }, { valor: 3, nome: 'Qua' },
+    { valor: 4, nome: 'Qui' }, { valor: 5, nome: 'Sex' }, { valor: 6, nome: 'Sáb' }, { valor: 0, nome: 'Dom' }
+  ];
+
+  function ocupacaoPorEquipamento(plano, hoje, horizonte) {
+    var mapa = {};
+    plano.agendadas.forEach(function (a) {
+      var inicio = util.maiorData(a.inicio, hoje);
+      var dias = util.diffDias(inicio, a.fim) + 1;
+      if (dias <= 0) return;
+      var m = mapa[a.equipamento.id] = mapa[a.equipamento.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
+      m.dias += Math.min(dias, horizonte);
+      m.ensaios += 1;
+      m.horas += a.custo.horas;
+      m.custo += a.custo.custoEquipamento;
+    });
+    return mapa;
+  }
+
+  function abrirEdicao(equipamento) {
+    var novo = !equipamento;
+    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 0, manutencao: [] };
+
+    var corpo =
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Código</label><input name="id" value="' + e(equipamento.id) + '"' +
+          (novo ? ' placeholder="SHK-03" required' : ' readonly') + '></div>' +
+        '<div class="campo"><label>Nome</label><input name="nome" value="' + e(equipamento.nome) + '" required></div>' +
+        '<div class="campo"><label>Posições em paralelo</label><input type="number" min="1" name="posicoes" value="' + e(String(equipamento.posicoes)) + '"></div>' +
+        '<div class="campo"><label>Horas por dia</label><input type="number" min="1" max="24" name="horasDia" value="' + e(String(equipamento.horasDia)) + '"></div>' +
+        '<div class="campo"><label>Custo por hora (R$)</label><input type="number" min="0" step="10" name="custoHora" value="' + e(String(equipamento.custoHora)) + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
+        '<input type="checkbox" name="continuo" style="width:auto"' + (equipamento.continuo ? ' checked' : '') + '>' +
+        'Ensaio corre 24 h/dia sem operador (câmaras e bancos automáticos)</label></div>' +
+      '<div class="campo"><label>Dias de operação</label><div>' +
+        SEMANA.map(function (d) {
+          return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
+            '<input type="checkbox" name="diasUteis" data-grupo="1" value="' + d.valor + '" style="width:auto"' +
+            (equipamento.diasUteis.indexOf(d.valor) !== -1 ? ' checked' : '') + '>' + d.nome + '</label>';
+        }).join('') +
+      '</div></div>';
+
+    ui.modal({
+      titulo: novo ? 'Novo equipamento' : 'Editar ' + equipamento.id,
+      corpo: corpo,
+      confirmar: 'Salvar equipamento',
+      aoConfirmar: function (v) {
+        if (!v.id || !v.nome) { ui.notificar('Informe código e nome.'); return false; }
+        var dias = (v.diasUteis || []).map(Number);
+        if (!dias.length) { ui.notificar('Selecione ao menos um dia de operação.'); return false; }
+        TC.store.salvarEquipamento({
+          id: v.id, nome: v.nome, posicoes: Number(v.posicoes) || 1,
+          continuo: !!v.continuo, horasDia: Number(v.horasDia) || 8,
+          diasUteis: dias, custoHora: Number(v.custoHora) || 0,
+          manutencao: equipamento.manutencao || []
+        });
+        ui.notificar('Equipamento salvo — planejamento recalculado.');
+      }
+    });
+  }
+
+  function abrirManutencao(equipamento) {
+    var corpo =
+      '<p class="sub" style="margin-top:0">Nenhum ensaio é agendado atravessando uma parada. Demandas já planejadas são empurradas automaticamente.</p>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Início</label><input type="date" name="inicio" value="' + e(util.hoje()) + '"></div>' +
+        '<div class="campo"><label>Fim</label><input type="date" name="fim" value="' + e(util.somaDias(util.hoje(), 3)) + '"></div>' +
+        '<div class="campo"><label>Motivo</label><input name="motivo" placeholder="Calibração anual"></div>' +
+      '</div>' +
+      (equipamento.manutencao && equipamento.manutencao.length
+        ? '<table style="margin-top:8px"><thead><tr><th>Período</th><th>Motivo</th><th></th></tr></thead><tbody>' +
+          equipamento.manutencao.map(function (m) {
+            return '<tr><td>' + e(util.formatarData(m.inicio, true)) + ' → ' + e(util.formatarData(m.fim, true)) + '</td>' +
+              '<td>' + e(m.motivo) + '</td>' +
+              '<td class="num"><button type="button" class="botao pequeno perigo remover" data-janela="' + e(m.id) + '">Remover</button></td></tr>';
+          }).join('') + '</tbody></table>'
+        : '');
+
+    var janela = ui.modal({
+      titulo: 'Paradas de ' + equipamento.id,
+      corpo: corpo,
+      confirmar: 'Agendar parada',
+      aoConfirmar: function (v) {
+        if (!v.inicio || !v.fim) { ui.notificar('Informe início e fim.'); return false; }
+        if (util.diffDias(v.inicio, v.fim) < 0) { ui.notificar('O fim deve ser posterior ao início.'); return false; }
+        TC.store.adicionarManutencao(equipamento.id, { inicio: v.inicio, fim: v.fim, motivo: v.motivo });
+        ui.notificar('Parada registrada — planejamento recalculado.');
+      }
+    });
+
+    janela.querySelectorAll('.remover').forEach(function (botao) {
+      botao.onclick = function () {
+        TC.store.removerManutencao(equipamento.id, botao.dataset.janela);
+        ui.fecharModal();
+        ui.notificar('Parada removida.');
+      };
+    });
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado;
+    var horizonte = 90;
+    var ocupacao = ocupacaoPorEquipamento(ctx.plano, ctx.hoje, horizonte);
+
+    var linhas = estado.equipamentos.map(function (eq) {
+      var o = ocupacao[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
+      var capacidade = eq.posicoes * horizonte;
+      var uso = Math.min(100, Math.round(o.dias / capacidade * 100));
+      var dias = eq.diasUteis.slice().sort().map(function (d) { return util.NOMES_DIA[d]; }).join(' ');
+      return '<tr data-equip="' + e(eq.id) + '">' +
+        '<td><span class="mono forte">' + e(eq.id) + '</span><div class="sub">' + e(eq.nome) + '</div></td>' +
+        '<td class="num">' + eq.posicoes + '</td>' +
+        '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
+          '<div class="sub">' + e(dias) + '</div></td>' +
+        '<td class="num">' + e(util.formatarMoeda(eq.custoHora)) + '</td>' +
+        '<td class="num">' + o.ensaios + '</td>' +
+        '<td style="min-width:150px">' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<span class="barra-trilho" style="flex:1"><span class="barra-valor' +
+              (uso > 85 ? ' erro' : uso > 60 ? ' alerta' : '') + '" style="width:' + uso + '%"></span></span>' +
+            '<span class="sub">' + uso + '%</span></div>' +
+        '</td>' +
+        '<td class="num">' + e(util.formatarMoeda(o.custo)) + '</td>' +
+        '<td>' + ((eq.manutencao || []).length
+          ? '<span class="etiqueta alerta">' + eq.manutencao.length + ' parada(s)</span>'
+          : '<span class="sub">—</span>') + '</td>' +
+        '<td class="num" style="white-space:nowrap">' +
+          '<button class="botao pequeno manutencao">Paradas</button> ' +
+          '<button class="botao pequeno editar">Editar</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Equipamentos</h2>' +
+        '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita.</p></div>' +
+        '<div class="acoes"><button class="botao primario" id="novo">+ Novo equipamento</button></div>' +
+      '</div>' +
+      '<div class="cartao">' +
+        '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
+          '<span class="sub">Percentual calculado sobre posições × dias disponíveis</span></div>' +
+        '<div class="tabela-rolagem"><table><thead><tr>' +
+          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th><th class="num">R$/h</th>' +
+          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Custo-máquina</th><th>Manutenção</th><th></th>' +
+        '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+      '</div>';
+
+    container.querySelector('#novo').onclick = function () { abrirEdicao(null); };
+    container.querySelectorAll('tr[data-equip]').forEach(function (tr) {
+      var eq = util.porId(estado.equipamentos, tr.dataset.equip);
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(eq); };
+      tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
+    });
+  }
+
+  TC.views = TC.views || {};
+  TC.views.equipamentos = { render: render };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Peças em validação. A data de chegada das amostras é a segunda restrição do planejamento:
+   nenhum ensaio começa antes dela. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  function abrirEdicao(ctx, peca) {
+    var estado = ctx.estado;
+    var novo = !peca;
+    peca = peca || {
+      id: '', nome: '', clienteId: estado.clientes[0] ? estado.clientes[0].id : '',
+      programa: '', area: 'COLD', dataAmostras: util.somaDias(util.hoje(), 14),
+      quantidade: 6, custoAmostra: 0
+    };
+
+    var corpo =
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Nome da peça</label><input name="nome" value="' + e(peca.nome) + '" required></div>' +
+        '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, peca.clienteId) + '</select></div>' +
+        '<div class="campo"><label>Programa / projeto</label><input name="programa" value="' + e(peca.programa || '') + '"></div>' +
+        '<div class="campo"><label>Área do sistema</label><select name="area">' +
+          ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), peca.area) + '</select></div>' +
+        '<div class="campo"><label>Amostras disponíveis a partir de</label><input type="date" name="dataAmostras" value="' + e(peca.dataAmostras) + '"></div>' +
+        '<div class="campo"><label>Quantidade de amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(peca.quantidade)) + '"></div>' +
+        '<div class="campo"><label>Custo por amostra (R$)</label><input type="number" min="0" step="10" name="custoAmostra" value="' + e(String(peca.custoAmostra || 0)) + '"></div>' +
+      '</div>';
+
+    ui.modal({
+      titulo: novo ? 'Nova peça' : 'Editar ' + peca.nome,
+      corpo: corpo,
+      confirmar: 'Salvar peça',
+      aoConfirmar: function (v) {
+        if (!v.nome) { ui.notificar('Informe o nome da peça.'); return false; }
+        TC.store.salvarPeca({
+          id: peca.id || undefined, nome: v.nome, clienteId: v.clienteId, programa: v.programa,
+          area: v.area, dataAmostras: v.dataAmostras, quantidade: Number(v.quantidade) || 1,
+          custoAmostra: Number(v.custoAmostra) || 0
+        });
+        ui.notificar('Peça salva — planejamento recalculado.');
+      }
+    });
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado, f = ctx.filtros;
+
+    var consumo = {};
+    ctx.plano.alocacoes.forEach(function (a) {
+      if (!a.peca) return;
+      var c = consumo[a.peca.id] = consumo[a.peca.id] || { ensaios: 0, amostras: 0, custo: 0, primeiroInicio: null, ultimoFim: null };
+      c.ensaios++;
+      c.amostras += a.demanda.quantidade;
+      c.custo += a.custo.total;
+      if (a.inicio && (!c.primeiroInicio || util.diffDias(a.inicio, c.primeiroInicio) > 0)) c.primeiroInicio = a.inicio;
+      if (a.fim && (!c.ultimoFim || util.diffDias(c.ultimoFim, a.fim) > 0)) c.ultimoFim = a.fim;
+    });
+
+    var lista = estado.pecas.filter(function (p) {
+      if (f.clienteId && p.clienteId !== f.clienteId) return false;
+      if (f.area && p.area !== f.area) return false;
+      return true;
+    });
+
+    var linhas = lista.map(function (p) {
+      var cliente = util.porId(estado.clientes, p.clienteId);
+      var c = consumo[p.id] || { ensaios: 0, amostras: 0, custo: 0 };
+      var saldo = p.quantidade - c.amostras;
+      var dias = util.diffDias(ctx.hoje, p.dataAmostras);
+      return '<tr data-peca="' + e(p.id) + '">' +
+        '<td><div class="forte">' + e(p.nome) + '</div><div class="sub">' + e(p.programa || '') + '</div></td>' +
+        '<td>' + e(cliente ? cliente.nome : p.clienteId) + '</td>' +
+        '<td>' + ui.etiquetaArea(p.area) + '</td>' +
+        '<td>' + e(util.formatarData(p.dataAmostras, true)) +
+          '<div class="sub">' + (dias > 0 ? 'em ' + dias + ' dia(s)' : 'disponível') + '</div></td>' +
+        '<td class="num">' + p.quantidade + '</td>' +
+        '<td class="num">' + c.amostras +
+          (saldo < 0 ? ' <span class="etiqueta erro">faltam ' + Math.abs(saldo) + '</span>' : '') + '</td>' +
+        '<td class="num">' + c.ensaios + '</td>' +
+        '<td class="num">' + e(util.formatarMoeda(c.custo)) + '</td>' +
+        '<td>' + (c.ultimoFim ? e(util.formatarData(c.ultimoFim, true)) : '<span class="sub">—</span>') + '</td>' +
+        '<td class="num" style="white-space:nowrap">' +
+          '<button class="botao pequeno editar">Editar</button> ' +
+          '<button class="botao pequeno perigo excluir">✕</button></td>' +
+      '</tr>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Peças e amostras</h2>' +
+        '<p>Quando o lote de amostras chega ao laboratório e quantas peças existem. O planejamento nunca agenda um ensaio antes dessa data.</p></div>' +
+        '<div class="acoes"><button class="botao primario" id="nova">+ Nova peça</button></div>' +
+      '</div>' +
+      '<div class="cartao">' +
+        '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
+          '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
+          '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
+        '</div></div>' +
+        (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
+          '<th>Peça</th><th>Cliente</th><th>Área</th><th>Amostras a partir de</th><th class="num">Disponíveis</th>' +
+          '<th class="num">Comprometidas</th><th class="num">Ensaios</th><th class="num">Custo</th><th>Fim da validação</th><th></th>' +
+          '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
+          : ui.vazio('Nenhuma peça cadastrada', 'Cadastre a peça para poder confirmar testes sobre ela.')) +
+      '</div>';
+
+    container.querySelector('#nova').onclick = function () { abrirEdicao(ctx, null); };
+    ['cliente:clienteId', 'area:area'].forEach(function (par) {
+      var p = par.split(':');
+      var alvo = container.querySelector('#f-' + p[0]);
+      alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });
+    });
+    container.querySelectorAll('tr[data-peca]').forEach(function (tr) {
+      var peca = util.porId(estado.pecas, tr.dataset.peca);
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(ctx, peca); };
+      tr.querySelector('.excluir').onclick = function () {
+        var usos = ctx.estado.demandas.filter(function (d) { return d.pecaId === peca.id; }).length;
+        ui.confirmarAcao('Remover "' + peca.nome + '"?' + (usos ? ' Há ' + usos + ' demanda(s) associada(s), que ficarão sem peça.' : ''), function () {
+          TC.store.removerPeca(peca.id);
+          ui.notificar('Peça removida.');
+        });
+      };
+    });
+  }
+
+  TC.views = TC.views || {};
+  TC.views.pecas = { render: render };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Painel: leitura gerencial do que foi confirmado — custo por cliente, por fase e por área,
+   carga de bancada e o que está fora do prazo. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  function agrupar(alocacoes, chave) {
+    var mapa = {};
+    alocacoes.forEach(function (a) {
+      var k = chave(a) || '—';
+      var g = mapa[k] = mapa[k] || { chave: k, custo: 0, horas: 0, ensaios: 0 };
+      g.custo += a.custo.total;
+      g.horas += a.custo.horas;
+      g.ensaios += 1;
+    });
+    return Object.keys(mapa).map(function (k) { return mapa[k]; })
+      .sort(function (a, b) { return b.custo - a.custo; });
+  }
+
+  function barras(grupos, rotulo) {
+    if (!grupos.length) return ui.vazio('Sem dados', 'Confirme testes no catálogo para alimentar o painel.');
+    var maximo = grupos[0].custo || 1;
+    return '<table><thead><tr><th>' + e(rotulo) + '</th><th class="num">Ensaios</th><th class="num">Horas</th>' +
+      '<th style="width:38%">Custo</th></tr></thead><tbody>' +
+      grupos.map(function (g) {
+        return '<tr><td class="forte">' + e(g.chave) + '</td>' +
+          '<td class="num">' + g.ensaios + '</td>' +
+          '<td class="num">' + Math.round(g.horas) + ' h</td>' +
+          '<td><div style="display:flex;align-items:center;gap:9px">' +
+            '<span class="barra-trilho" style="flex:1"><span class="barra-valor" style="width:' +
+              Math.round(g.custo / maximo * 100) + '%"></span></span>' +
+            '<span class="forte" style="min-width:92px;text-align:right">' + e(util.formatarMoeda(g.custo)) + '</span>' +
+          '</div></td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado, hoje = ctx.hoje;
+    var todas = ctx.plano.alocacoes.filter(function (a) { return a.demanda.status !== 'CANCELADO'; });
+
+    var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0;
+    todas.forEach(function (a) {
+      custoTotal += a.custo.total;
+      horasTotal += a.custo.horas;
+      if (a.atrasado) atrasadas++;
+      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
+      if (a.demanda.status === 'CONCLUIDO') concluidas++;
+    });
+
+    var proximos = ctx.plano.agendadas.filter(function (a) {
+      var d = util.diffDias(hoje, a.inicio);
+      return d >= 0 && d <= 30;
+    }).sort(function (a, b) { return util.diffDias(b.inicio, a.inicio); });
+
+    var emCurso = ctx.plano.agendadas.filter(function (a) {
+      return util.diffDias(a.inicio, hoje) >= 0 && util.diffDias(hoje, a.fim) >= 0;
+    });
+
+    var alertas = [];
+    todas.forEach(function (a) {
+      if (a.atrasado) {
+        alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ' em ' +
+          (a.peca ? a.peca.nome : '—') + ' termina ' + Math.abs(a.folga) + ' dia(s) após o prazo de ' +
+          util.formatarData(a.demanda.prazo, true) + '.' });
+      }
+      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) {
+        alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ': ' + a.motivo });
+      }
+    });
+    estado.pecas.forEach(function (p) {
+      var comprometidas = todas.reduce(function (soma, a) {
+        return a.peca && a.peca.id === p.id ? soma + a.demanda.quantidade : soma;
+      }, 0);
+      if (comprometidas > p.quantidade) {
+        alertas.push({ tipo: 'alerta', texto: p.nome + ': ' + comprometidas + ' amostras comprometidas para apenas ' +
+          p.quantidade + ' disponíveis.' });
+      }
+    });
+
+    var porCliente = agrupar(todas, function (a) {
+      var c = util.porId(estado.clientes, a.demanda.clienteId);
+      return c ? c.nome : a.demanda.clienteId;
+    });
+    var porFase = agrupar(todas, function (a) {
+      var f = util.porId(TC.data.FASES, a.demanda.fase);
+      return f ? f.nome : a.demanda.fase;
+    });
+    var porArea = agrupar(todas, function (a) {
+      var ar = a.teste ? util.porId(TC.data.AREAS, a.teste.area) : null;
+      return ar ? ar.nome : '—';
+    });
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Painel de validação</h2>' +
+        '<p>Posição consolidada de tudo que foi confirmado: quanto custa, quanto ocupa de bancada e o que ameaça o prazo.</p></div>' +
+      '</div>' +
+      '<div class="indicadores">' +
+        '<div class="indicador"><div class="rotulo">Custo confirmado</div><div class="valor">' + util.formatarMoeda(custoTotal) + '</div>' +
+          '<div class="nota">' + todas.length + ' ensaios · ' + concluidas + ' concluídos</div></div>' +
+        '<div class="indicador"><div class="rotulo">Horas de bancada</div><div class="valor">' + Math.round(horasTotal) + ' h</div>' +
+          '<div class="nota">setup + ensaio</div></div>' +
+        '<div class="indicador"><div class="rotulo">Em execução hoje</div><div class="valor">' + emCurso.length + '</div>' +
+          '<div class="nota">' + proximos.length + ' iniciam em 30 dias</div></div>' +
+        '<div class="indicador"><div class="rotulo">Riscos de prazo</div>' +
+          '<div class="valor" style="color:' + (atrasadas + semJanela ? 'var(--erro)' : 'var(--ok)') + '">' + (atrasadas + semJanela) + '</div>' +
+          '<div class="nota">' + atrasadas + ' fora do prazo · ' + semJanela + ' sem janela</div></div>' +
+      '</div>' +
+      (alertas.length
+        ? '<div class="cartao"><div class="cartao-topo"><h3>Pontos de atenção</h3></div><div class="cartao-corpo">' +
+          alertas.slice(0, 12).map(function (al) {
+            return '<div class="aviso ' + al.tipo + '" style="margin-bottom:8px">' + e(al.texto) + '</div>';
+          }).join('') +
+          (alertas.length > 12 ? '<div class="sub">+ ' + (alertas.length - 12) + ' outros.</div>' : '') +
+          '</div></div>'
+        : '') +
+      '<div class="cartao"><div class="cartao-topo"><h3>Custo por cliente</h3></div>' +
+        '<div class="tabela-rolagem">' + barras(porCliente, 'Cliente') + '</div></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Custo por fase de projeto</h3></div>' +
+        '<div class="tabela-rolagem">' + barras(porFase, 'Fase') + '</div></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Custo por área do sistema</h3></div>' +
+        '<div class="tabela-rolagem">' + barras(porArea, 'Área') + '</div></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Próximos 30 dias</h3>' +
+        '<span class="sub">ensaios que entram em bancada</span></div>' +
+        (proximos.length
+          ? '<div class="tabela-rolagem"><table><thead><tr><th>Início</th><th>Procedimento</th><th>Peça</th>' +
+            '<th>Equipamento</th><th class="num">Duração</th><th class="num">Custo</th></tr></thead><tbody>' +
+            proximos.map(function (a) {
+              return '<tr><td class="forte">' + e(util.formatarData(a.inicio, true)) + '</td>' +
+                '<td>' + e(a.teste.nome) + '</td>' +
+                '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
+                '<td><span class="mono">' + e(a.equipamento.id) + '</span></td>' +
+                '<td class="num">' + (util.diffDias(a.inicio, a.fim) + 1) + ' d</td>' +
+                '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
+            }).join('') + '</tbody></table></div>'
+          : ui.vazio('Nada entra em bancada nos próximos 30 dias', '')) +
+      '</div>';
+  }
+
+  TC.views = TC.views || {};
+  TC.views.painel = { render: render };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Montagem da aplicação: navegação, recálculo do planejamento e backup dos dados. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  var ROTAS = [
+    { id: 'catalogo', nome: 'Catálogo de testes', icone: '📋', grupo: 'Validação' },
+    { id: 'demandas', nome: 'Demandas', icone: '✅', grupo: 'Validação' },
+    { id: 'planejamento', nome: 'Planejamento', icone: '📅', grupo: 'Validação' },
+    { id: 'painel', nome: 'Painel', icone: '📊', grupo: 'Validação' },
+    { id: 'equipamentos', nome: 'Equipamentos', icone: '⚙️', grupo: 'Cadastros' },
+    { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' }
+  ];
+
+  var filtros = { busca: '', clienteId: '', area: '', fase: '', status: '', equipamentoId: '' };
+  var rotaAtual = 'catalogo';
+
+  function contadores(estado, plano) {
+    return {
+      catalogo: estado.testes.length,
+      demandas: estado.demandas.filter(function (d) {
+        return TC.scheduler.STATUS_ATIVOS.indexOf(d.status) !== -1;
+      }).length,
+      planejamento: plano.agendadas.length,
+      equipamentos: estado.equipamentos.length,
+      pecas: estado.pecas.length
+    };
+  }
+
+  function desenharNavegacao(estado, plano) {
+    var lateral = document.getElementById('lateral');
+    var contas = contadores(estado, plano);
+    var grupoAtual = '';
+    var html = '';
+    ROTAS.forEach(function (r) {
+      if (r.grupo !== grupoAtual) {
+        grupoAtual = r.grupo;
+        html += '<div class="nav-titulo">' + e(grupoAtual) + '</div>';
+      }
+      html += '<button class="nav-item' + (r.id === rotaAtual ? ' ativo' : '') + '" data-rota="' + e(r.id) + '">' +
+        '<span aria-hidden="true">' + r.icone + '</span>' + e(r.nome) +
+        (contas[r.id] !== undefined ? '<span class="contador">' + contas[r.id] + '</span>' : '') +
+        '</button>';
+    });
+    html += '<div class="nav-titulo">Dados</div>' +
+      '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Exportar backup</button>' +
+      '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Importar backup</button>' +
+      '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restaurar padrão</button>' +
+      '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Dados gravados neste navegador. Exporte um backup antes de trocar de máquina.</div>';
+
+    lateral.querySelector('#menu').innerHTML = html;
+
+    lateral.querySelectorAll('[data-rota]').forEach(function (botao) {
+      botao.onclick = function () { ir(botao.dataset.rota); };
+    });
+    lateral.querySelector('#exportar').onclick = exportarBackup;
+    lateral.querySelector('#importar').onclick = importarBackup;
+    lateral.querySelector('#restaurar').onclick = function () {
+      ui.confirmarAcao('Isto apaga todas as demandas e volta ao catálogo de exemplo. Continuar?', function () {
+        TC.store.restaurarPadrao();
+        ui.notificar('Dados restaurados.');
+      });
+    };
+  }
+
+  function exportarBackup() {
+    var url = URL.createObjectURL(new Blob([TC.store.exportar()], { type: 'application/json' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'testing-center-' + util.hoje() + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    ui.notificar('Backup exportado.');
+  }
+
+  function importarBackup() {
+    var campo = document.createElement('input');
+    campo.type = 'file';
+    campo.accept = 'application/json';
+    campo.onchange = function () {
+      var arquivo = campo.files[0];
+      if (!arquivo) return;
+      var leitor = new FileReader();
+      leitor.onload = function () {
+        try {
+          TC.store.importar(String(leitor.result));
+          ui.notificar('Backup importado.');
+        } catch (erro) {
+          ui.notificar('Arquivo inválido: ' + erro.message);
+        }
+      };
+      leitor.readAsText(arquivo);
+    };
+    campo.click();
+  }
+
+  function ir(rota) {
+    if (!util.porId(ROTAS, rota)) rota = 'catalogo';
+    rotaAtual = rota;
+    if (global.location.hash !== '#' + rota) global.location.hash = rota;
+    global.scrollTo(0, 0);
+    desenhar();
+  }
+
+  function desenhar() {
+    var estado = TC.store.get();
+    var hoje = util.hoje();
+    var plano = TC.scheduler.planejar(estado, hoje);
+    var ctx = {
+      estado: estado,
+      plano: plano,
+      hoje: hoje,
+      filtros: filtros,
+      ir: ir,
+      atualizar: desenhar
+    };
+
+    desenharNavegacao(estado, plano);
+    TC.views[rotaAtual].render(document.getElementById('conteudo'), ctx);
+  }
+
+  function iniciar() {
+    TC.store.init();
+    TC.store.aoMudar(desenhar);
+    var inicial = (global.location.hash || '').replace('#', '');
+    rotaAtual = util.porId(ROTAS, inicial) ? inicial : 'catalogo';
+    global.addEventListener('hashchange', function () {
+      var alvo = (global.location.hash || '').replace('#', '');
+      if (alvo && alvo !== rotaAtual) ir(alvo);
+    });
+    desenhar();
+  }
+
+  TC.app = { iniciar: iniciar, ir: ir, ROTAS: ROTAS };
+
+  /* Em página embutida o documento já pode estar pronto quando este script roda. */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+</body>
+</html>

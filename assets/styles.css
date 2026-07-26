@@ -1,6 +1,8 @@
-/* Testing Center — folha de estilo única. Tema claro/escuro conforme o sistema. */
+/* Testing Center — folha de estilo única.
+   O tema segue a preferência do sistema, mas um atributo data-theme no elemento raiz
+   tem precedência, para hospedagens que oferecem um alternador próprio. */
 
-:root {
+:root, :root[data-theme="light"] {
   --bg: #f4f6f9;
   --surface: #ffffff;
   --surface-2: #f8fafc;
@@ -26,8 +28,9 @@
   --raio: 10px;
 }
 
+/* O :not() evita que a preferência do sistema sobreponha uma escolha explícita de tema claro. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e1520;
     --surface: #16202e;
     --surface-2: #1b2735;
@@ -53,6 +56,31 @@
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #0e1520;
+  --surface: #16202e;
+  --surface-2: #1b2735;
+  --border: #26374b;
+  --border-forte: #354a63;
+  --texto: #e7eef6;
+  --texto-fraco: #94a9bf;
+  --marca: #4aa3d8;
+  --marca-fraca: #17324a;
+  --hot: #fb923c;
+  --hot-bg: #3a2113;
+  --cold: #56b4e6;
+  --cold-bg: #12303f;
+  --ambos: #a78bfa;
+  --ambos-bg: #2b2148;
+  --ok: #4ade80;
+  --ok-bg: #12321f;
+  --alerta: #fbbf24;
+  --alerta-bg: #392b10;
+  --erro: #f87171;
+  --erro-bg: #3a1717;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .28);
+}
+
 * { box-sizing: border-box; }
 
 html, body { height: 100%; }
@@ -61,7 +89,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--texto);
-  font: 14px/1.5 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  /* Pilha do sistema: nenhuma fonte externa a carregar, nenhum fallback silencioso. */
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
