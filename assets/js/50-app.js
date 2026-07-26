@@ -35,7 +35,18 @@
       b.setAttribute('aria-selected', ativo ? 'true' : 'false');
     });
     $$('.vista').forEach(function (v) { v.hidden = v.id !== 'view-' + aba; });
+    trazerAbaParaVista();
     render();
+  }
+
+  /* Em tela estreita a barra de abas rola: a aba ativa precisa ficar visível. */
+  function trazerAbaParaVista() {
+    var ativa = $('.aba.ativa');
+    if (!ativa) return;
+    var barra = ativa.parentElement;
+    if (barra.scrollWidth <= barra.clientWidth) return;
+    var suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    barra.scrollTo({ left: Math.max(0, ativa.offsetLeft - 12), behavior: suave ? 'smooth' : 'auto' });
   }
 
   /* ---------- filtros do catálogo ---------- */

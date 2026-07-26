@@ -265,12 +265,13 @@ select.prio-alta { color: var(--alerta); font-weight: 650; }
 
 /* ---------- gantt ---------- */
 .gantt {
+  --lbl-w: 190px;
   background: var(--bg-2); border: 1px solid var(--linha); border-radius: var(--raio);
   overflow: auto; max-height: 62vh; box-shadow: var(--sombra);
 }
 .g-wrap { min-width: max-content; position: relative; }
 .g-topo { display: flex; position: sticky; top: 0; z-index: 12; background: var(--bg-3); border-bottom: 1px solid var(--linha); }
-.g-lbl, .g-lbl-col { width: 190px; flex: none; }
+.g-lbl, .g-lbl-col { width: var(--lbl-w); flex: none; }
 .g-lbl-topo { padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--txt-3); font-weight: 650; }
 .g-pista-topo { position: relative; height: 38px; }
 .g-meses { display: flex; height: 19px; }
@@ -284,7 +285,7 @@ select.prio-alta { color: var(--alerta); font-weight: 650; }
   border-left: 1px solid var(--linha); height: 19px; white-space: nowrap;
 }
 .g-corpo { position: relative; }
-.g-fundo { position: absolute; left: 190px; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+.g-fundo { position: absolute; left: var(--lbl-w); top: 0; bottom: 0; pointer-events: none; z-index: 0; }
 .g-fds { position: absolute; top: 0; bottom: 0; background: var(--fds); }
 .g-hoje { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--acento); opacity: .75; z-index: 3; }
 .g-linha { display: flex; border-bottom: 1px solid var(--linha); position: relative; }
@@ -382,7 +383,8 @@ select.prio-alta { color: var(--alerta); font-weight: 650; }
 /* ---------- modal ---------- */
 .modal {
   border: 1px solid var(--linha); border-radius: 14px; padding: 0; background: var(--bg-2);
-  color: var(--txt); max-width: 780px; width: calc(100% - 32px); box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+  color: var(--txt); max-width: 780px; width: calc(100% - 32px); max-height: 90vh;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
 }
 .modal::backdrop { background: rgba(6, 10, 18, .6); backdrop-filter: blur(2px); }
 .modal form { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
@@ -411,4 +413,65 @@ select.prio-alta { color: var(--alerta); font-weight: 650; }
   .abas { top: 0; }
   .itens-modal li { grid-template-columns: 1fr 1fr; }
   .barras li { grid-template-columns: 42px 1fr 96px; }
+}
+
+/* Telefone: o cabeçalho não pode consumir a primeira tela, e o conteúdo
+   denso (tabelas, gantt) rola dentro do próprio container. */
+@media (max-width: 720px) {
+  .topo { position: static; padding: 10px 12px; gap: 10px; }
+  .marca { width: 100%; }
+  .topo h1 { font-size: 16px; }
+  .topo .marca p { font-size: 11px; }
+  .logo { width: 30px; height: 30px; font-size: 17px; }
+  .top-kpis { order: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .top-kpi { min-width: 0; padding: 5px 7px; }
+  .top-kpi span { font-size: 9px; letter-spacing: .02em; }
+  .top-kpi strong { font-size: 13px; }
+  .acoes-topo { order: 3; width: 100%; }
+  .acoes-topo .btn-sec { flex: 1; padding: 6px 8px; font-size: 12px; }
+
+  .abas { position: sticky; top: 0; padding: 0 8px; }
+  .aba { padding: 10px 10px; font-size: 13px; }
+
+  main { padding: 12px 12px 96px; }
+  .aviso { margin: 8px 12px 0; font-size: 13px; }
+  .cabecalho-vista { flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .cabecalho-vista h2 { font-size: 16px; }
+  .cabecalho-vista > button { margin-left: 0; align-self: flex-start; }
+
+  .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+  /* itens de grid têm min-width auto: sem isto o texto das opções alarga a coluna */
+  .filtros > *, .filtros label { min-width: 0; }
+  .filtros select, .filtros input { width: 100%; min-width: 0; }
+  .filtros label.cresce, .segmentado { grid-column: 1 / -1; min-width: 0; }
+  .segmentado { margin-left: 0; }
+  .segmentado button { flex: 1; }
+  .filtros > button { grid-column: 1 / -1; }
+
+  .kpis-inline { gap: 12px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpi-val { font-size: 18px; }
+
+  .gantt { --lbl-w: 118px; max-height: 58vh; }
+  .g-lbl-topo { font-size: 10px; padding: 8px; }
+  .g-lbl { padding: 5px 7px; }
+  .g-lbl small.sub { display: none; }
+  .legenda { gap: 10px; font-size: 11px; }
+
+  .grid-equip { grid-template-columns: 1fr; }
+  /* Ancorada na viewport: a posição natural da barra fica no fim de uma
+     tabela longa, e sticky depende do container ainda estar em tela. */
+  .barra-selecao {
+    position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 60;
+    flex-direction: column; align-items: stretch; gap: 10px; margin-top: 0;
+  }
+  .barra-selecao > div { margin-left: 0; }
+  .barra-selecao > div .btn, .barra-selecao > div .btn-sec { flex: 1; }
+
+  .modal form { padding: 14px; gap: 10px; }
+  .campos-modal { grid-template-columns: 1fr 1fr; }
+  .itens-modal { max-height: 40vh; }
+  .itens-modal li { grid-template-columns: 1fr; gap: 6px; }
+  .ci-custo { text-align: left; }
+  .acoes-modal .btn, .acoes-modal .btn-sec { flex: 1; }
 }

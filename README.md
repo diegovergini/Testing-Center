@@ -24,8 +24,16 @@ npm test           # 19 testes do planejador (node:test)
 npm run build      # gera dist/index.html, página única autocontida
 ```
 
-Também funciona abrindo `index.html` direto no navegador. O `dist/index.html` gerado pelo
-build embute CSS e JS num arquivo só — bom para publicar num estático ou mandar por e-mail.
+Também funciona abrindo `index.html` direto no navegador. O build gera dois arquivos:
+
+- `dist/index.html` — página completa autocontida (CSS e JS embutidos). Abre do disco,
+  publica em qualquer estático, vai por e-mail.
+- `dist/artifact.html` — o mesmo conteúdo sem `<!doctype>`/`<html>`/`<head>`/`<body>`, para
+  hospedagens que embrulham o arquivo no próprio esqueleto.
+
+O layout é responsivo: em telas estreitas o cabeçalho compacta, os filtros vão a duas
+colunas, a barra de confirmação ancora no rodapé e tabelas e Gantt rolam dentro do próprio
+container — a página nunca rola de lado.
 
 Os dados ficam no `localStorage` do navegador. **Exportar base** / **Importar** movem a base
 entre máquinas em JSON; **Restaurar** volta à base de exemplo.

@@ -32,3 +32,18 @@ fs.mkdirSync(path.join(raiz, 'dist'), { recursive: true });
 const destino = path.join(raiz, 'dist', 'index.html');
 fs.writeFileSync(destino, saida);
 console.log('dist/index.html gerado —', (Buffer.byteLength(saida) / 1024).toFixed(1), 'kB');
+
+/* dist/artifact.html — mesma página, sem <!doctype>/<html>/<head>/<body>, para
+   hospedagens que embrulham o conteúdo no próprio esqueleto. */
+const titulo = (saida.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || 'Testing Center';
+const corpo = (saida.match(/<body[^>]*>([\s\S]*)<\/body>/) || [])[1];
+const estilos = (saida.match(/<style>[\s\S]*?<\/style>/g) || []).join('\n');
+
+if (!corpo) {
+  console.error('Não foi possível extrair o <body> da página construída.');
+  process.exit(1);
+}
+
+const fragmento = '<title>' + titulo + '</title>\n' + estilos + '\n' + corpo.trim() + '\n';
+fs.writeFileSync(path.join(raiz, 'dist', 'artifact.html'), fragmento);
+console.log('dist/artifact.html gerado —', (Buffer.byteLength(fragmento) / 1024).toFixed(1), 'kB');
