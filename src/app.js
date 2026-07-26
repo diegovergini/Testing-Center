@@ -10,6 +10,7 @@
     { id: 'demandas', nome: 'Demandas', icone: '✅', grupo: 'Validação' },
     { id: 'planejamento', nome: 'Planejamento', icone: '📅', grupo: 'Validação' },
     { id: 'painel', nome: 'Painel', icone: '📊', grupo: 'Validação' },
+    { id: 'clientes', nome: 'Clientes', icone: '🏢', grupo: 'Cadastros' },
     { id: 'equipamentos', nome: 'Equipamentos', icone: '⚙️', grupo: 'Cadastros' },
     { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' }
   ];
@@ -24,6 +25,7 @@
         return TC.scheduler.STATUS_ATIVOS.indexOf(d.status) !== -1;
       }).length,
       planejamento: plano.agendadas.length,
+      clientes: estado.clientes.length,
       equipamentos: estado.equipamentos.length,
       pecas: estado.pecas.length
     };

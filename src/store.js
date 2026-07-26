@@ -9,12 +9,38 @@
   var estado = null;
   var ouvintes = [];
 
+  /* Converte dados gravados antes da redução das fases para DV / PV / VAVE. */
+  function migrarFases(estado) {
+    var antigas = TC.data.FASES_ANTIGAS;
+    var validas = TC.data.FASES.map(function (f) { return f.id; });
+
+    function converter(fase) {
+      if (validas.indexOf(fase) !== -1) return fase;
+      return antigas[fase] || null;
+    }
+
+    (estado.testes || []).forEach(function (t) {
+      var vistas = [];
+      (t.fases || []).forEach(function (fase) {
+        var nova = converter(fase);
+        if (nova && vistas.indexOf(nova) === -1) vistas.push(nova);
+      });
+      t.fases = vistas.length ? vistas : [validas[0]];
+    });
+
+    (estado.demandas || []).forEach(function (d) {
+      d.fase = converter(d.fase) || validas[0];
+    });
+
+    return estado;
+  }
+
   function carregar() {
     try {
       var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
       if (bruto) {
         var lido = JSON.parse(bruto);
-        if (lido && lido.testes && lido.equipamentos) return lido;
+        if (lido && lido.testes && lido.equipamentos) return migrarFases(lido);
       }
     } catch (e) {
       console.warn('Não foi possível ler os dados salvos, recomeçando do catálogo padrão.', e);
@@ -156,6 +182,15 @@
       commit();
       return cliente;
     },
+    removerCliente: function (id) {
+      estado.clientes = estado.clientes.filter(function (c) { return c.id !== id; });
+      /* O cliente sai também das listas de exigência dos procedimentos, senão o
+         catálogo passa a filtrar por um cliente que não existe mais. */
+      estado.testes.forEach(function (t) {
+        if (t.clientes) t.clientes = t.clientes.filter(function (c) { return c !== id; });
+      });
+      commit();
+    },
 
     /* ---- Backup ---- */
     exportar: function () {
@@ -167,7 +202,7 @@
       lido.demandas = lido.demandas || [];
       lido.pecas = lido.pecas || [];
       lido.clientes = lido.clientes || [];
-      estado = lido;
+      estado = migrarFases(lido);
       commit();
     },
     restaurarPadrao: function () {

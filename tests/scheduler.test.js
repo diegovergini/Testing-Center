@@ -257,3 +257,14 @@ test('o catálogo de exemplo é planejável de ponta a ponta', () => {
     assert.ok(util.diffDias(a.inicio, a.fim) >= 0);
   });
 });
+
+test('as fases do catálogo são apenas DV, PV e VAVE', () => {
+  const dados = require('../src/data.js');
+  assert.deepEqual(dados.FASES.map((f) => f.id), ['DV', 'PV', 'VAVE']);
+
+  const validas = dados.FASES.map((f) => f.id);
+  dados.seed().testes.forEach((t) => {
+    assert.ok(t.fases.length, t.id + ' ficou sem fase');
+    t.fases.forEach((f) => assert.ok(validas.includes(f), t.id + ' usa fase inválida ' + f));
+  });
+});

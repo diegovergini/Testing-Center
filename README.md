@@ -55,8 +55,19 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | **Demandas** | Fila de testes confirmados com a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
 | **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
+| **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
 | **Equipamentos** | Capacidade instalada: posições, calendário, custo-hora e paradas. |
 | **Peças e amostras** | Quando as amostras chegam, quantas existem e quantas já estão comprometidas. |
+
+## Fases de projeto
+
+São três: **DV** (validação de projeto com protótipos), **PV** (validação com peças de
+ferramental definitivo) e **VAVE** (revalidação após mudança de material, processo ou custo).
+Cada procedimento marca em quais fases se aplica, e a demanda registra em qual fase o teste
+foi pedido — é isso que separa o custo por fase no painel.
+
+Dados salvos por versões anteriores, que usavam Conceito, PPAP e Série, são convertidos ao
+carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
 
 ## Modelo de custo
 
@@ -94,6 +105,7 @@ src/scheduler.js      motor de alocação e cálculo de custo — sem dependênc
 src/store.js          estado, persistência e CRUD
 src/ui.js             modal, notificações, etiquetas
 src/views/*.js        uma tela por arquivo
+build.js              gera as versões de arquivo único em dist/
 src/app.js            navegação e recálculo do planejamento
 tests/                testes do motor (node:test)
 ```

@@ -136,7 +136,8 @@
           : '<span class="sub">—</span>') + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
           '<button class="botao pequeno manutencao">Paradas</button> ' +
-          '<button class="botao pequeno editar">Editar</button>' +
+          '<button class="botao pequeno editar">Editar</button> ' +
+          '<button class="botao pequeno perigo excluir" title="Remover equipamento">✕</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -161,6 +162,19 @@
       var eq = util.porId(estado.equipamentos, tr.dataset.equip);
       tr.querySelector('.editar').onclick = function () { abrirEdicao(eq); };
       tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
+      tr.querySelector('.excluir').onclick = function () {
+        var dependentes = estado.testes.filter(function (t) { return t.equipamentoId === eq.id; });
+        ui.confirmarAcao(
+          'Remover ' + eq.id + ' — ' + eq.nome + '?' +
+          (dependentes.length
+            ? ' ' + dependentes.length + ' procedimento(s) usam este equipamento e ficarão sem bancada, ' +
+              'aparecendo como demandas sem janela até você apontá-los para outro.'
+            : ''),
+          function () {
+            TC.store.removerEquipamento(eq.id);
+            ui.notificar('Equipamento removido.');
+          });
+      };
     });
   }
 

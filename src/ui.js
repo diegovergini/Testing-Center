@@ -101,7 +101,7 @@
     return '<span class="fases">' + TC.data.FASES.map(function (f) {
       var ativo = fasesDoTeste && fasesDoTeste.indexOf(f.id) !== -1;
       return '<span class="fase-chip' + (ativo ? ' on' : '') + '" title="' + e(f.nome) + '">' +
-        e(f.id === 'CONCEITO' ? 'CON' : f.id) + '</span>';
+        e(f.id) + '</span>';
     }).join('') + '</span>';
   }
 

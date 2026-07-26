@@ -5,14 +5,15 @@
 
   var TC = (global.TC = global.TC || {});
 
-  /* Fases de projeto na sequência do APQP. */
+  /* Fases de projeto. */
   var FASES = [
-    { id: 'CONCEITO', nome: 'Conceito', descricao: 'Estudos de viabilidade e seleção de material' },
     { id: 'DV', nome: 'DV — Design Validation', descricao: 'Validação de projeto com protótipos' },
     { id: 'PV', nome: 'PV — Product Validation', descricao: 'Validação com peças de ferramental definitivo' },
-    { id: 'PPAP', nome: 'PPAP', descricao: 'Aprovação de peça de produção' },
-    { id: 'SERIE', nome: 'Série', descricao: 'Monitoramento e requalificação periódica' }
+    { id: 'VAVE', nome: 'VAVE', descricao: 'Revalidação após mudança de material, processo ou custo' }
   ];
+
+  /* Fases de versões anteriores, convertidas ao carregar dados já salvos. */
+  var FASES_ANTIGAS = { CONCEITO: 'DV', PPAP: 'PV', SERIE: 'VAVE' };
 
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
@@ -69,7 +70,7 @@
     {
       id: 'TP-HOT-02', nome: 'Choque térmico acelerado', norma: 'ISO 19453-5',
       clientes: [],
-      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV', 'PPAP'],
+      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV'],
       horasSetup: 4, horasEnsaio: 336, amostras: 2, custoBase: 6400,
       descricao: 'Ciclos rápidos entre −40 °C e 950 °C para verificar integridade de juntas e revestimentos.'
     },
@@ -83,7 +84,7 @@
     {
       id: 'TP-HOT-04', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54',
       clientes: [],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['CONCEITO', 'DV'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'VAVE'],
       horasSetup: 4, horasEnsaio: 1000, amostras: 3, custoBase: 9800,
       descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico/austenítico.'
     },
@@ -97,7 +98,7 @@
     {
       id: 'TP-HOT-06', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV', 'PPAP'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
       horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
       descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
     },
@@ -118,35 +119,35 @@
     {
       id: 'TP-COL-02', nome: 'Corrosão cíclica VDA 233-102', norma: 'VDA 233-102',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'SERIE'],
+      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 3, horasEnsaio: 1512, amostras: 3, custoBase: 4200,
       descricao: 'Doze semanas de ciclos de salmoura, umidade e frio para avaliar aluminizado e inox.'
     },
     {
       id: 'TP-COL-03', nome: 'Névoa salina neutra 480 h', norma: 'ASTM B117',
       clientes: [],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PPAP', 'SERIE'],
+      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'VAVE'],
       horasSetup: 2, horasEnsaio: 480, amostras: 3, custoBase: 2400,
       descricao: 'Ensaio de referência para revestimentos e proteção de solda.'
     },
     {
       id: 'TP-COL-04', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544',
       clientes: [],
-      area: 'COLD', equipamentoId: 'FLW-01', fases: ['CONCEITO', 'DV', 'PV', 'PPAP'],
+      area: 'COLD', equipamentoId: 'FLW-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
       descricao: 'Levantamento da curva de contrapressão em função da vazão.'
     },
     {
       id: 'TP-COL-05', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820',
       clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['CONCEITO', 'DV', 'PV'],
+      area: 'COLD', equipamentoId: 'ACU-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
       descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
     },
     {
       id: 'TP-COL-06', nome: 'Ruído de passagem e tailpipe noise', norma: 'ISO 362',
       clientes: ['CLI-STL', 'CLI-VW'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'PPAP'],
+      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'VAVE'],
       horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
       descricao: 'Verificação do nível sonoro do sistema completo montado no veículo.'
     },
@@ -167,7 +168,7 @@
     {
       id: 'TP-AMB-01', nome: 'Estanqueidade por hélio', norma: 'Procedimento interno LAB-LEAK',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'PPAP', 'SERIE'],
+      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 1, horasEnsaio: 4, amostras: 3, custoBase: 900,
       descricao: 'Detecção de vazamento em soldas e flanges com traçador de hélio.'
     },
@@ -181,21 +182,21 @@
     {
       id: 'TP-AMB-03', nome: 'Análise dimensional em CMM', norma: 'Desenho do cliente',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'PPAP', 'SERIE'],
+      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'VAVE'],
       horasSetup: 3, horasEnsaio: 10, amostras: 5, custoBase: 2100,
       descricao: 'Layout dimensional completo para o dossiê de PPAP.'
     },
     {
       id: 'TP-AMB-04', nome: 'Análise metalográfica de solda', norma: 'ISO 17639',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV', 'PPAP'],
+      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV'],
       horasSetup: 2, horasEnsaio: 16, amostras: 4, custoBase: 3100,
       descricao: 'Macrografia e micrografia para penetração, porosidade e tamanho de grão.'
     },
     {
       id: 'TP-AMB-05', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['CONCEITO', 'PPAP', 'SERIE'],
+      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['DV', 'VAVE'],
       horasSetup: 1, horasEnsaio: 6, amostras: 6, custoBase: 1500,
       descricao: 'Caracterização mecânica do inox de entrada por lote.'
     }
@@ -217,6 +218,7 @@
 
   TC.data = {
     FASES: FASES,
+    FASES_ANTIGAS: FASES_ANTIGAS,
     AREAS: AREAS,
     PRIORIDADES: PRIORIDADES,
     seed: function () {

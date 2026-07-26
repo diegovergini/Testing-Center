@@ -445,14 +445,15 @@ tbody tr:last-child td { border-bottom: none; }
 
   var TC = (global.TC = global.TC || {});
 
-  /* Fases de projeto na sequência do APQP. */
+  /* Fases de projeto. */
   var FASES = [
-    { id: 'CONCEITO', nome: 'Conceito', descricao: 'Estudos de viabilidade e seleção de material' },
     { id: 'DV', nome: 'DV — Design Validation', descricao: 'Validação de projeto com protótipos' },
     { id: 'PV', nome: 'PV — Product Validation', descricao: 'Validação com peças de ferramental definitivo' },
-    { id: 'PPAP', nome: 'PPAP', descricao: 'Aprovação de peça de produção' },
-    { id: 'SERIE', nome: 'Série', descricao: 'Monitoramento e requalificação periódica' }
+    { id: 'VAVE', nome: 'VAVE', descricao: 'Revalidação após mudança de material, processo ou custo' }
   ];
+
+  /* Fases de versões anteriores, convertidas ao carregar dados já salvos. */
+  var FASES_ANTIGAS = { CONCEITO: 'DV', PPAP: 'PV', SERIE: 'VAVE' };
 
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
@@ -509,7 +510,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-02', nome: 'Choque térmico acelerado', norma: 'ISO 19453-5',
       clientes: [],
-      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV', 'PPAP'],
+      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV'],
       horasSetup: 4, horasEnsaio: 336, amostras: 2, custoBase: 6400,
       descricao: 'Ciclos rápidos entre −40 °C e 950 °C para verificar integridade de juntas e revestimentos.'
     },
@@ -523,7 +524,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-04', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54',
       clientes: [],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['CONCEITO', 'DV'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'VAVE'],
       horasSetup: 4, horasEnsaio: 1000, amostras: 3, custoBase: 9800,
       descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico/austenítico.'
     },
@@ -537,7 +538,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-06', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV', 'PPAP'],
+      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
       horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
       descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
     },
@@ -558,35 +559,35 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-COL-02', nome: 'Corrosão cíclica VDA 233-102', norma: 'VDA 233-102',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'SERIE'],
+      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 3, horasEnsaio: 1512, amostras: 3, custoBase: 4200,
       descricao: 'Doze semanas de ciclos de salmoura, umidade e frio para avaliar aluminizado e inox.'
     },
     {
       id: 'TP-COL-03', nome: 'Névoa salina neutra 480 h', norma: 'ASTM B117',
       clientes: [],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PPAP', 'SERIE'],
+      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'VAVE'],
       horasSetup: 2, horasEnsaio: 480, amostras: 3, custoBase: 2400,
       descricao: 'Ensaio de referência para revestimentos e proteção de solda.'
     },
     {
       id: 'TP-COL-04', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544',
       clientes: [],
-      area: 'COLD', equipamentoId: 'FLW-01', fases: ['CONCEITO', 'DV', 'PV', 'PPAP'],
+      area: 'COLD', equipamentoId: 'FLW-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
       descricao: 'Levantamento da curva de contrapressão em função da vazão.'
     },
     {
       id: 'TP-COL-05', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820',
       clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['CONCEITO', 'DV', 'PV'],
+      area: 'COLD', equipamentoId: 'ACU-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
       descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
     },
     {
       id: 'TP-COL-06', nome: 'Ruído de passagem e tailpipe noise', norma: 'ISO 362',
       clientes: ['CLI-STL', 'CLI-VW'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'PPAP'],
+      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'VAVE'],
       horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
       descricao: 'Verificação do nível sonoro do sistema completo montado no veículo.'
     },
@@ -607,7 +608,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-AMB-01', nome: 'Estanqueidade por hélio', norma: 'Procedimento interno LAB-LEAK',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'PPAP', 'SERIE'],
+      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'VAVE'],
       horasSetup: 1, horasEnsaio: 4, amostras: 3, custoBase: 900,
       descricao: 'Detecção de vazamento em soldas e flanges com traçador de hélio.'
     },
@@ -621,21 +622,21 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-AMB-03', nome: 'Análise dimensional em CMM', norma: 'Desenho do cliente',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'PPAP', 'SERIE'],
+      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'VAVE'],
       horasSetup: 3, horasEnsaio: 10, amostras: 5, custoBase: 2100,
       descricao: 'Layout dimensional completo para o dossiê de PPAP.'
     },
     {
       id: 'TP-AMB-04', nome: 'Análise metalográfica de solda', norma: 'ISO 17639',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV', 'PPAP'],
+      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV'],
       horasSetup: 2, horasEnsaio: 16, amostras: 4, custoBase: 3100,
       descricao: 'Macrografia e micrografia para penetração, porosidade e tamanho de grão.'
     },
     {
       id: 'TP-AMB-05', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['CONCEITO', 'PPAP', 'SERIE'],
+      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['DV', 'VAVE'],
       horasSetup: 1, horasEnsaio: 6, amostras: 6, custoBase: 1500,
       descricao: 'Caracterização mecânica do inox de entrada por lote.'
     }
@@ -657,6 +658,7 @@ tbody tr:last-child td { border-bottom: none; }
 
   TC.data = {
     FASES: FASES,
+    FASES_ANTIGAS: FASES_ANTIGAS,
     AREAS: AREAS,
     PRIORIDADES: PRIORIDADES,
     seed: function () {
@@ -926,12 +928,38 @@ tbody tr:last-child td { border-bottom: none; }
   var estado = null;
   var ouvintes = [];
 
+  /* Converte dados gravados antes da redução das fases para DV / PV / VAVE. */
+  function migrarFases(estado) {
+    var antigas = TC.data.FASES_ANTIGAS;
+    var validas = TC.data.FASES.map(function (f) { return f.id; });
+
+    function converter(fase) {
+      if (validas.indexOf(fase) !== -1) return fase;
+      return antigas[fase] || null;
+    }
+
+    (estado.testes || []).forEach(function (t) {
+      var vistas = [];
+      (t.fases || []).forEach(function (fase) {
+        var nova = converter(fase);
+        if (nova && vistas.indexOf(nova) === -1) vistas.push(nova);
+      });
+      t.fases = vistas.length ? vistas : [validas[0]];
+    });
+
+    (estado.demandas || []).forEach(function (d) {
+      d.fase = converter(d.fase) || validas[0];
+    });
+
+    return estado;
+  }
+
   function carregar() {
     try {
       var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
       if (bruto) {
         var lido = JSON.parse(bruto);
-        if (lido && lido.testes && lido.equipamentos) return lido;
+        if (lido && lido.testes && lido.equipamentos) return migrarFases(lido);
       }
     } catch (e) {
       console.warn('Não foi possível ler os dados salvos, recomeçando do catálogo padrão.', e);
@@ -1073,6 +1101,15 @@ tbody tr:last-child td { border-bottom: none; }
       commit();
       return cliente;
     },
+    removerCliente: function (id) {
+      estado.clientes = estado.clientes.filter(function (c) { return c.id !== id; });
+      /* O cliente sai também das listas de exigência dos procedimentos, senão o
+         catálogo passa a filtrar por um cliente que não existe mais. */
+      estado.testes.forEach(function (t) {
+        if (t.clientes) t.clientes = t.clientes.filter(function (c) { return c !== id; });
+      });
+      commit();
+    },
 
     /* ---- Backup ---- */
     exportar: function () {
@@ -1084,7 +1121,7 @@ tbody tr:last-child td { border-bottom: none; }
       lido.demandas = lido.demandas || [];
       lido.pecas = lido.pecas || [];
       lido.clientes = lido.clientes || [];
-      estado = lido;
+      estado = migrarFases(lido);
       commit();
     },
     restaurarPadrao: function () {
@@ -1200,7 +1237,7 @@ tbody tr:last-child td { border-bottom: none; }
     return '<span class="fases">' + TC.data.FASES.map(function (f) {
       var ativo = fasesDoTeste && fasesDoTeste.indexOf(f.id) !== -1;
       return '<span class="fase-chip' + (ativo ? ' on' : '') + '" title="' + e(f.nome) + '">' +
-        e(f.id === 'CONCEITO' ? 'CON' : f.id) + '</span>';
+        e(f.id) + '</span>';
     }).join('') + '</span>';
   }
 
@@ -2028,6 +2065,125 @@ tbody tr:last-child td { border-bottom: none; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
+/* Clientes: quem exige a validação. Cada cliente carrega suas peças, seus procedimentos
+   obrigatórios e o custo já confirmado. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  function abrirEdicao(cliente) {
+    var novo = !cliente;
+    cliente = cliente || { id: '', nome: '', segmento: '' };
+
+    var corpo =
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Nome</label><input name="nome" value="' + e(cliente.nome) + '" required ' +
+          'placeholder="Ex.: Volkswagen"></div>' +
+        '<div class="campo"><label>Segmento</label><input name="segmento" value="' + e(cliente.segmento || '') + '" ' +
+          'placeholder="OEM, Tier 1, interno…"></div>' +
+      '</div>' +
+      (novo ? '' : '<p class="sub" style="margin-bottom:0">Código <span class="mono">' + e(cliente.id) + '</span> — ' +
+        'usado pelas peças e pelos procedimentos, não muda.</p>');
+
+    ui.modal({
+      titulo: novo ? 'Novo cliente' : 'Editar ' + cliente.nome,
+      corpo: corpo,
+      confirmar: 'Salvar cliente',
+      aoConfirmar: function (v) {
+        if (!v.nome.trim()) { ui.notificar('Informe o nome do cliente.'); return false; }
+        TC.store.salvarCliente({ id: cliente.id || undefined, nome: v.nome.trim(), segmento: v.segmento.trim() });
+        ui.notificar('Cliente salvo.');
+      }
+    });
+  }
+
+  function render(container, ctx) {
+    var estado = ctx.estado;
+
+    var resumo = {};
+    estado.clientes.forEach(function (c) {
+      resumo[c.id] = { pecas: 0, demandas: 0, custo: 0, procedimentos: 0 };
+    });
+    estado.pecas.forEach(function (p) {
+      if (resumo[p.clienteId]) resumo[p.clienteId].pecas++;
+    });
+    estado.testes.forEach(function (t) {
+      (t.clientes || []).forEach(function (id) {
+        if (resumo[id]) resumo[id].procedimentos++;
+      });
+    });
+    ctx.plano.alocacoes.forEach(function (a) {
+      var r = resumo[a.demanda.clienteId];
+      if (!r) return;
+      r.demandas++;
+      r.custo += a.custo.total;
+    });
+
+    var padrao = estado.testes.filter(function (t) { return !t.clientes || !t.clientes.length; }).length;
+
+    var linhas = estado.clientes.map(function (c) {
+      var r = resumo[c.id];
+      return '<tr data-cliente="' + e(c.id) + '">' +
+        '<td><div class="forte">' + e(c.nome) + '</div>' +
+          '<div class="sub"><span class="mono">' + e(c.id) + '</span></div></td>' +
+        '<td>' + (c.segmento ? '<span class="etiqueta">' + e(c.segmento) + '</span>' : '<span class="sub">—</span>') + '</td>' +
+        '<td class="num">' + r.procedimentos + '<div class="sub">+ ' + padrao + ' padrão</div></td>' +
+        '<td class="num">' + r.pecas + '</td>' +
+        '<td class="num">' + r.demandas + '</td>' +
+        '<td class="num forte">' + e(util.formatarMoeda(r.custo)) + '</td>' +
+        '<td class="num" style="white-space:nowrap">' +
+          '<button class="botao pequeno editar">Editar</button> ' +
+          '<button class="botao pequeno perigo excluir" title="Remover cliente">✕</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Clientes</h2>' +
+        '<p>Quem exige a validação. Um procedimento sem cliente marcado vale como padrão do laboratório e aparece para todos.</p></div>' +
+        '<div class="acoes"><button class="botao primario" id="novo">+ Novo cliente</button></div>' +
+      '</div>' +
+      '<div class="cartao">' +
+        (estado.clientes.length
+          ? '<div class="tabela-rolagem"><table><thead><tr>' +
+            '<th>Cliente</th><th>Segmento</th><th class="num">Procedimentos exigidos</th>' +
+            '<th class="num">Peças</th><th class="num">Demandas</th><th class="num">Custo confirmado</th><th></th>' +
+            '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
+          : ui.vazio('Nenhum cliente cadastrado', 'Cadastre o primeiro cliente para poder registrar peças e confirmar testes.')) +
+      '</div>';
+
+    container.querySelector('#novo').onclick = function () { abrirEdicao(null); };
+
+    container.querySelectorAll('tr[data-cliente]').forEach(function (tr) {
+      var cliente = util.porId(estado.clientes, tr.dataset.cliente);
+      var r = resumo[cliente.id];
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(cliente); };
+      tr.querySelector('.excluir').onclick = function () {
+        var pendencias = [];
+        if (r.pecas) pendencias.push(r.pecas + ' peça(s)');
+        if (r.demandas) pendencias.push(r.demandas + ' demanda(s)');
+        ui.confirmarAcao(
+          'Remover "' + cliente.nome + '"?' +
+          (pendencias.length
+            ? ' Ele tem ' + pendencias.join(' e ') + ', que ficarão sem cliente e somem dos filtros.'
+            : '') +
+          ' O cliente também sai da lista de exigência dos procedimentos.',
+          function () {
+            TC.store.removerCliente(cliente.id);
+            ui.notificar('Cliente removido.');
+          });
+      };
+    });
+  }
+
+  TC.views = TC.views || {};
+  TC.views.clientes = { render: render };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
 /* Equipamentos: capacidade, calendário, custo-hora e paradas de manutenção.
    É este cadastro que limita o planejamento. */
 (function (global) {
@@ -2166,7 +2322,8 @@ tbody tr:last-child td { border-bottom: none; }
           : '<span class="sub">—</span>') + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
           '<button class="botao pequeno manutencao">Paradas</button> ' +
-          '<button class="botao pequeno editar">Editar</button>' +
+          '<button class="botao pequeno editar">Editar</button> ' +
+          '<button class="botao pequeno perigo excluir" title="Remover equipamento">✕</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -2191,6 +2348,19 @@ tbody tr:last-child td { border-bottom: none; }
       var eq = util.porId(estado.equipamentos, tr.dataset.equip);
       tr.querySelector('.editar').onclick = function () { abrirEdicao(eq); };
       tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
+      tr.querySelector('.excluir').onclick = function () {
+        var dependentes = estado.testes.filter(function (t) { return t.equipamentoId === eq.id; });
+        ui.confirmarAcao(
+          'Remover ' + eq.id + ' — ' + eq.nome + '?' +
+          (dependentes.length
+            ? ' ' + dependentes.length + ' procedimento(s) usam este equipamento e ficarão sem bancada, ' +
+              'aparecendo como demandas sem janela até você apontá-los para outro.'
+            : ''),
+          function () {
+            TC.store.removerEquipamento(eq.id);
+            ui.notificar('Equipamento removido.');
+          });
+      };
     });
   }
 
@@ -2487,6 +2657,7 @@ tbody tr:last-child td { border-bottom: none; }
     { id: 'demandas', nome: 'Demandas', icone: '✅', grupo: 'Validação' },
     { id: 'planejamento', nome: 'Planejamento', icone: '📅', grupo: 'Validação' },
     { id: 'painel', nome: 'Painel', icone: '📊', grupo: 'Validação' },
+    { id: 'clientes', nome: 'Clientes', icone: '🏢', grupo: 'Cadastros' },
     { id: 'equipamentos', nome: 'Equipamentos', icone: '⚙️', grupo: 'Cadastros' },
     { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' }
   ];
@@ -2501,6 +2672,7 @@ tbody tr:last-child td { border-bottom: none; }
         return TC.scheduler.STATUS_ATIVOS.indexOf(d.status) !== -1;
       }).length,
       planejamento: plano.agendadas.length,
+      clientes: estado.clientes.length,
       equipamentos: estado.equipamentos.length,
       pecas: estado.pecas.length
     };
