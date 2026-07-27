@@ -1,14 +1,15 @@
-/* Dados de partida: clientes, fases de projeto, equipamentos, catálogo de testes e peças.
+/* Dados de partida: clientes, classificação de LTI, equipamentos, catálogo de testes e peças.
    Tudo é editável na aplicação — isto é apenas o estado inicial. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
 
-  /* Fases de projeto. */
+  /* Fases de projeto. Não classificam o procedimento (qualquer teste pode rodar em
+     qualquer fase); classificam a LTI que abre a demanda. */
   var FASES = [
     { id: 'DV', nome: 'DV — Design Validation', descricao: 'Validação de projeto com protótipos' },
-    { id: 'PV', nome: 'PV — Product Validation', descricao: 'Validação com peças de ferramental definitivo' },
+    { id: 'PV', nome: 'PV — Process Validation', descricao: 'Validação de processo com peças de ferramental definitivo' },
     { id: 'VAVE', nome: 'VAVE', descricao: 'Revalidação após mudança de material, processo ou custo' }
   ];
 
@@ -44,184 +45,167 @@
     { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
   ];
 
-  /* positions = quantos ensaios o equipamento roda em paralelo.
-     continuo = true -> ensaio corre 24 h/dia sem operador (câmaras, bancos de gás).
+  /* posicoes = quantos ensaios o equipamento roda em paralelo.
+     continuo = true -> ensaio corre 24 h/dia sem operador.
      diasUteis = dias da semana em que o equipamento opera (0 = domingo). */
   var EQUIPAMENTOS = [
-    { id: 'SHK-01', nome: 'Shaker eletrodinâmico 3 eixos', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 480, manutencao: [] },
-    { id: 'SHK-02', nome: 'Shaker com câmara térmica (vibração a quente)', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 690, manutencao: [] },
-    { id: 'HGB-01', nome: 'Banco de gás quente (burner rig)', posicoes: 2, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
-    { id: 'TSC-01', nome: 'Câmara de choque térmico', posicoes: 2, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 290, manutencao: [] },
-    { id: 'CCT-01', nome: 'Câmara de corrosão cíclica (VDA / ASTM)', posicoes: 6, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 150, manutencao: [] },
-    { id: 'RDS-01', nome: 'Simulador de estrada 4 postes', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 820, manutencao: [] },
-    { id: 'FLW-01', nome: 'Banco de fluxo / perda de carga', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 240, manutencao: [] },
-    { id: 'ACU-01', nome: 'Câmara semi-anecoica', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 560, manutencao: [] },
-    { id: 'LEK-01', nome: 'Bancada de estanqueidade (hélio)', posicoes: 2, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 130, manutencao: [] },
-    { id: 'UTM-01', nome: 'Máquina universal de ensaios', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 180, manutencao: [] },
-    { id: 'GRV-01', nome: 'Câmara de gravelometria', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 200, manutencao: [] },
-    { id: 'CMM-01', nome: 'Máquina de medição por coordenadas', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 210, manutencao: [] },
-    { id: 'MET-01', nome: 'Laboratório metalográfico', posicoes: 2, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 160, manutencao: [] }
+    { id: 'BURNER-1', nome: 'Burner 1', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
+    { id: 'BURNER-2', nome: 'Burner 2', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
+    { id: 'BURNER-3', nome: 'Burner 3', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 580, manutencao: [] },
+    { id: 'SHAKER', nome: 'Shaker', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 480, manutencao: [] },
+    { id: 'MTS-1', nome: 'MTS 1', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 380, manutencao: [] },
+    { id: 'MTS-2', nome: 'MTS 2', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 380, manutencao: [] },
+    { id: 'MTS-3', nome: 'MTS 3', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 320, manutencao: [] },
+    { id: 'MTS-4', nome: 'MTS 4', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 320, manutencao: [] },
+    { id: 'LMS-PTA', nome: 'LMS / PTA', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 560, manutencao: [] },
+    { id: 'COLDFLOW', nome: 'ColdFlow', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 240, manutencao: [] },
+    { id: 'DYNO', nome: 'Dynamometer', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 950, manutencao: [] }
   ];
 
   /* Catálogo de procedimentos.
+     revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
      custoBase = mão de obra, preparação, instrumentação e insumos (não inclui hora-máquina nem amostras).
      horasSetup + horasEnsaio alimentam tanto o custo quanto o planejamento.
-     clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos. */
+     clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos.
+     O procedimento não é amarrado a fase de projeto: qualquer teste pode rodar em DV, PV ou VAVE. */
   var TESTES = [
     {
-      id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente',
+      id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente', revisao: 'Rev. 04',
       clientes: ['CLI-VW', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
+      area: 'HOT', equipamentoId: 'BURNER-1',
       horasSetup: 8, horasEnsaio: 600, amostras: 2, custoBase: 12800,
       descricao: 'Ciclagem de gás quente com gradiente térmico para avaliar trincas em soldas e cones.'
     },
     {
-      id: 'TP-HOT-02', nome: 'Choque térmico acelerado', norma: 'ISO 19453-5',
+      id: 'TP-HOT-02', nome: 'Ciclagem térmica acelerada', norma: 'ISO 19453-5', revisao: 'Rev. 02',
       clientes: [],
-      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV'],
+      area: 'HOT', equipamentoId: 'BURNER-2',
       horasSetup: 4, horasEnsaio: 336, amostras: 2, custoBase: 6400,
-      descricao: 'Ciclos rápidos entre −40 °C e 950 °C para verificar integridade de juntas e revestimentos.'
+      descricao: 'Ciclos rápidos de aquecimento e resfriamento para verificar integridade de juntas e revestimentos.'
     },
     {
-      id: 'TP-HOT-03', nome: 'Vibração a quente (hot vibration)', norma: 'LV 124 / cliente',
-      clientes: ['CLI-VW', 'CLI-FOR'],
-      area: 'HOT', equipamentoId: 'SHK-02', fases: ['DV', 'PV'],
-      horasSetup: 12, horasEnsaio: 240, amostras: 2, custoBase: 15200,
-      descricao: 'Vibração aleatória com peça aquecida, reproduzindo o carregamento do coletor em serviço.'
-    },
-    {
-      id: 'TP-HOT-04', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54',
+      id: 'TP-HOT-03', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54', revisao: 'Rev. 01',
       clientes: [],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'VAVE'],
+      area: 'HOT', equipamentoId: 'BURNER-3',
       horasSetup: 4, horasEnsaio: 1000, amostras: 3, custoBase: 9800,
-      descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico/austenítico.'
+      descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico e austenítico.'
     },
     {
-      id: 'TP-HOT-05', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX',
-      clientes: ['CLI-FOR', 'CLI-TEN'],
-      area: 'HOT', equipamentoId: 'SHK-02', fases: ['DV', 'PV'],
-      horasSetup: 6, horasEnsaio: 180, amostras: 3, custoBase: 7300,
-      descricao: 'Deslocamento angular e axial cíclico a quente até 1 milhão de ciclos.'
-    },
-    {
-      id: 'TP-HOT-06', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6',
-      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
-      horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
-      descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
-    },
-    {
-      id: 'TP-HOT-07', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente',
+      id: 'TP-HOT-04', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente', revisao: 'Rev. 03',
       clientes: ['CLI-VW', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
+      area: 'HOT', equipamentoId: 'BURNER-1',
       horasSetup: 6, horasEnsaio: 480, amostras: 2, custoBase: 16900,
       descricao: 'Envelhecimento térmico do washcoat equivalente à vida útil do veículo.'
     },
     {
-      id: 'TP-COL-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3',
+      id: 'TP-HOT-05', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6', revisao: 'Rev. 05',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
+      area: 'HOT', equipamentoId: 'BURNER-2',
+      horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
+      descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
+    },
+    {
+      id: 'TP-VIB-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3', revisao: 'Rev. 03',
       clientes: [],
-      area: 'COLD', equipamentoId: 'SHK-01', fases: ['DV', 'PV'],
+      area: 'AMBOS', equipamentoId: 'SHAKER',
       horasSetup: 8, horasEnsaio: 72, amostras: 2, custoBase: 5600,
-      descricao: 'Perfil PSD por eixo representando a vida em estrada do silencioso e suportes.'
+      descricao: 'Perfil PSD por eixo representando a vida em estrada do sistema e dos suportes.'
     },
     {
-      id: 'TP-COL-02', nome: 'Corrosão cíclica VDA 233-102', norma: 'VDA 233-102',
-      clientes: ['CLI-VW', 'CLI-STL', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 3, horasEnsaio: 1512, amostras: 3, custoBase: 4200,
-      descricao: 'Doze semanas de ciclos de salmoura, umidade e frio para avaliar aluminizado e inox.'
-    },
-    {
-      id: 'TP-COL-03', nome: 'Névoa salina neutra 480 h', norma: 'ASTM B117',
+      id: 'TP-VIB-02', nome: 'Varredura senoidal e busca de ressonância', norma: 'IEC 60068-2-6', revisao: 'Rev. 02',
       clientes: [],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'VAVE'],
-      horasSetup: 2, horasEnsaio: 480, amostras: 3, custoBase: 2400,
-      descricao: 'Ensaio de referência para revestimentos e proteção de solda.'
+      area: 'AMBOS', equipamentoId: 'SHAKER',
+      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 3200,
+      descricao: 'Levantamento das frequências naturais e amplificação nos pontos de fixação.'
     },
     {
-      id: 'TP-COL-04', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544',
+      id: 'TP-MEC-01', nome: 'Fadiga estrutural de suporte', norma: 'Procedimento interno LAB-BRK', revisao: 'Rev. 06',
       clientes: [],
-      area: 'COLD', equipamentoId: 'FLW-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
-      descricao: 'Levantamento da curva de contrapressão em função da vazão.'
+      area: 'AMBOS', equipamentoId: 'MTS-1',
+      horasSetup: 6, horasEnsaio: 400, amostras: 3, custoBase: 7600,
+      descricao: 'Carregamento cíclico do bracket até a vida-alvo, com monitoramento de rigidez.'
     },
     {
-      id: 'TP-COL-05', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820',
-      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
-      descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
+      id: 'TP-MEC-02', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX', revisao: 'Rev. 04',
+      clientes: ['CLI-FOR', 'CLI-TEN'],
+      area: 'HOT', equipamentoId: 'MTS-2',
+      horasSetup: 6, horasEnsaio: 180, amostras: 3, custoBase: 7300,
+      descricao: 'Deslocamento angular e axial cíclico até 1 milhão de ciclos.'
     },
     {
-      id: 'TP-COL-06', nome: 'Ruído de passagem e tailpipe noise', norma: 'ISO 362',
-      clientes: ['CLI-STL', 'CLI-VW'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'VAVE'],
-      horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
-      descricao: 'Verificação do nível sonoro do sistema completo montado no veículo.'
-    },
-    {
-      id: 'TP-COL-07', nome: 'Gravelometria (impacto de pedras)', norma: 'ISO 20567-1',
-      clientes: ['CLI-TEN', 'CLI-STL'],
-      area: 'COLD', equipamentoId: 'GRV-01', fases: ['DV', 'PV'],
-      horasSetup: 2, horasEnsaio: 12, amostras: 2, custoBase: 2900,
-      descricao: 'Projeção de granalha para avaliar resistência do revestimento externo e da ponteira.'
-    },
-    {
-      id: 'TP-COL-08', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR',
+      id: 'TP-MEC-03', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR', revisao: 'Rev. 02',
       clientes: ['CLI-EBE'],
-      area: 'COLD', equipamentoId: 'UTM-01', fases: ['DV', 'PV'],
+      area: 'COLD', equipamentoId: 'MTS-3',
       horasSetup: 3, horasEnsaio: 120, amostras: 5, custoBase: 3400,
       descricao: 'Carregamento cíclico do isolador de borracha até perda de rigidez especificada.'
     },
     {
-      id: 'TP-AMB-01', nome: 'Estanqueidade por hélio', norma: 'Procedimento interno LAB-LEAK',
+      id: 'TP-MEC-04', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1', revisao: 'Rev. 01',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 1, horasEnsaio: 4, amostras: 3, custoBase: 900,
-      descricao: 'Detecção de vazamento em soldas e flanges com traçador de hélio.'
-    },
-    {
-      id: 'TP-AMB-02', nome: 'Durabilidade em simulador de estrada', norma: 'Perfil de pista do cliente',
-      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'AMBOS', equipamentoId: 'RDS-01', fases: ['PV'],
-      horasSetup: 24, horasEnsaio: 320, amostras: 1, custoBase: 28500,
-      descricao: 'Sistema completo montado no veículo, reproduzindo o ciclo de durabilidade de pista.'
-    },
-    {
-      id: 'TP-AMB-03', nome: 'Análise dimensional em CMM', norma: 'Desenho do cliente',
-      clientes: [],
-      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'VAVE'],
-      horasSetup: 3, horasEnsaio: 10, amostras: 5, custoBase: 2100,
-      descricao: 'Layout dimensional completo para o dossiê de PPAP.'
-    },
-    {
-      id: 'TP-AMB-04', nome: 'Análise metalográfica de solda', norma: 'ISO 17639',
-      clientes: [],
-      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV'],
-      horasSetup: 2, horasEnsaio: 16, amostras: 4, custoBase: 3100,
-      descricao: 'Macrografia e micrografia para penetração, porosidade e tamanho de grão.'
-    },
-    {
-      id: 'TP-AMB-05', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1',
-      clientes: [],
-      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['DV', 'VAVE'],
+      area: 'AMBOS', equipamentoId: 'MTS-4',
       horasSetup: 1, horasEnsaio: 6, amostras: 6, custoBase: 1500,
       descricao: 'Caracterização mecânica do inox de entrada por lote.'
+    },
+    {
+      id: 'TP-MEC-05', nome: 'Fadiga de solda por flexão', norma: 'ISO 17639 / interno', revisao: 'Rev. 03',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'MTS-4',
+      horasSetup: 3, horasEnsaio: 96, amostras: 4, custoBase: 4100,
+      descricao: 'Flexão alternada no cordão de solda para levantar a curva S-N da junta.'
+    },
+    {
+      id: 'TP-ACU-01', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820', revisao: 'Rev. 02',
+      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
+      area: 'COLD', equipamentoId: 'LMS-PTA',
+      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
+      descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
+    },
+    {
+      id: 'TP-ACU-02', nome: 'Ruído de boca de escape e análise de ordens', norma: 'ISO 362 / interno', revisao: 'Rev. 04',
+      clientes: ['CLI-STL', 'CLI-VW'],
+      area: 'COLD', equipamentoId: 'LMS-PTA',
+      horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
+      descricao: 'Nível sonoro na saída e conteúdo de ordens do motor com o sistema montado.'
+    },
+    {
+      id: 'TP-FLW-01', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544', revisao: 'Rev. 03',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'COLDFLOW',
+      horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
+      descricao: 'Levantamento da curva de contrapressão em função da vazão.'
+    },
+    {
+      id: 'TP-FLW-02', nome: 'Uniformidade de fluxo no substrato', norma: 'Procedimento interno LAB-UI', revisao: 'Rev. 02',
+      clientes: ['CLI-VW', 'CLI-STL'],
+      area: 'HOT', equipamentoId: 'COLDFLOW',
+      horasSetup: 4, horasEnsaio: 12, amostras: 1, custoBase: 5300,
+      descricao: 'Mapeamento de velocidade na face do substrato e cálculo do índice de uniformidade.'
+    },
+    {
+      id: 'TP-DYN-01', nome: 'Durabilidade em dinamômetro de motor', norma: 'Ciclo de durabilidade do cliente', revisao: 'Rev. 05',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
+      area: 'AMBOS', equipamentoId: 'DYNO',
+      horasSetup: 24, horasEnsaio: 500, amostras: 1, custoBase: 28500,
+      descricao: 'Sistema completo em motor, reproduzindo o ciclo de durabilidade veicular.'
+    },
+    {
+      id: 'TP-DYN-02', nome: 'Contrapressão e temperatura em ciclo de motor', norma: 'Procedimento interno LAB-ENG', revisao: 'Rev. 02',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'DYNO',
+      horasSetup: 12, horasEnsaio: 72, amostras: 1, custoBase: 13400,
+      descricao: 'Instrumentação do sistema em motor para levantar temperatura e contrapressão em carga.'
     }
   ];
 
-  /* Peças em validação. dataAmostras = quando o lote de amostras chega ao laboratório;
-     nenhum ensaio pode começar antes dessa data. */
+  /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
+     qualquer cliente pode ter uma amostra de qualquer um destes tipos.
+     A data de chegada das amostras é informada na demanda, não aqui. */
   var PECAS = [
-    { id: 'PC-001', nome: 'Coletor de escape 1.0 TSI', clienteId: 'CLI-VW', programa: 'VW MQB-A0 / EA211', area: 'HOT', dataAmostras: '2026-08-03', quantidade: 8, custoAmostra: 3800 },
-    { id: 'PC-002', nome: 'Catalisador close-coupled', clienteId: 'CLI-VW', programa: 'VW MQB-A0 / EA211', area: 'HOT', dataAmostras: '2026-08-17', quantidade: 6, custoAmostra: 5400 },
-    { id: 'PC-003', nome: 'Downpipe com flexível', clienteId: 'CLI-FOR', programa: 'Fiat 270 Hybrid', area: 'HOT', dataAmostras: '2026-08-10', quantidade: 10, custoAmostra: 2200 },
-    { id: 'PC-004', nome: 'Silencioso traseiro', clienteId: 'CLI-FOR', programa: 'Fiat 270 Hybrid', area: 'COLD', dataAmostras: '2026-08-24', quantidade: 8, custoAmostra: 1650 },
-    { id: 'PC-005', nome: 'Ressonador intermediário', clienteId: 'CLI-TEN', programa: 'Stellantis P1H', area: 'COLD', dataAmostras: '2026-09-07', quantidade: 12, custoAmostra: 980 },
-    { id: 'PC-006', nome: 'Ponteira cromada dupla', clienteId: 'CLI-TEN', programa: 'Stellantis P1H', area: 'COLD', dataAmostras: '2026-09-14', quantidade: 10, custoAmostra: 740 },
-    { id: 'PC-007', nome: 'Módulo DPF pesado', clienteId: 'CLI-SCA', programa: 'Scania Euro 6 Step E', area: 'HOT', dataAmostras: '2026-09-21', quantidade: 4, custoAmostra: 14200 },
-    { id: 'PC-008', nome: 'Coxim de suspensão do sistema', clienteId: 'CLI-EBE', programa: 'GM Gemini BEV Range Ext.', area: 'COLD', dataAmostras: '2026-08-31', quantidade: 30, custoAmostra: 120 },
-    { id: 'PC-009', nome: 'Tubo intermediário conformado', clienteId: 'CLI-STL', programa: 'Stellantis SmallWide', area: 'COLD', dataAmostras: '2026-10-05', quantidade: 10, custoAmostra: 860 }
+    { id: 'PC-HOT', nome: 'Hot End', custoAmostra: 3800, descricao: 'Coletor, downpipe, tubo quente e flexível' },
+    { id: 'PC-CAN', nome: 'Canning', custoAmostra: 5400, descricao: 'Substrato encapsulado: catalisador, DPF/GPF' },
+    { id: 'PC-COL', nome: 'Cold End', custoAmostra: 1650, descricao: 'Tubos, ressonador e ponteira' },
+    { id: 'PC-MUF', nome: 'Muffler', custoAmostra: 1900, descricao: 'Silencioso completo' },
+    { id: 'PC-CMP', nome: 'Component', custoAmostra: 420, descricao: 'Coxim, suporte, flange, corpo de prova' }
   ];
 
   TC.data = {

@@ -32,7 +32,7 @@
     if (a.esperaAmostra) extras.push('aguarda amostra ' + a.esperaAmostra + ' d');
     if (a.esperaFila > 0) extras.push('fila ' + a.esperaFila + ' d');
     return '<span class="forte">' + e(util.formatarData(a.inicio, true)) + ' → ' + e(util.formatarData(a.fim, true)) + '</span>' +
-      '<div class="sub">' + e(a.equipamento.id + ' · pos. ' + (a.posicao + 1) +
+      '<div class="sub">' + e(a.equipamento.nome + ' · pos. ' + (a.posicao + 1) +
         (extras.length ? ' · ' + extras.join(' · ') : '')) + '</div>';
   }
 
@@ -52,11 +52,12 @@
       '<td>' +
         '<div class="forte">' + e(a.teste ? a.teste.nome : d.testeId) + '</div>' +
         '<div class="sub"><span class="mono">' + e(d.testeId) + '</span>' +
+          (a.teste && a.teste.revisao ? ' · ' + e(a.teste.revisao) : '') +
           (a.teste ? ' · ' + e(a.teste.norma || '') : '') + '</div>' +
       '</td>' +
       '<td>' +
         '<div>' + e(a.peca ? a.peca.nome : '—') + '</div>' +
-        '<div class="sub">' + e(a.peca ? a.peca.programa : '') + '</div>' +
+        '<div class="sub">amostras ' + e(util.formatarData(d.dataAmostras)) + '</div>' +
       '</td>' +
       '<td>' + (a.teste ? ui.etiquetaArea(a.teste.area) : '') + '</td>' +
       '<td>' + ui.celulaLti(d) + '</td>' +
@@ -76,18 +77,16 @@
   function abrirEdicao(ctx, demanda, alocacao) {
     var estado = ctx.estado;
     var teste = util.porId(estado.testes, demanda.testeId);
-    var pecas = estado.pecas.filter(function (p) {
-      return !demanda.clienteId || p.clienteId === demanda.clienteId;
-    });
     var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
 
     var corpo =
       '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
+        (teste && teste.revisao ? ' · ' + e(teste.revisao) : '') +
         (alocacao && alocacao.cotacao
           ? ' · cotação, não ocupa bancada'
           : alocacao && alocacao.inicio
           ? ' · planejado para ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
-            ' em ' + e(alocacao.equipamento.id)
+            ' em ' + e(alocacao.equipamento.nome)
           : ' · ainda sem janela') +
       '</div>' +
       '<div class="grade-campos">' +
@@ -95,13 +94,13 @@
         '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' + ui.opcoes(TC.data.TIPOS_LTI, demanda.tipoLti) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
         '<div class="campo"><label>Peça</label><select name="pecaId">' +
-          pecas.map(function (p) {
-            return '<option value="' + e(p.id) + '"' + (p.id === demanda.pecaId ? ' selected' : '') + '>' + e(p.nome) + '</option>';
-          }).join('') + '</select></div>' +
+          ui.opcoes(estado.pecas, demanda.pecaId) + '</select></div>' +
+        '<div class="campo"><label>Amostras disponíveis a partir de</label>' +
+          '<input type="date" name="dataAmostras" value="' + e(demanda.dataAmostras || '') + '"></div>' +
+        '<div class="campo"><label>Prazo para finalização</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
         '<div class="campo"><label>Status</label><select name="status">' + ui.opcoes(statusLista, demanda.status) + '</select></div>' +
         '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
-        '<div class="campo"><label>Prazo</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
         '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
       '</div>' +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
@@ -115,10 +114,15 @@
           ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
           return false;
         }
+        if (!v.dataAmostras) {
+          ui.notificar('Informe a data de disponibilidade das amostras.');
+          return false;
+        }
         TC.store.atualizarDemanda(demanda.id, {
           clienteId: v.clienteId, pecaId: v.pecaId, lti: v.lti.trim(), tipoLti: v.tipoLti,
           prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
-          prazo: v.prazo, inicioFixo: v.inicioFixo, observacao: v.observacao
+          dataAmostras: v.dataAmostras, prazo: v.prazo,
+          inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');
       }
@@ -210,19 +214,22 @@
   }
 
   function exportarCsv(lista) {
-    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Peca', 'Cliente', 'Prioridade', 'Amostras',
-      'Equipamento', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status'];
+    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Revisao', 'Peca', 'Cliente',
+      'Prioridade', 'Amostras', 'Equipamento', 'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo',
+      'Folga_dias', 'Custo_total', 'Status'];
     var linhas = lista.map(function (a) {
       return [
         a.demanda.lti || '',
         a.demanda.tipoLti,
         a.demanda.testeId,
         a.teste ? a.teste.nome : '',
+        a.teste ? (a.teste.revisao || '') : '',
         a.peca ? a.peca.nome : '',
         a.demanda.clienteId,
         a.demanda.prioridade,
         a.demanda.quantidade,
-        a.equipamento ? a.equipamento.id : '',
+        a.equipamento ? a.equipamento.nome : '',
+        a.demanda.dataAmostras || '',
         a.cotacao ? '' : (a.inicio || ''),
         a.cotacao ? '' : (a.fim || ''),
         a.demanda.prazo || '',

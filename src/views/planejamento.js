@@ -86,7 +86,8 @@
     var dias = util.diffDias(a.inicio, a.fim) + 1;
     if (offset + dias < 0 || offset >= faixa.dias) return '';
     var classe = { HOT: 'hot', COLD: 'cold', AMBOS: 'ambos' }[a.teste.area] || '';
-    var titulo = a.teste.nome + '\n' + (a.peca ? a.peca.nome + ' · ' + a.peca.programa : '') +
+    var titulo = a.teste.nome + (a.teste.revisao ? ' · ' + a.teste.revisao : '') +
+      '\nLTI ' + (a.demanda.lti || '—') + (a.peca ? ' · ' + a.peca.nome : '') +
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
       '\n' + a.custo.horas + ' h · ' + util.formatarMoeda(a.custo.total) +
       (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
@@ -125,7 +126,7 @@
         linhas +=
           '<div class="gantt-linha">' +
             '<div class="gantt-rotulo">' +
-              '<span class="nome">' + e(eq.id) + (eq.posicoes > 1 ? ' <span class="sub">pos. ' + (p + 1) + '</span>' : '') + '</span>' +
+              '<span class="nome">' + e(eq.nome) + (eq.posicoes > 1 ? ' <span class="sub">pos. ' + (p + 1) + '</span>' : '') + '</span>' +
               '<span class="sub" title="' + e(eq.nome) + '">' + e(eq.nome.length > 30 ? eq.nome.slice(0, 29) + '…' : eq.nome) + '</span>' +
               '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">' +
                 '<span class="barra-trilho" style="flex:1"><span class="barra-valor' +

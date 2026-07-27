@@ -70,13 +70,14 @@
         alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ': ' + a.motivo });
       }
     });
-    estado.pecas.forEach(function (p) {
-      var comprometidas = todas.reduce(function (soma, a) {
-        return a.peca && a.peca.id === p.id ? soma + a.demanda.quantidade : soma;
-      }, 0);
-      if (comprometidas > p.quantidade) {
-        alertas.push({ tipo: 'alerta', texto: p.nome + ': ' + comprometidas + ' amostras comprometidas para apenas ' +
-          p.quantidade + ' disponíveis.' });
+    /* Demanda cuja amostra ainda não chegou e cujo prazo já está próximo: a janela
+       de execução aperta antes mesmo de a peça entrar no laboratório. */
+    ctx.plano.agendadas.forEach(function (a) {
+      var esperaAmostra = util.diffDias(hoje, a.demanda.dataAmostras);
+      if (esperaAmostra > 0 && a.folga !== null && a.folga !== undefined && a.folga >= 0 && a.folga < 7) {
+        alertas.push({ tipo: 'alerta', texto: (a.teste ? a.teste.nome : a.demanda.testeId) +
+          ' (LTI ' + (a.demanda.lti || '—') + '): amostras só em ' +
+          util.formatarData(a.demanda.dataAmostras, true) + ' e apenas ' + a.folga + ' dia(s) de folga no prazo.' });
       }
     });
 
@@ -137,7 +138,7 @@
               return '<tr><td class="forte">' + e(util.formatarData(a.inicio, true)) + '</td>' +
                 '<td>' + e(a.teste.nome) + '</td>' +
                 '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
-                '<td><span class="mono">' + e(a.equipamento.id) + '</span></td>' +
+                '<td>' + e(a.equipamento.nome) + '</td>' +
                 '<td class="num">' + (util.diffDias(a.inicio, a.fim) + 1) + ' d</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'

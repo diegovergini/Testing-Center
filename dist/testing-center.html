@@ -447,17 +447,18 @@ tbody tr:last-child td { border-bottom: none; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Dados de partida: clientes, fases de projeto, equipamentos, catálogo de testes e peças.
+/* Dados de partida: clientes, classificação de LTI, equipamentos, catálogo de testes e peças.
    Tudo é editável na aplicação — isto é apenas o estado inicial. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
 
-  /* Fases de projeto. */
+  /* Fases de projeto. Não classificam o procedimento (qualquer teste pode rodar em
+     qualquer fase); classificam a LTI que abre a demanda. */
   var FASES = [
     { id: 'DV', nome: 'DV — Design Validation', descricao: 'Validação de projeto com protótipos' },
-    { id: 'PV', nome: 'PV — Product Validation', descricao: 'Validação com peças de ferramental definitivo' },
+    { id: 'PV', nome: 'PV — Process Validation', descricao: 'Validação de processo com peças de ferramental definitivo' },
     { id: 'VAVE', nome: 'VAVE', descricao: 'Revalidação após mudança de material, processo ou custo' }
   ];
 
@@ -493,184 +494,167 @@ tbody tr:last-child td { border-bottom: none; }
     { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
   ];
 
-  /* positions = quantos ensaios o equipamento roda em paralelo.
-     continuo = true -> ensaio corre 24 h/dia sem operador (câmaras, bancos de gás).
+  /* posicoes = quantos ensaios o equipamento roda em paralelo.
+     continuo = true -> ensaio corre 24 h/dia sem operador.
      diasUteis = dias da semana em que o equipamento opera (0 = domingo). */
   var EQUIPAMENTOS = [
-    { id: 'SHK-01', nome: 'Shaker eletrodinâmico 3 eixos', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 480, manutencao: [] },
-    { id: 'SHK-02', nome: 'Shaker com câmara térmica (vibração a quente)', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 690, manutencao: [] },
-    { id: 'HGB-01', nome: 'Banco de gás quente (burner rig)', posicoes: 2, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
-    { id: 'TSC-01', nome: 'Câmara de choque térmico', posicoes: 2, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 290, manutencao: [] },
-    { id: 'CCT-01', nome: 'Câmara de corrosão cíclica (VDA / ASTM)', posicoes: 6, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 150, manutencao: [] },
-    { id: 'RDS-01', nome: 'Simulador de estrada 4 postes', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 820, manutencao: [] },
-    { id: 'FLW-01', nome: 'Banco de fluxo / perda de carga', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 240, manutencao: [] },
-    { id: 'ACU-01', nome: 'Câmara semi-anecoica', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 560, manutencao: [] },
-    { id: 'LEK-01', nome: 'Bancada de estanqueidade (hélio)', posicoes: 2, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 130, manutencao: [] },
-    { id: 'UTM-01', nome: 'Máquina universal de ensaios', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 180, manutencao: [] },
-    { id: 'GRV-01', nome: 'Câmara de gravelometria', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 200, manutencao: [] },
-    { id: 'CMM-01', nome: 'Máquina de medição por coordenadas', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 210, manutencao: [] },
-    { id: 'MET-01', nome: 'Laboratório metalográfico', posicoes: 2, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 160, manutencao: [] }
+    { id: 'BURNER-1', nome: 'Burner 1', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
+    { id: 'BURNER-2', nome: 'Burner 2', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
+    { id: 'BURNER-3', nome: 'Burner 3', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 580, manutencao: [] },
+    { id: 'SHAKER', nome: 'Shaker', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 480, manutencao: [] },
+    { id: 'MTS-1', nome: 'MTS 1', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 380, manutencao: [] },
+    { id: 'MTS-2', nome: 'MTS 2', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 380, manutencao: [] },
+    { id: 'MTS-3', nome: 'MTS 3', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 320, manutencao: [] },
+    { id: 'MTS-4', nome: 'MTS 4', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 320, manutencao: [] },
+    { id: 'LMS-PTA', nome: 'LMS / PTA', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 560, manutencao: [] },
+    { id: 'COLDFLOW', nome: 'ColdFlow', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 240, manutencao: [] },
+    { id: 'DYNO', nome: 'Dynamometer', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 950, manutencao: [] }
   ];
 
   /* Catálogo de procedimentos.
+     revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
      custoBase = mão de obra, preparação, instrumentação e insumos (não inclui hora-máquina nem amostras).
      horasSetup + horasEnsaio alimentam tanto o custo quanto o planejamento.
-     clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos. */
+     clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos.
+     O procedimento não é amarrado a fase de projeto: qualquer teste pode rodar em DV, PV ou VAVE. */
   var TESTES = [
     {
-      id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente',
+      id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente', revisao: 'Rev. 04',
       clientes: ['CLI-VW', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
+      area: 'HOT', equipamentoId: 'BURNER-1',
       horasSetup: 8, horasEnsaio: 600, amostras: 2, custoBase: 12800,
       descricao: 'Ciclagem de gás quente com gradiente térmico para avaliar trincas em soldas e cones.'
     },
     {
-      id: 'TP-HOT-02', nome: 'Choque térmico acelerado', norma: 'ISO 19453-5',
+      id: 'TP-HOT-02', nome: 'Ciclagem térmica acelerada', norma: 'ISO 19453-5', revisao: 'Rev. 02',
       clientes: [],
-      area: 'HOT', equipamentoId: 'TSC-01', fases: ['DV', 'PV'],
+      area: 'HOT', equipamentoId: 'BURNER-2',
       horasSetup: 4, horasEnsaio: 336, amostras: 2, custoBase: 6400,
-      descricao: 'Ciclos rápidos entre −40 °C e 950 °C para verificar integridade de juntas e revestimentos.'
+      descricao: 'Ciclos rápidos de aquecimento e resfriamento para verificar integridade de juntas e revestimentos.'
     },
     {
-      id: 'TP-HOT-03', nome: 'Vibração a quente (hot vibration)', norma: 'LV 124 / cliente',
-      clientes: ['CLI-VW', 'CLI-FOR'],
-      area: 'HOT', equipamentoId: 'SHK-02', fases: ['DV', 'PV'],
-      horasSetup: 12, horasEnsaio: 240, amostras: 2, custoBase: 15200,
-      descricao: 'Vibração aleatória com peça aquecida, reproduzindo o carregamento do coletor em serviço.'
-    },
-    {
-      id: 'TP-HOT-04', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54',
+      id: 'TP-HOT-03', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54', revisao: 'Rev. 01',
       clientes: [],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'VAVE'],
+      area: 'HOT', equipamentoId: 'BURNER-3',
       horasSetup: 4, horasEnsaio: 1000, amostras: 3, custoBase: 9800,
-      descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico/austenítico.'
+      descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico e austenítico.'
     },
     {
-      id: 'TP-HOT-05', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX',
-      clientes: ['CLI-FOR', 'CLI-TEN'],
-      area: 'HOT', equipamentoId: 'SHK-02', fases: ['DV', 'PV'],
-      horasSetup: 6, horasEnsaio: 180, amostras: 3, custoBase: 7300,
-      descricao: 'Deslocamento angular e axial cíclico a quente até 1 milhão de ciclos.'
-    },
-    {
-      id: 'TP-HOT-06', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6',
-      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
-      horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
-      descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
-    },
-    {
-      id: 'TP-HOT-07', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente',
+      id: 'TP-HOT-04', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente', revisao: 'Rev. 03',
       clientes: ['CLI-VW', 'CLI-SCA'],
-      area: 'HOT', equipamentoId: 'HGB-01', fases: ['DV', 'PV'],
+      area: 'HOT', equipamentoId: 'BURNER-1',
       horasSetup: 6, horasEnsaio: 480, amostras: 2, custoBase: 16900,
       descricao: 'Envelhecimento térmico do washcoat equivalente à vida útil do veículo.'
     },
     {
-      id: 'TP-COL-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3',
+      id: 'TP-HOT-05', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6', revisao: 'Rev. 05',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
+      area: 'HOT', equipamentoId: 'BURNER-2',
+      horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
+      descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
+    },
+    {
+      id: 'TP-VIB-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3', revisao: 'Rev. 03',
       clientes: [],
-      area: 'COLD', equipamentoId: 'SHK-01', fases: ['DV', 'PV'],
+      area: 'AMBOS', equipamentoId: 'SHAKER',
       horasSetup: 8, horasEnsaio: 72, amostras: 2, custoBase: 5600,
-      descricao: 'Perfil PSD por eixo representando a vida em estrada do silencioso e suportes.'
+      descricao: 'Perfil PSD por eixo representando a vida em estrada do sistema e dos suportes.'
     },
     {
-      id: 'TP-COL-02', nome: 'Corrosão cíclica VDA 233-102', norma: 'VDA 233-102',
-      clientes: ['CLI-VW', 'CLI-STL', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 3, horasEnsaio: 1512, amostras: 3, custoBase: 4200,
-      descricao: 'Doze semanas de ciclos de salmoura, umidade e frio para avaliar aluminizado e inox.'
-    },
-    {
-      id: 'TP-COL-03', nome: 'Névoa salina neutra 480 h', norma: 'ASTM B117',
+      id: 'TP-VIB-02', nome: 'Varredura senoidal e busca de ressonância', norma: 'IEC 60068-2-6', revisao: 'Rev. 02',
       clientes: [],
-      area: 'COLD', equipamentoId: 'CCT-01', fases: ['DV', 'VAVE'],
-      horasSetup: 2, horasEnsaio: 480, amostras: 3, custoBase: 2400,
-      descricao: 'Ensaio de referência para revestimentos e proteção de solda.'
+      area: 'AMBOS', equipamentoId: 'SHAKER',
+      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 3200,
+      descricao: 'Levantamento das frequências naturais e amplificação nos pontos de fixação.'
     },
     {
-      id: 'TP-COL-04', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544',
+      id: 'TP-MEC-01', nome: 'Fadiga estrutural de suporte', norma: 'Procedimento interno LAB-BRK', revisao: 'Rev. 06',
       clientes: [],
-      area: 'COLD', equipamentoId: 'FLW-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
-      descricao: 'Levantamento da curva de contrapressão em função da vazão.'
+      area: 'AMBOS', equipamentoId: 'MTS-1',
+      horasSetup: 6, horasEnsaio: 400, amostras: 3, custoBase: 7600,
+      descricao: 'Carregamento cíclico do bracket até a vida-alvo, com monitoramento de rigidez.'
     },
     {
-      id: 'TP-COL-05', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820',
-      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
-      descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
+      id: 'TP-MEC-02', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX', revisao: 'Rev. 04',
+      clientes: ['CLI-FOR', 'CLI-TEN'],
+      area: 'HOT', equipamentoId: 'MTS-2',
+      horasSetup: 6, horasEnsaio: 180, amostras: 3, custoBase: 7300,
+      descricao: 'Deslocamento angular e axial cíclico até 1 milhão de ciclos.'
     },
     {
-      id: 'TP-COL-06', nome: 'Ruído de passagem e tailpipe noise', norma: 'ISO 362',
-      clientes: ['CLI-STL', 'CLI-VW'],
-      area: 'COLD', equipamentoId: 'ACU-01', fases: ['PV', 'VAVE'],
-      horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
-      descricao: 'Verificação do nível sonoro do sistema completo montado no veículo.'
-    },
-    {
-      id: 'TP-COL-07', nome: 'Gravelometria (impacto de pedras)', norma: 'ISO 20567-1',
-      clientes: ['CLI-TEN', 'CLI-STL'],
-      area: 'COLD', equipamentoId: 'GRV-01', fases: ['DV', 'PV'],
-      horasSetup: 2, horasEnsaio: 12, amostras: 2, custoBase: 2900,
-      descricao: 'Projeção de granalha para avaliar resistência do revestimento externo e da ponteira.'
-    },
-    {
-      id: 'TP-COL-08', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR',
+      id: 'TP-MEC-03', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR', revisao: 'Rev. 02',
       clientes: ['CLI-EBE'],
-      area: 'COLD', equipamentoId: 'UTM-01', fases: ['DV', 'PV'],
+      area: 'COLD', equipamentoId: 'MTS-3',
       horasSetup: 3, horasEnsaio: 120, amostras: 5, custoBase: 3400,
       descricao: 'Carregamento cíclico do isolador de borracha até perda de rigidez especificada.'
     },
     {
-      id: 'TP-AMB-01', nome: 'Estanqueidade por hélio', norma: 'Procedimento interno LAB-LEAK',
+      id: 'TP-MEC-04', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1', revisao: 'Rev. 01',
       clientes: [],
-      area: 'AMBOS', equipamentoId: 'LEK-01', fases: ['DV', 'PV', 'VAVE'],
-      horasSetup: 1, horasEnsaio: 4, amostras: 3, custoBase: 900,
-      descricao: 'Detecção de vazamento em soldas e flanges com traçador de hélio.'
-    },
-    {
-      id: 'TP-AMB-02', nome: 'Durabilidade em simulador de estrada', norma: 'Perfil de pista do cliente',
-      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'AMBOS', equipamentoId: 'RDS-01', fases: ['PV'],
-      horasSetup: 24, horasEnsaio: 320, amostras: 1, custoBase: 28500,
-      descricao: 'Sistema completo montado no veículo, reproduzindo o ciclo de durabilidade de pista.'
-    },
-    {
-      id: 'TP-AMB-03', nome: 'Análise dimensional em CMM', norma: 'Desenho do cliente',
-      clientes: [],
-      area: 'AMBOS', equipamentoId: 'CMM-01', fases: ['PV', 'VAVE'],
-      horasSetup: 3, horasEnsaio: 10, amostras: 5, custoBase: 2100,
-      descricao: 'Layout dimensional completo para o dossiê de PPAP.'
-    },
-    {
-      id: 'TP-AMB-04', nome: 'Análise metalográfica de solda', norma: 'ISO 17639',
-      clientes: [],
-      area: 'AMBOS', equipamentoId: 'MET-01', fases: ['DV', 'PV'],
-      horasSetup: 2, horasEnsaio: 16, amostras: 4, custoBase: 3100,
-      descricao: 'Macrografia e micrografia para penetração, porosidade e tamanho de grão.'
-    },
-    {
-      id: 'TP-AMB-05', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1',
-      clientes: [],
-      area: 'AMBOS', equipamentoId: 'UTM-01', fases: ['DV', 'VAVE'],
+      area: 'AMBOS', equipamentoId: 'MTS-4',
       horasSetup: 1, horasEnsaio: 6, amostras: 6, custoBase: 1500,
       descricao: 'Caracterização mecânica do inox de entrada por lote.'
+    },
+    {
+      id: 'TP-MEC-05', nome: 'Fadiga de solda por flexão', norma: 'ISO 17639 / interno', revisao: 'Rev. 03',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'MTS-4',
+      horasSetup: 3, horasEnsaio: 96, amostras: 4, custoBase: 4100,
+      descricao: 'Flexão alternada no cordão de solda para levantar a curva S-N da junta.'
+    },
+    {
+      id: 'TP-ACU-01', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820', revisao: 'Rev. 02',
+      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
+      area: 'COLD', equipamentoId: 'LMS-PTA',
+      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
+      descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
+    },
+    {
+      id: 'TP-ACU-02', nome: 'Ruído de boca de escape e análise de ordens', norma: 'ISO 362 / interno', revisao: 'Rev. 04',
+      clientes: ['CLI-STL', 'CLI-VW'],
+      area: 'COLD', equipamentoId: 'LMS-PTA',
+      horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
+      descricao: 'Nível sonoro na saída e conteúdo de ordens do motor com o sistema montado.'
+    },
+    {
+      id: 'TP-FLW-01', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544', revisao: 'Rev. 03',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'COLDFLOW',
+      horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
+      descricao: 'Levantamento da curva de contrapressão em função da vazão.'
+    },
+    {
+      id: 'TP-FLW-02', nome: 'Uniformidade de fluxo no substrato', norma: 'Procedimento interno LAB-UI', revisao: 'Rev. 02',
+      clientes: ['CLI-VW', 'CLI-STL'],
+      area: 'HOT', equipamentoId: 'COLDFLOW',
+      horasSetup: 4, horasEnsaio: 12, amostras: 1, custoBase: 5300,
+      descricao: 'Mapeamento de velocidade na face do substrato e cálculo do índice de uniformidade.'
+    },
+    {
+      id: 'TP-DYN-01', nome: 'Durabilidade em dinamômetro de motor', norma: 'Ciclo de durabilidade do cliente', revisao: 'Rev. 05',
+      clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
+      area: 'AMBOS', equipamentoId: 'DYNO',
+      horasSetup: 24, horasEnsaio: 500, amostras: 1, custoBase: 28500,
+      descricao: 'Sistema completo em motor, reproduzindo o ciclo de durabilidade veicular.'
+    },
+    {
+      id: 'TP-DYN-02', nome: 'Contrapressão e temperatura em ciclo de motor', norma: 'Procedimento interno LAB-ENG', revisao: 'Rev. 02',
+      clientes: [],
+      area: 'AMBOS', equipamentoId: 'DYNO',
+      horasSetup: 12, horasEnsaio: 72, amostras: 1, custoBase: 13400,
+      descricao: 'Instrumentação do sistema em motor para levantar temperatura e contrapressão em carga.'
     }
   ];
 
-  /* Peças em validação. dataAmostras = quando o lote de amostras chega ao laboratório;
-     nenhum ensaio pode começar antes dessa data. */
+  /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
+     qualquer cliente pode ter uma amostra de qualquer um destes tipos.
+     A data de chegada das amostras é informada na demanda, não aqui. */
   var PECAS = [
-    { id: 'PC-001', nome: 'Coletor de escape 1.0 TSI', clienteId: 'CLI-VW', programa: 'VW MQB-A0 / EA211', area: 'HOT', dataAmostras: '2026-08-03', quantidade: 8, custoAmostra: 3800 },
-    { id: 'PC-002', nome: 'Catalisador close-coupled', clienteId: 'CLI-VW', programa: 'VW MQB-A0 / EA211', area: 'HOT', dataAmostras: '2026-08-17', quantidade: 6, custoAmostra: 5400 },
-    { id: 'PC-003', nome: 'Downpipe com flexível', clienteId: 'CLI-FOR', programa: 'Fiat 270 Hybrid', area: 'HOT', dataAmostras: '2026-08-10', quantidade: 10, custoAmostra: 2200 },
-    { id: 'PC-004', nome: 'Silencioso traseiro', clienteId: 'CLI-FOR', programa: 'Fiat 270 Hybrid', area: 'COLD', dataAmostras: '2026-08-24', quantidade: 8, custoAmostra: 1650 },
-    { id: 'PC-005', nome: 'Ressonador intermediário', clienteId: 'CLI-TEN', programa: 'Stellantis P1H', area: 'COLD', dataAmostras: '2026-09-07', quantidade: 12, custoAmostra: 980 },
-    { id: 'PC-006', nome: 'Ponteira cromada dupla', clienteId: 'CLI-TEN', programa: 'Stellantis P1H', area: 'COLD', dataAmostras: '2026-09-14', quantidade: 10, custoAmostra: 740 },
-    { id: 'PC-007', nome: 'Módulo DPF pesado', clienteId: 'CLI-SCA', programa: 'Scania Euro 6 Step E', area: 'HOT', dataAmostras: '2026-09-21', quantidade: 4, custoAmostra: 14200 },
-    { id: 'PC-008', nome: 'Coxim de suspensão do sistema', clienteId: 'CLI-EBE', programa: 'GM Gemini BEV Range Ext.', area: 'COLD', dataAmostras: '2026-08-31', quantidade: 30, custoAmostra: 120 },
-    { id: 'PC-009', nome: 'Tubo intermediário conformado', clienteId: 'CLI-STL', programa: 'Stellantis SmallWide', area: 'COLD', dataAmostras: '2026-10-05', quantidade: 10, custoAmostra: 860 }
+    { id: 'PC-HOT', nome: 'Hot End', custoAmostra: 3800, descricao: 'Coletor, downpipe, tubo quente e flexível' },
+    { id: 'PC-CAN', nome: 'Canning', custoAmostra: 5400, descricao: 'Substrato encapsulado: catalisador, DPF/GPF' },
+    { id: 'PC-COL', nome: 'Cold End', custoAmostra: 1650, descricao: 'Tubos, ressonador e ponteira' },
+    { id: 'PC-MUF', nome: 'Muffler', custoAmostra: 1900, descricao: 'Silencioso completo' },
+    { id: 'PC-CMP', nome: 'Component', custoAmostra: 420, descricao: 'Coxim, suporte, flange, corpo de prova' }
   ];
 
   TC.data = {
@@ -874,7 +858,7 @@ tbody tr:last-child td { border-bottom: none; }
 
     function processar(demanda) {
       var base = montarBase(demanda);
-      var teste = base.teste, peca = base.peca, equipamento = base.equipamento;
+      var teste = base.teste, equipamento = base.equipamento;
 
       if (!teste || !equipamento) {
         base.motivo = !teste ? 'Procedimento não encontrado no catálogo.'
@@ -884,7 +868,9 @@ tbody tr:last-child td { border-bottom: none; }
       }
 
       var dias = diasDeOperacao(teste, equipamento);
-      var disponibilidadePeca = peca ? peca.dataAmostras : hoje;
+      /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
+         datas diferentes conforme o cliente e o programa. */
+      var disponibilidadePeca = demanda.dataAmostras || hoje;
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
 
@@ -905,8 +891,8 @@ tbody tr:last-child td { border-bottom: none; }
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
-          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) + ' indisponível em todas as posições de ' + equipamento.id + '.'
-          : 'Sem janela livre em ' + equipamento.id + ' dentro do horizonte de planejamento.';
+          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) + ' indisponível em todas as posições de ' + equipamento.nome + '.'
+          : 'Sem janela livre em ' + equipamento.nome + ' dentro do horizonte de planejamento.';
         base.diasOperacao = dias;
         alocacoes.push(base);
         return;
@@ -984,13 +970,23 @@ tbody tr:last-child td { border-bottom: none; }
       return antigas[fase] || null;
     }
 
+    /* A data de chegada das amostras saiu da peça e foi para a demanda; guardamos a
+       data antiga de cada peça para não perder o que já estava planejado. */
+    var dataAntigaDaPeca = {};
+    (estado.pecas || []).forEach(function (p) {
+      if (p.dataAmostras) dataAntigaDaPeca[p.id] = p.dataAmostras;
+      /* Peça deixou de ser de um cliente e de uma área: é um tipo de peça. */
+      delete p.clienteId;
+      delete p.area;
+      delete p.programa;
+      delete p.dataAmostras;
+      delete p.quantidade;
+    });
+
+    /* O procedimento não é mais amarrado a fase de projeto. */
     (estado.testes || []).forEach(function (t) {
-      var vistas = [];
-      (t.fases || []).forEach(function (fase) {
-        var nova = converter(fase);
-        if (nova && vistas.indexOf(nova) === -1) vistas.push(nova);
-      });
-      t.fases = vistas.length ? vistas : [validas[0]];
+      delete t.fases;
+      if (typeof t.revisao !== 'string') t.revisao = '';
     });
 
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
@@ -1001,6 +997,7 @@ tbody tr:last-child td { border-bottom: none; }
         d.tipoLti = converter(d.fase) || validas[0];
       }
       if (typeof d.lti !== 'string') d.lti = '';
+      if (!d.dataAmostras) d.dataAmostras = dataAntigaDaPeca[d.pecaId] || util.hoje();
       delete d.fase;
     });
 
@@ -1056,6 +1053,7 @@ tbody tr:last-child td { border-bottom: none; }
         tipoLti: dados.tipoLti || 'DV',
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
+        dataAmostras: dados.dataAmostras || util.hoje(),
         prazo: dados.prazo || '',
         inicioFixo: dados.inicioFixo || '',
         observacao: dados.observacao || '',
@@ -1287,14 +1285,6 @@ tbody tr:last-child td { border-bottom: none; }
     return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
   }
 
-  function chipsFases(fasesDoTeste) {
-    return '<span class="fases">' + TC.data.FASES.map(function (f) {
-      var ativo = fasesDoTeste && fasesDoTeste.indexOf(f.id) !== -1;
-      return '<span class="fase-chip' + (ativo ? ' on' : '') + '" title="' + e(f.nome) + '">' +
-        e(f.id) + '</span>';
-    }).join('') + '</span>';
-  }
-
   var STATUS = {
     PENDENTE: ['marca', 'Pendente'],
     EM_ANDAMENTO: ['alerta', 'Em andamento'],
@@ -1349,7 +1339,6 @@ tbody tr:last-child td { border-bottom: none; }
     etiquetaPrioridade: etiquetaPrioridade,
     etiquetaTipoLti: etiquetaTipoLti,
     celulaLti: celulaLti,
-    chipsFases: chipsFases,
     opcoes: opcoes,
     vazio: vazio,
     STATUS: STATUS
@@ -1374,11 +1363,11 @@ tbody tr:last-child td { border-bottom: none; }
     var busca = (f.busca || '').toLowerCase();
     return estado.testes.filter(function (t) {
       if (f.area && t.area !== f.area && t.area !== 'AMBOS') return false;
-      if (f.fase && (t.fases || []).indexOf(f.fase) === -1) return false;
       if (!aplicaAoCliente(t, f.clienteId)) return false;
       if (f.equipamentoId && t.equipamentoId !== f.equipamentoId) return false;
       if (busca) {
-        var alvo = (t.id + ' ' + t.nome + ' ' + (t.norma || '') + ' ' + (t.descricao || '')).toLowerCase();
+        var alvo = (t.id + ' ' + t.nome + ' ' + (t.norma || '') + ' ' +
+          (t.revisao || '') + ' ' + (t.descricao || '')).toLowerCase();
         if (alvo.indexOf(busca) === -1) return false;
       }
       return true;
@@ -1402,11 +1391,13 @@ tbody tr:last-child td { border-bottom: none; }
           (clientes.length ? ' · exigido por ' + e(clientes.join(', ')) : ' · procedimento padrão') +
         '</div>' +
       '</td>' +
+      '<td>' + (teste.revisao
+        ? '<span class="etiqueta">' + e(teste.revisao) + '</span>'
+        : '<span class="sub">sem revisão</span>') + '</td>' +
       '<td>' + ui.etiquetaArea(teste.area) + '</td>' +
-      '<td>' + ui.chipsFases(teste.fases) + '</td>' +
       '<td>' +
         (equipamento
-          ? '<div class="forte">' + e(equipamento.id) + '</div><div class="sub">' + e(equipamento.nome) + '</div>'
+          ? '<div class="forte">' + e(equipamento.nome) + '</div>'
           : '<span class="etiqueta erro">não cadastrado</span>') +
       '</td>' +
       '<td class="num">' + e(String(custo.horas)) + ' h' +
@@ -1429,36 +1420,21 @@ tbody tr:last-child td { border-bottom: none; }
     var estado = ctx.estado;
     var equipamento = util.porId(estado.equipamentos, teste.equipamentoId);
 
-    function pecasDoCliente(clienteId) {
-      return estado.pecas.filter(function (p) {
-        if (clienteId && p.clienteId !== clienteId) return false;
-        if (teste.area !== 'AMBOS' && p.area !== teste.area) return false;
-        return true;
-      });
-    }
+    var clientePadrao = ctx.filtros.clienteId ||
+      (teste.clientes && teste.clientes[0]) ||
+      (estado.clientes[0] && estado.clientes[0].id) || '';
 
-    /* Abre já num cliente que tenha peça compatível, para não cair num formulário sem saída. */
-    function escolherClientePadrao() {
-      var candidatos = [ctx.filtros.clienteId]
-        .concat(teste.clientes || [])
-        .concat(estado.clientes.map(function (c) { return c.id; }));
-      for (var i = 0; i < candidatos.length; i++) {
-        if (candidatos[i] && pecasDoCliente(candidatos[i]).length) return candidatos[i];
-      }
-      return ctx.filtros.clienteId || (estado.clientes[0] && estado.clientes[0].id) || '';
-    }
-    var clientePadrao = escolherClientePadrao();
-
-    var tipoPadrao = ctx.filtros.tipoLti ||
-      (ctx.filtros.fase && (teste.fases || []).indexOf(ctx.filtros.fase) !== -1 ? ctx.filtros.fase : '') ||
-      (teste.fases && teste.fases[0]) || 'DV';
+    var tipoPadrao = ctx.filtros.tipoLti || 'DV';
+    var amostrasPadrao = util.hoje();
+    var prazoPadrao = util.somaDias(util.hoje(), 60);
 
     var corpo =
       '<div class="aviso">' +
-        e(teste.nome) + ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
-        e(equipamento ? equipamento.id : '?') + '</strong> por ' +
+        e(teste.nome) + (teste.revisao ? ' · ' + e(teste.revisao) : '') +
+        ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
+        e(equipamento ? equipamento.nome : '?') + '</strong> por ' +
         e(equipamento ? TC.scheduler.diasDeOperacao(teste, equipamento) + ' dia(s)' : '—') +
-        '. A data de início é calculada automaticamente pela disponibilidade da peça e do equipamento.' +
+        '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento.' +
       '</div>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Nº da LTI (ordem de serviço)</label>' +
@@ -1467,12 +1443,16 @@ tbody tr:last-child td { border-bottom: none; }
           ui.opcoes(TC.data.TIPOS_LTI, tipoPadrao) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' +
           ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
-        '<div class="campo"><label>Peça a ensaiar</label><select name="pecaId"></select></div>' +
+        '<div class="campo"><label>Peça a ensaiar</label><select name="pecaId">' +
+          ui.opcoes(estado.pecas, '') + '</select></div>' +
+        '<div class="campo"><label>Amostras disponíveis a partir de</label>' +
+          '<input type="date" name="dataAmostras" value="' + e(amostrasPadrao) + '"></div>' +
+        '<div class="campo"><label>Prazo para finalização</label>' +
+          '<input type="date" name="prazo" value="' + e(prazoPadrao) + '"></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' +
           ui.opcoes(TC.data.PRIORIDADES, 'MEDIA') + '</select></div>' +
         '<div class="campo"><label>Amostras a consumir</label>' +
           '<input type="number" name="quantidade" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
-        '<div class="campo"><label>Prazo do cliente (opcional)</label><input type="date" name="prazo"></div>' +
         '<div class="campo"><label>Forçar início em (opcional)</label><input type="date" name="inicioFixo"></div>' +
       '</div>' +
       '<div class="campo"><label>Observação</label>' +
@@ -1485,7 +1465,7 @@ tbody tr:last-child td { border-bottom: none; }
       confirmar: 'Confirmar e planejar',
       aoConfirmar: function (v) {
         if (!v.pecaId) {
-          ui.notificar('Cadastre uma peça compatível para este cliente antes de confirmar.');
+          ui.notificar('Escolha a peça a ensaiar.');
           return false;
         }
         if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
@@ -1493,10 +1473,21 @@ tbody tr:last-child td { border-bottom: none; }
           janela.querySelector('[name=lti]').focus();
           return false;
         }
+        if (!v.dataAmostras) {
+          ui.notificar('Informe a data de disponibilidade das amostras.');
+          janela.querySelector('[name=dataAmostras]').focus();
+          return false;
+        }
+        if (v.tipoLti !== 'COTACAO' && !v.prazo) {
+          ui.notificar('Informe o prazo para finalização.');
+          janela.querySelector('[name=prazo]').focus();
+          return false;
+        }
         var demanda = TC.store.criarDemanda({
           testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId,
           lti: v.lti, tipoLti: v.tipoLti,
-          prioridade: v.prioridade, quantidade: v.quantidade, prazo: v.prazo,
+          prioridade: v.prioridade, quantidade: v.quantidade,
+          dataAmostras: v.dataAmostras, prazo: v.prazo,
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         var plano = TC.scheduler.planejar(TC.store.get());
@@ -1507,7 +1498,7 @@ tbody tr:last-child td { border-bottom: none; }
           return;
         }
         if (alocacao && alocacao.inicio) {
-          ui.notificar('Planejado em ' + alocacao.equipamento.id + ': ' +
+          ui.notificar('Planejado em ' + alocacao.equipamento.nome + ': ' +
             util.formatarData(alocacao.inicio, true) + ' → ' + util.formatarData(alocacao.fim, true));
         } else {
           ui.notificar('Demanda criada, mas sem janela disponível — veja o planejamento.');
@@ -1516,51 +1507,29 @@ tbody tr:last-child td { border-bottom: none; }
       }
     });
 
-    var selCliente = janela.querySelector('[name=clienteId]');
     var selPeca = janela.querySelector('[name=pecaId]');
     var previa = janela.querySelector('#previa');
     var botaoConfirmar = janela.querySelector('.confirmar');
-
-    function atualizarPecas() {
-      var lista = pecasDoCliente(selCliente.value);
-      var area = util.porId(TC.data.AREAS, teste.area);
-      selPeca.innerHTML = lista.length
-        ? lista.map(function (p) {
-            return '<option value="' + e(p.id) + '">' + e(p.nome) + ' — amostras em ' +
-              e(util.formatarData(p.dataAmostras, true)) + '</option>';
-          }).join('')
-        : '<option value="">Nenhuma peça ' + e(area ? area.nome : '') + ' deste cliente</option>';
-      selPeca.disabled = !lista.length;
-      botaoConfirmar.disabled = !lista.length;
-      atualizarPrevia();
-    }
+    var campoAmostras = janela.querySelector('[name=dataAmostras]');
 
     function atualizarPrevia() {
       var peca = util.porId(estado.pecas, selPeca.value);
-      if (!peca) {
-        var nomeCliente = util.porId(estado.clientes, selCliente.value);
-        previa.innerHTML = '<div class="aviso erro">Este cliente não tem peça ' +
-          e((util.porId(TC.data.AREAS, teste.area) || {}).nome || '') +
-          ' cadastrada. Cadastre a peça em <strong>Peças e amostras</strong> ou escolha outro cliente' +
-          (nomeCliente ? ' (atual: ' + e(nomeCliente.nome) + ')' : '') + '.</div>';
-        return;
-      }
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
       var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, equipamento, peca);
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
         'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
-        ' + ' + e(String(custo.horas)) + ' h de ' + e(equipamento ? equipamento.id : '—') + ' ' +
+        ' + ' + e(String(custo.horas)) + ' h de ' + e(equipamento ? equipamento.nome : '—') + ' ' +
         e(util.formatarMoeda(custo.custoEquipamento)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
         (cotacao
           ? '. Como cotação, não reserva bancada nem entra no planejamento.'
-          : (peca ? '. Amostras disponíveis a partir de ' + e(util.formatarData(peca.dataAmostras, true)) + '.' : '.')) +
+          : '. O ensaio não é agendado antes de ' + e(util.formatarData(campoAmostras.value, true)) + '.') +
         '</div>';
     }
 
-    /* Só cotação pode ficar sem número de LTI; o formulário diz isso antes do envio. */
+    /* Só cotação pode ficar sem número de LTI e sem prazo; o formulário diz isso antes do envio. */
     function atualizarTipo() {
       var cotacao = selTipo.value === 'COTACAO';
       campoLti.placeholder = cotacao ? 'Opcional na cotação' : 'Ex.: LTI-2026-0142';
@@ -1568,6 +1537,7 @@ tbody tr:last-child td { border-bottom: none; }
       rotuloLti.textContent = cotacao
         ? 'Nº da LTI (ordem de serviço) — opcional'
         : 'Nº da LTI (ordem de serviço)';
+      rotuloPrazo.textContent = cotacao ? 'Prazo para finalização — opcional' : 'Prazo para finalização';
       botaoConfirmar.textContent = cotacao ? 'Registrar cotação' : 'Confirmar e planejar';
       atualizarPrevia();
     }
@@ -1575,12 +1545,12 @@ tbody tr:last-child td { border-bottom: none; }
     var selTipo = janela.querySelector('[name=tipoLti]');
     var campoLti = janela.querySelector('[name=lti]');
     var rotuloLti = campoLti.parentElement.querySelector('label');
+    var rotuloPrazo = janela.querySelector('[name=prazo]').parentElement.querySelector('label');
 
-    selCliente.addEventListener('change', atualizarPecas);
     selPeca.addEventListener('change', atualizarPrevia);
     selTipo.addEventListener('change', atualizarTipo);
+    campoAmostras.addEventListener('change', atualizarPrevia);
     janela.querySelector('[name=quantidade]').addEventListener('input', atualizarPrevia);
-    atualizarPecas();
     atualizarTipo();
   }
 
@@ -1589,7 +1559,7 @@ tbody tr:last-child td { border-bottom: none; }
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', area: 'COLD', clientes: [], fases: ['DV'], equipamentoId: estado.equipamentos[0].id, horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoId: estado.equipamentos[0].id, horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
 
     var corpo =
       '<div class="grade-campos">' +
@@ -1597,6 +1567,8 @@ tbody tr:last-child td { border-bottom: none; }
           (novo ? ' placeholder="TP-COL-09"' : ' readonly') + '></div>' +
         '<div class="campo"><label>Nome do procedimento</label><input name="nome" value="' + e(teste.nome) + '" required></div>' +
         '<div class="campo"><label>Norma / referência</label><input name="norma" value="' + e(teste.norma || '') + '"></div>' +
+        '<div class="campo"><label>Revisão do procedimento</label>' +
+          '<input name="revisao" value="' + e(teste.revisao || '') + '" placeholder="Ex.: Rev. 03"></div>' +
         '<div class="campo"><label>Área do sistema</label><select name="area">' +
           ui.opcoes(TC.data.AREAS, teste.area) + '</select></div>' +
         '<div class="campo"><label>Equipamento</label><select name="equipamentoId">' +
@@ -1606,13 +1578,6 @@ tbody tr:last-child td { border-bottom: none; }
         '<div class="campo"><label>Amostras necessárias</label><input type="number" name="amostras" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
         '<div class="campo"><label>Custo de mão de obra e insumos (R$)</label><input type="number" name="custoBase" min="0" step="100" value="' + e(String(teste.custoBase)) + '"></div>' +
       '</div>' +
-      '<div class="campo"><label>Fases de projeto em que se aplica</label><div>' +
-        TC.data.FASES.map(function (f) {
-          return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
-            '<input type="checkbox" name="fases" data-grupo="1" value="' + e(f.id) + '" style="width:auto"' +
-            ((teste.fases || []).indexOf(f.id) !== -1 ? ' checked' : '') + '>' + e(f.nome) + '</label>';
-        }).join('') +
-      '</div></div>' +
       '<div class="campo"><label>Exigido pelos clientes (nenhum = procedimento padrão)</label><div>' +
         estado.clientes.map(function (c) {
           return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
@@ -1629,8 +1594,8 @@ tbody tr:last-child td { border-bottom: none; }
       aoConfirmar: function (v) {
         if (!v.nome) { ui.notificar('Informe o nome do procedimento.'); return false; }
         TC.store.salvarTeste({
-          id: v.id || undefined, nome: v.nome, norma: v.norma, area: v.area,
-          equipamentoId: v.equipamentoId, fases: v.fases || [], clientes: v.clientes || [],
+          id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
+          area: v.area, equipamentoId: v.equipamentoId, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
           amostras: Number(v.amostras) || 1, custoBase: Number(v.custoBase) || 0,
           descricao: v.descricao
@@ -1654,7 +1619,7 @@ tbody tr:last-child td { border-bottom: none; }
     container.innerHTML =
       '<div class="cabecalho">' +
         '<div><h2>Catálogo de testes</h2>' +
-        '<p>Todos os procedimentos de validação por área do sistema, fase de projeto e cliente, com tempo de bancada e custo. Confirme a necessidade de um teste e ele entra no planejamento automaticamente.</p></div>' +
+        '<p>Todos os procedimentos de validação por área do sistema e cliente, com revisão vigente, tempo de bancada e custo. Qualquer procedimento pode ser executado em qualquer fase de projeto. Confirme a necessidade de um teste e ele entra no planejamento automaticamente.</p></div>' +
         '<div class="acoes"><button class="botao primario" id="novo">+ Novo procedimento</button></div>' +
       '</div>' +
       '<div class="indicadores">' +
@@ -1667,14 +1632,13 @@ tbody tr:last-child td { border-bottom: none; }
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
-          '<div class="campo busca"><label>Buscar</label><input id="f-busca" placeholder="nome, código ou norma" value="' + e(f.busca || '') + '"></div>' +
+          '<div class="campo busca"><label>Buscar</label><input id="f-busca" placeholder="nome, código, norma ou revisão" value="' + e(f.busca || '') + '"></div>' +
           '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
           '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-          '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
           '<div class="campo"><label>Equipamento</label><select id="f-equip">' + ui.opcoes(estado.equipamentos, f.equipamentoId, 'Todos') + '</select></div>' +
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Código</th><th>Procedimento</th><th>Área</th><th>Fases</th><th>Equipamento</th>' +
+          '<th>Código</th><th>Procedimento</th><th>Revisão</th><th>Área</th><th>Equipamento</th>' +
           '<th class="num">Duração</th><th class="num">Amostras</th><th class="num">Custo estimado</th><th></th>' +
           '</tr></thead><tbody>' + lista.map(function (t) { return linha(estado, t); }).join('') +
           '</tbody></table></div>'
@@ -1692,7 +1656,6 @@ tbody tr:last-child td { border-bottom: none; }
     }
     liga('#f-cliente', 'clienteId');
     liga('#f-area', 'area');
-    liga('#f-fase', 'fase');
     liga('#f-equip', 'equipamentoId');
 
     var busca = container.querySelector('#f-busca');
@@ -1753,7 +1716,7 @@ tbody tr:last-child td { border-bottom: none; }
     if (a.esperaAmostra) extras.push('aguarda amostra ' + a.esperaAmostra + ' d');
     if (a.esperaFila > 0) extras.push('fila ' + a.esperaFila + ' d');
     return '<span class="forte">' + e(util.formatarData(a.inicio, true)) + ' → ' + e(util.formatarData(a.fim, true)) + '</span>' +
-      '<div class="sub">' + e(a.equipamento.id + ' · pos. ' + (a.posicao + 1) +
+      '<div class="sub">' + e(a.equipamento.nome + ' · pos. ' + (a.posicao + 1) +
         (extras.length ? ' · ' + extras.join(' · ') : '')) + '</div>';
   }
 
@@ -1773,11 +1736,12 @@ tbody tr:last-child td { border-bottom: none; }
       '<td>' +
         '<div class="forte">' + e(a.teste ? a.teste.nome : d.testeId) + '</div>' +
         '<div class="sub"><span class="mono">' + e(d.testeId) + '</span>' +
+          (a.teste && a.teste.revisao ? ' · ' + e(a.teste.revisao) : '') +
           (a.teste ? ' · ' + e(a.teste.norma || '') : '') + '</div>' +
       '</td>' +
       '<td>' +
         '<div>' + e(a.peca ? a.peca.nome : '—') + '</div>' +
-        '<div class="sub">' + e(a.peca ? a.peca.programa : '') + '</div>' +
+        '<div class="sub">amostras ' + e(util.formatarData(d.dataAmostras)) + '</div>' +
       '</td>' +
       '<td>' + (a.teste ? ui.etiquetaArea(a.teste.area) : '') + '</td>' +
       '<td>' + ui.celulaLti(d) + '</td>' +
@@ -1797,18 +1761,16 @@ tbody tr:last-child td { border-bottom: none; }
   function abrirEdicao(ctx, demanda, alocacao) {
     var estado = ctx.estado;
     var teste = util.porId(estado.testes, demanda.testeId);
-    var pecas = estado.pecas.filter(function (p) {
-      return !demanda.clienteId || p.clienteId === demanda.clienteId;
-    });
     var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
 
     var corpo =
       '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
+        (teste && teste.revisao ? ' · ' + e(teste.revisao) : '') +
         (alocacao && alocacao.cotacao
           ? ' · cotação, não ocupa bancada'
           : alocacao && alocacao.inicio
           ? ' · planejado para ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
-            ' em ' + e(alocacao.equipamento.id)
+            ' em ' + e(alocacao.equipamento.nome)
           : ' · ainda sem janela') +
       '</div>' +
       '<div class="grade-campos">' +
@@ -1816,13 +1778,13 @@ tbody tr:last-child td { border-bottom: none; }
         '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' + ui.opcoes(TC.data.TIPOS_LTI, demanda.tipoLti) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
         '<div class="campo"><label>Peça</label><select name="pecaId">' +
-          pecas.map(function (p) {
-            return '<option value="' + e(p.id) + '"' + (p.id === demanda.pecaId ? ' selected' : '') + '>' + e(p.nome) + '</option>';
-          }).join('') + '</select></div>' +
+          ui.opcoes(estado.pecas, demanda.pecaId) + '</select></div>' +
+        '<div class="campo"><label>Amostras disponíveis a partir de</label>' +
+          '<input type="date" name="dataAmostras" value="' + e(demanda.dataAmostras || '') + '"></div>' +
+        '<div class="campo"><label>Prazo para finalização</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
         '<div class="campo"><label>Status</label><select name="status">' + ui.opcoes(statusLista, demanda.status) + '</select></div>' +
         '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
-        '<div class="campo"><label>Prazo</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
         '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
       '</div>' +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
@@ -1836,10 +1798,15 @@ tbody tr:last-child td { border-bottom: none; }
           ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
           return false;
         }
+        if (!v.dataAmostras) {
+          ui.notificar('Informe a data de disponibilidade das amostras.');
+          return false;
+        }
         TC.store.atualizarDemanda(demanda.id, {
           clienteId: v.clienteId, pecaId: v.pecaId, lti: v.lti.trim(), tipoLti: v.tipoLti,
           prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
-          prazo: v.prazo, inicioFixo: v.inicioFixo, observacao: v.observacao
+          dataAmostras: v.dataAmostras, prazo: v.prazo,
+          inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');
       }
@@ -1931,19 +1898,22 @@ tbody tr:last-child td { border-bottom: none; }
   }
 
   function exportarCsv(lista) {
-    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Peca', 'Cliente', 'Prioridade', 'Amostras',
-      'Equipamento', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status'];
+    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Revisao', 'Peca', 'Cliente',
+      'Prioridade', 'Amostras', 'Equipamento', 'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo',
+      'Folga_dias', 'Custo_total', 'Status'];
     var linhas = lista.map(function (a) {
       return [
         a.demanda.lti || '',
         a.demanda.tipoLti,
         a.demanda.testeId,
         a.teste ? a.teste.nome : '',
+        a.teste ? (a.teste.revisao || '') : '',
         a.peca ? a.peca.nome : '',
         a.demanda.clienteId,
         a.demanda.prioridade,
         a.demanda.quantidade,
-        a.equipamento ? a.equipamento.id : '',
+        a.equipamento ? a.equipamento.nome : '',
+        a.demanda.dataAmostras || '',
         a.cotacao ? '' : (a.inicio || ''),
         a.cotacao ? '' : (a.fim || ''),
         a.demanda.prazo || '',
@@ -2059,7 +2029,8 @@ tbody tr:last-child td { border-bottom: none; }
     var dias = util.diffDias(a.inicio, a.fim) + 1;
     if (offset + dias < 0 || offset >= faixa.dias) return '';
     var classe = { HOT: 'hot', COLD: 'cold', AMBOS: 'ambos' }[a.teste.area] || '';
-    var titulo = a.teste.nome + '\n' + (a.peca ? a.peca.nome + ' · ' + a.peca.programa : '') +
+    var titulo = a.teste.nome + (a.teste.revisao ? ' · ' + a.teste.revisao : '') +
+      '\nLTI ' + (a.demanda.lti || '—') + (a.peca ? ' · ' + a.peca.nome : '') +
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
       '\n' + a.custo.horas + ' h · ' + util.formatarMoeda(a.custo.total) +
       (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
@@ -2098,7 +2069,7 @@ tbody tr:last-child td { border-bottom: none; }
         linhas +=
           '<div class="gantt-linha">' +
             '<div class="gantt-rotulo">' +
-              '<span class="nome">' + e(eq.id) + (eq.posicoes > 1 ? ' <span class="sub">pos. ' + (p + 1) + '</span>' : '') + '</span>' +
+              '<span class="nome">' + e(eq.nome) + (eq.posicoes > 1 ? ' <span class="sub">pos. ' + (p + 1) + '</span>' : '') + '</span>' +
               '<span class="sub" title="' + e(eq.nome) + '">' + e(eq.nome.length > 30 ? eq.nome.slice(0, 29) + '…' : eq.nome) + '</span>' +
               '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">' +
                 '<span class="barra-trilho" style="flex:1"><span class="barra-valor' +
@@ -2237,21 +2208,20 @@ tbody tr:last-child td { border-bottom: none; }
 
     var resumo = {};
     estado.clientes.forEach(function (c) {
-      resumo[c.id] = { pecas: 0, demandas: 0, custo: 0, procedimentos: 0 };
-    });
-    estado.pecas.forEach(function (p) {
-      if (resumo[p.clienteId]) resumo[p.clienteId].pecas++;
+      resumo[c.id] = { tiposPeca: {}, demandas: 0, custo: 0, procedimentos: 0 };
     });
     estado.testes.forEach(function (t) {
       (t.clientes || []).forEach(function (id) {
         if (resumo[id]) resumo[id].procedimentos++;
       });
     });
+    /* Peça não pertence a cliente; o que conta é quais tipos de peça o cliente já trouxe. */
     ctx.plano.alocacoes.forEach(function (a) {
       var r = resumo[a.demanda.clienteId];
       if (!r) return;
       r.demandas++;
       r.custo += a.custo.total;
+      if (a.peca) r.tiposPeca[a.peca.id] = true;
     });
 
     var padrao = estado.testes.filter(function (t) { return !t.clientes || !t.clientes.length; }).length;
@@ -2263,7 +2233,7 @@ tbody tr:last-child td { border-bottom: none; }
           '<div class="sub"><span class="mono">' + e(c.id) + '</span></div></td>' +
         '<td>' + (c.segmento ? '<span class="etiqueta">' + e(c.segmento) + '</span>' : '<span class="sub">—</span>') + '</td>' +
         '<td class="num">' + r.procedimentos + '<div class="sub">+ ' + padrao + ' padrão</div></td>' +
-        '<td class="num">' + r.pecas + '</td>' +
+        '<td class="num">' + Object.keys(r.tiposPeca).length + '</td>' +
         '<td class="num">' + r.demandas + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(r.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
@@ -2283,7 +2253,7 @@ tbody tr:last-child td { border-bottom: none; }
         (estado.clientes.length
           ? '<div class="tabela-rolagem"><table><thead><tr>' +
             '<th>Cliente</th><th>Segmento</th><th class="num">Procedimentos exigidos</th>' +
-            '<th class="num">Peças</th><th class="num">Demandas</th><th class="num">Custo confirmado</th><th></th>' +
+            '<th class="num">Tipos de peça</th><th class="num">Demandas</th><th class="num">Custo confirmado</th><th></th>' +
             '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
           : ui.vazio('Nenhum cliente cadastrado', 'Cadastre o primeiro cliente para poder registrar peças e confirmar testes.')) +
       '</div>';
@@ -2295,13 +2265,10 @@ tbody tr:last-child td { border-bottom: none; }
       var r = resumo[cliente.id];
       tr.querySelector('.editar').onclick = function () { abrirEdicao(cliente); };
       tr.querySelector('.excluir').onclick = function () {
-        var pendencias = [];
-        if (r.pecas) pendencias.push(r.pecas + ' peça(s)');
-        if (r.demandas) pendencias.push(r.demandas + ' demanda(s)');
         ui.confirmarAcao(
           'Remover "' + cliente.nome + '"?' +
-          (pendencias.length
-            ? ' Ele tem ' + pendencias.join(' e ') + ', que ficarão sem cliente e somem dos filtros.'
+          (r.demandas
+            ? ' Ele tem ' + r.demandas + ' demanda(s), que ficarão sem cliente e somem dos filtros.'
             : '') +
           ' O cliente também sai da lista de exigência dos procedimentos.',
           function () {
@@ -2370,7 +2337,7 @@ tbody tr:last-child td { border-bottom: none; }
       '</div></div>';
 
     ui.modal({
-      titulo: novo ? 'Novo equipamento' : 'Editar ' + equipamento.id,
+      titulo: novo ? 'Novo equipamento' : 'Editar ' + equipamento.nome,
       corpo: corpo,
       confirmar: 'Salvar equipamento',
       aoConfirmar: function (v) {
@@ -2406,7 +2373,7 @@ tbody tr:last-child td { border-bottom: none; }
         : '');
 
     var janela = ui.modal({
-      titulo: 'Paradas de ' + equipamento.id,
+      titulo: 'Paradas de ' + equipamento.nome,
       corpo: corpo,
       confirmar: 'Agendar parada',
       aoConfirmar: function (v) {
@@ -2437,7 +2404,8 @@ tbody tr:last-child td { border-bottom: none; }
       var uso = Math.min(100, Math.round(o.dias / capacidade * 100));
       var dias = eq.diasUteis.slice().sort().map(function (d) { return util.NOMES_DIA[d]; }).join(' ');
       return '<tr data-equip="' + e(eq.id) + '">' +
-        '<td><span class="mono forte">' + e(eq.id) + '</span><div class="sub">' + e(eq.nome) + '</div></td>' +
+        '<td><div class="forte">' + e(eq.nome) + '</div>' +
+          '<div class="sub mono">' + e(eq.id) + '</div></td>' +
         '<td class="num">' + eq.posicoes + '</td>' +
         '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
           '<div class="sub">' + e(dias) + '</div></td>' +
@@ -2484,7 +2452,7 @@ tbody tr:last-child td { border-bottom: none; }
       tr.querySelector('.excluir').onclick = function () {
         var dependentes = estado.testes.filter(function (t) { return t.equipamentoId === eq.id; });
         ui.confirmarAcao(
-          'Remover ' + eq.id + ' — ' + eq.nome + '?' +
+          'Remover ' + eq.nome + '?' +
           (dependentes.length
             ? ' ' + dependentes.length + ' procedimento(s) usam este equipamento e ficarão sem bancada, ' +
               'aparecendo como demandas sem janela até você apontá-los para outro.'
@@ -2502,88 +2470,80 @@ tbody tr:last-child td { border-bottom: none; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Peças em validação. A data de chegada das amostras é a segunda restrição do planejamento:
-   nenhum ensaio começa antes dela. */
+/* Peças e amostras: os tipos de peça que o laboratório ensaia.
+   Não pertencem a um cliente nem a uma área — qualquer cliente pode ter amostra de qualquer
+   tipo. A data de chegada das amostras é informada em cada demanda, não aqui. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
-  function abrirEdicao(ctx, peca) {
-    var estado = ctx.estado;
+  function abrirEdicao(peca) {
     var novo = !peca;
-    peca = peca || {
-      id: '', nome: '', clienteId: estado.clientes[0] ? estado.clientes[0].id : '',
-      programa: '', area: 'COLD', dataAmostras: util.somaDias(util.hoje(), 14),
-      quantidade: 6, custoAmostra: 0
-    };
+    peca = peca || { id: '', nome: '', descricao: '', custoAmostra: 0 };
 
     var corpo =
       '<div class="grade-campos">' +
-        '<div class="campo"><label>Nome da peça</label><input name="nome" value="' + e(peca.nome) + '" required></div>' +
-        '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, peca.clienteId) + '</select></div>' +
-        '<div class="campo"><label>Programa / projeto</label><input name="programa" value="' + e(peca.programa || '') + '"></div>' +
-        '<div class="campo"><label>Área do sistema</label><select name="area">' +
-          ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), peca.area) + '</select></div>' +
-        '<div class="campo"><label>Amostras disponíveis a partir de</label><input type="date" name="dataAmostras" value="' + e(peca.dataAmostras) + '"></div>' +
-        '<div class="campo"><label>Quantidade de amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(peca.quantidade)) + '"></div>' +
-        '<div class="campo"><label>Custo por amostra (R$)</label><input type="number" min="0" step="10" name="custoAmostra" value="' + e(String(peca.custoAmostra || 0)) + '"></div>' +
-      '</div>';
+        '<div class="campo"><label>Tipo de peça</label>' +
+          '<input name="nome" value="' + e(peca.nome) + '" required placeholder="Ex.: Hot End"></div>' +
+        '<div class="campo"><label>Custo por amostra (R$)</label>' +
+          '<input type="number" min="0" step="10" name="custoAmostra" value="' + e(String(peca.custoAmostra || 0)) + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Descrição</label>' +
+        '<textarea name="descricao" rows="2" placeholder="O que entra neste tipo de peça">' + e(peca.descricao || '') + '</textarea></div>' +
+      (novo ? '' : '<p class="sub" style="margin-bottom:0">Código <span class="mono">' + e(peca.id) + '</span> — ' +
+        'referenciado pelas demandas, não muda.</p>');
 
     ui.modal({
-      titulo: novo ? 'Nova peça' : 'Editar ' + peca.nome,
+      titulo: novo ? 'Novo tipo de peça' : 'Editar ' + peca.nome,
       corpo: corpo,
       confirmar: 'Salvar peça',
       aoConfirmar: function (v) {
-        if (!v.nome) { ui.notificar('Informe o nome da peça.'); return false; }
+        if (!v.nome.trim()) { ui.notificar('Informe o tipo de peça.'); return false; }
         TC.store.salvarPeca({
-          id: peca.id || undefined, nome: v.nome, clienteId: v.clienteId, programa: v.programa,
-          area: v.area, dataAmostras: v.dataAmostras, quantidade: Number(v.quantidade) || 1,
+          id: peca.id || undefined, nome: v.nome.trim(), descricao: v.descricao.trim(),
           custoAmostra: Number(v.custoAmostra) || 0
         });
-        ui.notificar('Peça salva — planejamento recalculado.');
+        ui.notificar('Peça salva.');
       }
     });
   }
 
   function render(container, ctx) {
-    var estado = ctx.estado, f = ctx.filtros;
+    var estado = ctx.estado;
 
-    var consumo = {};
+    var uso = {};
+    estado.pecas.forEach(function (p) {
+      uso[p.id] = { ensaios: 0, amostras: 0, custo: 0, proximaChegada: null, clientes: {} };
+    });
     ctx.plano.alocacoes.forEach(function (a) {
-      if (!a.peca) return;
-      var c = consumo[a.peca.id] = consumo[a.peca.id] || { ensaios: 0, amostras: 0, custo: 0, primeiroInicio: null, ultimoFim: null };
-      c.ensaios++;
-      c.amostras += a.demanda.quantidade;
-      c.custo += a.custo.total;
-      if (a.inicio && (!c.primeiroInicio || util.diffDias(a.inicio, c.primeiroInicio) > 0)) c.primeiroInicio = a.inicio;
-      if (a.fim && (!c.ultimoFim || util.diffDias(c.ultimoFim, a.fim) > 0)) c.ultimoFim = a.fim;
+      var u = a.peca && uso[a.peca.id];
+      if (!u) return;
+      u.ensaios++;
+      u.amostras += a.demanda.quantidade;
+      u.custo += a.custo.total;
+      u.clientes[a.demanda.clienteId] = true;
+      var chegada = a.demanda.dataAmostras;
+      if (chegada && (!u.proximaChegada || util.diffDias(chegada, u.proximaChegada) > 0)) {
+        u.proximaChegada = chegada;
+      }
     });
 
-    var lista = estado.pecas.filter(function (p) {
-      if (f.clienteId && p.clienteId !== f.clienteId) return false;
-      if (f.area && p.area !== f.area) return false;
-      return true;
-    });
-
-    var linhas = lista.map(function (p) {
-      var cliente = util.porId(estado.clientes, p.clienteId);
-      var c = consumo[p.id] || { ensaios: 0, amostras: 0, custo: 0 };
-      var saldo = p.quantidade - c.amostras;
-      var dias = util.diffDias(ctx.hoje, p.dataAmostras);
+    var linhas = estado.pecas.map(function (p) {
+      var u = uso[p.id];
+      var qtdClientes = Object.keys(u.clientes).length;
       return '<tr data-peca="' + e(p.id) + '">' +
-        '<td><div class="forte">' + e(p.nome) + '</div><div class="sub">' + e(p.programa || '') + '</div></td>' +
-        '<td>' + e(cliente ? cliente.nome : p.clienteId) + '</td>' +
-        '<td>' + ui.etiquetaArea(p.area) + '</td>' +
-        '<td>' + e(util.formatarData(p.dataAmostras, true)) +
-          '<div class="sub">' + (dias > 0 ? 'em ' + dias + ' dia(s)' : 'disponível') + '</div></td>' +
-        '<td class="num">' + p.quantidade + '</td>' +
-        '<td class="num">' + c.amostras +
-          (saldo < 0 ? ' <span class="etiqueta erro">faltam ' + Math.abs(saldo) + '</span>' : '') + '</td>' +
-        '<td class="num">' + c.ensaios + '</td>' +
-        '<td class="num">' + e(util.formatarMoeda(c.custo)) + '</td>' +
-        '<td>' + (c.ultimoFim ? e(util.formatarData(c.ultimoFim, true)) : '<span class="sub">—</span>') + '</td>' +
+        '<td><div class="forte">' + e(p.nome) + '</div>' +
+          '<div class="sub">' + e(p.descricao || '') + '</div></td>' +
+        '<td class="num">' + e(util.formatarMoeda(p.custoAmostra)) + '</td>' +
+        '<td class="num">' + u.ensaios + '</td>' +
+        '<td class="num">' + u.amostras + '</td>' +
+        '<td class="num">' + (qtdClientes || '<span class="sub">—</span>') + '</td>' +
+        '<td>' + (u.proximaChegada
+          ? e(util.formatarData(u.proximaChegada, true))
+          : '<span class="sub">—</span>') + '</td>' +
+        '<td class="num forte">' + e(util.formatarMoeda(u.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
           '<button class="botao pequeno editar">Editar</button> ' +
           '<button class="botao pequeno perigo excluir">✕</button></td>' +
@@ -2593,33 +2553,26 @@ tbody tr:last-child td { border-bottom: none; }
     container.innerHTML =
       '<div class="cabecalho">' +
         '<div><h2>Peças e amostras</h2>' +
-        '<p>Quando o lote de amostras chega ao laboratório e quantas peças existem. O planejamento nunca agenda um ensaio antes dessa data.</p></div>' +
-        '<div class="acoes"><button class="botao primario" id="nova">+ Nova peça</button></div>' +
+        '<p>Os tipos de peça que o laboratório ensaia. Valem para qualquer cliente — a data de chegada das amostras e o prazo são informados a cada demanda, porque variam por programa.</p></div>' +
+        '<div class="acoes"><button class="botao primario" id="nova">+ Novo tipo de peça</button></div>' +
       '</div>' +
       '<div class="cartao">' +
-        '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
-          '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
-          '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-        '</div></div>' +
-        (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Peça</th><th>Cliente</th><th>Área</th><th>Amostras a partir de</th><th class="num">Disponíveis</th>' +
-          '<th class="num">Comprometidas</th><th class="num">Ensaios</th><th class="num">Custo</th><th>Fim da validação</th><th></th>' +
+        (estado.pecas.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
+          '<th>Tipo de peça</th><th class="num">Custo por amostra</th><th class="num">Ensaios</th>' +
+          '<th class="num">Amostras</th><th class="num">Clientes</th><th>Primeira chegada</th>' +
+          '<th class="num">Custo acumulado</th><th></th>' +
           '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
-          : ui.vazio('Nenhuma peça cadastrada', 'Cadastre a peça para poder confirmar testes sobre ela.')) +
+          : ui.vazio('Nenhum tipo de peça cadastrado', 'Cadastre a peça para poder confirmar testes sobre ela.')) +
       '</div>';
 
-    container.querySelector('#nova').onclick = function () { abrirEdicao(ctx, null); };
-    ['cliente:clienteId', 'area:area'].forEach(function (par) {
-      var p = par.split(':');
-      var alvo = container.querySelector('#f-' + p[0]);
-      alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });
-    });
+    container.querySelector('#nova').onclick = function () { abrirEdicao(null); };
     container.querySelectorAll('tr[data-peca]').forEach(function (tr) {
       var peca = util.porId(estado.pecas, tr.dataset.peca);
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(ctx, peca); };
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(peca); };
       tr.querySelector('.excluir').onclick = function () {
-        var usos = ctx.estado.demandas.filter(function (d) { return d.pecaId === peca.id; }).length;
-        ui.confirmarAcao('Remover "' + peca.nome + '"?' + (usos ? ' Há ' + usos + ' demanda(s) associada(s), que ficarão sem peça.' : ''), function () {
+        var usos = estado.demandas.filter(function (d) { return d.pecaId === peca.id; }).length;
+        ui.confirmarAcao('Remover "' + peca.nome + '"?' +
+          (usos ? ' Há ' + usos + ' demanda(s) associada(s), que ficarão sem peça.' : ''), function () {
           TC.store.removerPeca(peca.id);
           ui.notificar('Peça removida.');
         });
@@ -2704,13 +2657,14 @@ tbody tr:last-child td { border-bottom: none; }
         alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ': ' + a.motivo });
       }
     });
-    estado.pecas.forEach(function (p) {
-      var comprometidas = todas.reduce(function (soma, a) {
-        return a.peca && a.peca.id === p.id ? soma + a.demanda.quantidade : soma;
-      }, 0);
-      if (comprometidas > p.quantidade) {
-        alertas.push({ tipo: 'alerta', texto: p.nome + ': ' + comprometidas + ' amostras comprometidas para apenas ' +
-          p.quantidade + ' disponíveis.' });
+    /* Demanda cuja amostra ainda não chegou e cujo prazo já está próximo: a janela
+       de execução aperta antes mesmo de a peça entrar no laboratório. */
+    ctx.plano.agendadas.forEach(function (a) {
+      var esperaAmostra = util.diffDias(hoje, a.demanda.dataAmostras);
+      if (esperaAmostra > 0 && a.folga !== null && a.folga !== undefined && a.folga >= 0 && a.folga < 7) {
+        alertas.push({ tipo: 'alerta', texto: (a.teste ? a.teste.nome : a.demanda.testeId) +
+          ' (LTI ' + (a.demanda.lti || '—') + '): amostras só em ' +
+          util.formatarData(a.demanda.dataAmostras, true) + ' e apenas ' + a.folga + ' dia(s) de folga no prazo.' });
       }
     });
 
@@ -2771,7 +2725,7 @@ tbody tr:last-child td { border-bottom: none; }
               return '<tr><td class="forte">' + e(util.formatarData(a.inicio, true)) + '</td>' +
                 '<td>' + e(a.teste.nome) + '</td>' +
                 '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
-                '<td><span class="mono">' + e(a.equipamento.id) + '</span></td>' +
+                '<td>' + e(a.equipamento.nome) + '</td>' +
                 '<td class="num">' + (util.diffDias(a.inicio, a.fim) + 1) + ' d</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'

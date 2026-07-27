@@ -8,42 +8,63 @@ require('../src/store.js');
 
 const store = globalThis.TC.store;
 
+/* Estado no formato anterior: peça com cliente/área/data, procedimento com fases,
+   demanda sem LTI e sem data de amostras. */
 function comDadosAntigos() {
   const base = dados.seed();
   base.testes[0].fases = ['CONCEITO', 'DV'];
   base.testes[1].fases = ['PPAP', 'SERIE'];
-  base.testes[2].fases = ['CONCEITO'];
+  delete base.testes[0].revisao;
+  base.pecas[0] = {
+    id: 'PC-ANTIGA', nome: 'Silencioso traseiro', clienteId: 'CLI-VW', area: 'COLD',
+    programa: 'VW MQB-A0', dataAmostras: '2026-09-15', quantidade: 8, custoAmostra: 1650
+  };
   base.demandas = [
-    { id: 'D1', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: base.clientes[0].id,
+    { id: 'D1', testeId: base.testes[0].id, pecaId: 'PC-ANTIGA', clienteId: 'CLI-VW',
       fase: 'PPAP', prioridade: 'MEDIA', quantidade: 1, status: 'PENDENTE', criadoEm: '2026-07-06' }
   ];
   return JSON.stringify(base);
 }
 
-test('importar converte as fases antigas para DV, PV e VAVE', () => {
+test('importar migra fases, LTI e a data de amostras para a demanda', () => {
   store.init();
   store.importar(comDadosAntigos());
   const estado = store.get();
 
-  assert.deepEqual(estado.testes[0].fases, ['DV'], 'CONCEITO vira DV e não duplica o DV existente');
-  assert.deepEqual(estado.testes[1].fases, ['PV', 'VAVE']);
-  assert.deepEqual(estado.testes[2].fases, ['DV']);
   assert.equal(estado.demandas[0].tipoLti, 'PV', 'a antiga fase da demanda vira a classificação da LTI');
   assert.equal(estado.demandas[0].fase, undefined, 'o campo fase não existe mais na demanda');
   assert.equal(estado.demandas[0].lti, '', 'LTI sem número fica em branco para ser preenchida');
+  assert.equal(estado.demandas[0].dataAmostras, '2026-09-15',
+    'a data que estava na peça passa para a demanda, sem perder o planejamento');
+});
 
-  const validas = dados.FASES.map((f) => f.id);
-  estado.testes.forEach((t) => {
-    assert.ok(t.fases.length, t.id + ' ficou sem fase');
-    t.fases.forEach((f) => assert.ok(validas.includes(f), t.id + ' manteve fase inválida ' + f));
+test('importar limpa cliente, área e estoque das peças', () => {
+  store.importar(comDadosAntigos());
+  store.get().pecas.forEach((p) => {
+    assert.equal(p.clienteId, undefined);
+    assert.equal(p.area, undefined);
+    assert.equal(p.programa, undefined);
+    assert.equal(p.dataAmostras, undefined);
+    assert.equal(p.quantidade, undefined);
   });
 });
 
-test('procedimento que só tinha fases desconhecidas não fica sem fase', () => {
+test('importar tira a fase do procedimento e garante o campo revisão', () => {
+  store.importar(comDadosAntigos());
+  store.get().testes.forEach((t) => {
+    assert.equal(t.fases, undefined, t.id + ' manteve fase amarrada');
+    assert.equal(typeof t.revisao, 'string', t.id + ' ficou sem o campo revisão');
+  });
+});
+
+test('demanda antiga sem data de amostras recebe uma data utilizável', () => {
   const base = dados.seed();
-  base.testes[0].fases = ['FASE_QUE_NAO_EXISTE'];
+  base.demandas = [
+    { id: 'D9', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: 'CLI-VW',
+      tipoLti: 'DV', lti: 'LTI-9', prioridade: 'MEDIA', quantidade: 1, status: 'PENDENTE' }
+  ];
   store.importar(JSON.stringify(base));
-  assert.deepEqual(store.get().testes[0].fases, ['DV']);
+  assert.equal(store.get().demandas[0].dataAmostras, globalThis.TC.util.hoje());
 });
 
 test('remover cliente também o tira da exigência dos procedimentos', () => {
@@ -76,12 +97,12 @@ test('salvar cliente novo gera código e editar preserva o existente', () => {
 
 test('remover equipamento deixa os procedimentos visíveis, mas sem bancada', () => {
   store.restaurarPadrao();
-  const dependentes = store.get().testes.filter((t) => t.equipamentoId === 'CCT-01').length;
+  const dependentes = store.get().testes.filter((t) => t.equipamentoId === 'BURNER-1').length;
   assert.ok(dependentes > 0);
 
-  store.removerEquipamento('CCT-01');
+  store.removerEquipamento('BURNER-1');
   const estado = store.get();
-  assert.equal(estado.equipamentos.filter((e) => e.id === 'CCT-01').length, 0);
-  assert.equal(estado.testes.filter((t) => t.equipamentoId === 'CCT-01').length, dependentes,
+  assert.equal(estado.equipamentos.filter((e) => e.id === 'BURNER-1').length, 0);
+  assert.equal(estado.testes.filter((t) => t.equipamentoId === 'BURNER-1').length, dependentes,
     'os procedimentos continuam no catálogo para serem reapontados');
 });

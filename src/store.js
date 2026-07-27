@@ -19,13 +19,23 @@
       return antigas[fase] || null;
     }
 
+    /* A data de chegada das amostras saiu da peça e foi para a demanda; guardamos a
+       data antiga de cada peça para não perder o que já estava planejado. */
+    var dataAntigaDaPeca = {};
+    (estado.pecas || []).forEach(function (p) {
+      if (p.dataAmostras) dataAntigaDaPeca[p.id] = p.dataAmostras;
+      /* Peça deixou de ser de um cliente e de uma área: é um tipo de peça. */
+      delete p.clienteId;
+      delete p.area;
+      delete p.programa;
+      delete p.dataAmostras;
+      delete p.quantidade;
+    });
+
+    /* O procedimento não é mais amarrado a fase de projeto. */
     (estado.testes || []).forEach(function (t) {
-      var vistas = [];
-      (t.fases || []).forEach(function (fase) {
-        var nova = converter(fase);
-        if (nova && vistas.indexOf(nova) === -1) vistas.push(nova);
-      });
-      t.fases = vistas.length ? vistas : [validas[0]];
+      delete t.fases;
+      if (typeof t.revisao !== 'string') t.revisao = '';
     });
 
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
@@ -36,6 +46,7 @@
         d.tipoLti = converter(d.fase) || validas[0];
       }
       if (typeof d.lti !== 'string') d.lti = '';
+      if (!d.dataAmostras) d.dataAmostras = dataAntigaDaPeca[d.pecaId] || util.hoje();
       delete d.fase;
     });
 
@@ -91,6 +102,7 @@
         tipoLti: dados.tipoLti || 'DV',
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
+        dataAmostras: dados.dataAmostras || util.hoje(),
         prazo: dados.prazo || '',
         inicioFixo: dados.inicioFixo || '',
         observacao: dados.observacao || '',

@@ -178,7 +178,7 @@
 
     function processar(demanda) {
       var base = montarBase(demanda);
-      var teste = base.teste, peca = base.peca, equipamento = base.equipamento;
+      var teste = base.teste, equipamento = base.equipamento;
 
       if (!teste || !equipamento) {
         base.motivo = !teste ? 'Procedimento não encontrado no catálogo.'
@@ -188,7 +188,9 @@
       }
 
       var dias = diasDeOperacao(teste, equipamento);
-      var disponibilidadePeca = peca ? peca.dataAmostras : hoje;
+      /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
+         datas diferentes conforme o cliente e o programa. */
+      var disponibilidadePeca = demanda.dataAmostras || hoje;
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
 
@@ -209,8 +211,8 @@
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
-          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) + ' indisponível em todas as posições de ' + equipamento.id + '.'
-          : 'Sem janela livre em ' + equipamento.id + ' dentro do horizonte de planejamento.';
+          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) + ' indisponível em todas as posições de ' + equipamento.nome + '.'
+          : 'Sem janela livre em ' + equipamento.nome + ' dentro do horizonte de planejamento.';
         base.diasOperacao = dias;
         alocacoes.push(base);
         return;

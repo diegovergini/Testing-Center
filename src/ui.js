@@ -97,14 +97,6 @@
     return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
   }
 
-  function chipsFases(fasesDoTeste) {
-    return '<span class="fases">' + TC.data.FASES.map(function (f) {
-      var ativo = fasesDoTeste && fasesDoTeste.indexOf(f.id) !== -1;
-      return '<span class="fase-chip' + (ativo ? ' on' : '') + '" title="' + e(f.nome) + '">' +
-        e(f.id) + '</span>';
-    }).join('') + '</span>';
-  }
-
   var STATUS = {
     PENDENTE: ['marca', 'Pendente'],
     EM_ANDAMENTO: ['alerta', 'Em andamento'],
@@ -159,7 +151,6 @@
     etiquetaPrioridade: etiquetaPrioridade,
     etiquetaTipoLti: etiquetaTipoLti,
     celulaLti: celulaLti,
-    chipsFases: chipsFases,
     opcoes: opcoes,
     vazio: vazio,
     STATUS: STATUS

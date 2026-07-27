@@ -35,8 +35,9 @@ npm test
 Quando você confirma a necessidade de um teste, o motor procura a primeira janela livre
 respeitando, nesta ordem:
 
-1. **Disponibilidade da peça** — nenhum ensaio começa antes da data de chegada do lote de
-   amostras cadastrada em *Peças e amostras*.
+1. **Disponibilidade da peça** — nenhum ensaio começa antes da data de chegada das amostras,
+   informada na própria demanda (o mesmo tipo de peça chega em datas diferentes conforme o
+   cliente e o programa).
 2. **Disponibilidade do equipamento** — cada equipamento tem um número de posições em
    paralelo, um calendário (dias da semana e horas por dia, ou regime contínuo 24 h) e
    janelas de manutenção. Um ensaio nunca atravessa uma parada programada.
@@ -51,29 +52,45 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 
 | Tela | Para quê |
 | --- | --- |
-| **Catálogo de testes** | Todos os procedimentos por área (Hot End / Cold End), fase de projeto e cliente, com horas de bancada e custo estimado. É daqui que se confirma a necessidade de um teste. |
+| **Catálogo de testes** | Todos os procedimentos por área (Hot End / Cold End) e cliente, com revisão vigente, horas de bancada e custo estimado. É daqui que se confirma a necessidade de um teste. |
 | **Demandas** | Fila de testes confirmados com o nº da LTI, a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
 | **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
 | **Equipamentos** | Capacidade instalada: posições, calendário, custo-hora e paradas. |
-| **Peças e amostras** | Quando as amostras chegam, quantas existem e quantas já estão comprometidas. |
+| **Peças e amostras** | Os tipos de peça que o laboratório ensaia, com o custo unitário da amostra e o consumo acumulado. |
 
 ## Fases de projeto
 
-São três: **DV** (validação de projeto com protótipos), **PV** (validação com peças de
-ferramental definitivo) e **VAVE** (revalidação após mudança de material, processo ou custo).
-Cada procedimento marca em quais fases se aplica.
+São três: **DV** (Design Validation), **PV** (Process Validation) e **VAVE** (revalidação
+após mudança de material, processo ou custo).
+
+A fase **não** classifica o procedimento — qualquer teste do catálogo pode ser executado em
+qualquer fase. Ela classifica a LTI que abre a demanda.
 
 Dados salvos por versões anteriores, que usavam Conceito, PPAP e Série, são convertidos ao
 carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
+
+## Catálogo, equipamentos e peças
+
+O **catálogo** guarda o procedimento com sua **revisão vigente** (`Rev. 04`), a norma, a área
+do sistema, o equipamento que ele ocupa, o tempo de bancada e o custo. A revisão acompanha o
+procedimento em toda a aplicação — tabela, demanda, Gantt e CSV — para não restar dúvida sobre
+qual versão foi executada.
+
+Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
+LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo, calendário e custo-hora.
+
+As **peças** são tipos genéricos — Hot End, Canning, Cold End, Muffler e Component. Não
+pertencem a um cliente nem a uma área: qualquer cliente pode trazer amostra de qualquer tipo.
+Da peça vem só o custo unitário da amostra; a data de chegada é da demanda.
 
 ## LTI (ordem de serviço)
 
 Toda demanda carrega o número da LTI que a abriu e uma classificação:
 
 * **DV, PV ou VAVE** — entra no planejamento normalmente: reserva bancada, disputa fila por
-  prioridade e prazo, e aparece no Gantt. O número da LTI é obrigatório.
+  prioridade e prazo, e aparece no Gantt. O número da LTI e o prazo são obrigatórios.
 * **Cotação** — é orçamento, ainda não é serviço confirmado. O custo e a duração são
   calculados do mesmo jeito, para dar o valor a cotar, mas a demanda não reserva bancada,
   não aparece no Gantt e não conta como "sem janela" no painel. O número da LTI é opcional,
@@ -96,8 +113,8 @@ o custo da amostra em Peças.
 
 ## Dados
 
-O estado fica no `localStorage` do navegador. O catálogo que vem junto (20 procedimentos,
-13 equipamentos, 9 peças, 6 clientes) é um ponto de partida realista para ser substituído
+O estado fica no `localStorage` do navegador. O catálogo que vem junto (18 procedimentos,
+11 equipamentos, 5 tipos de peça, 6 clientes) é um ponto de partida para ser substituído
 pelos dados reais do laboratório — tudo é editável pela interface.
 
 * **Exportar backup** grava um JSON com todo o estado.

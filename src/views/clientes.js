@@ -37,21 +37,20 @@
 
     var resumo = {};
     estado.clientes.forEach(function (c) {
-      resumo[c.id] = { pecas: 0, demandas: 0, custo: 0, procedimentos: 0 };
-    });
-    estado.pecas.forEach(function (p) {
-      if (resumo[p.clienteId]) resumo[p.clienteId].pecas++;
+      resumo[c.id] = { tiposPeca: {}, demandas: 0, custo: 0, procedimentos: 0 };
     });
     estado.testes.forEach(function (t) {
       (t.clientes || []).forEach(function (id) {
         if (resumo[id]) resumo[id].procedimentos++;
       });
     });
+    /* Peça não pertence a cliente; o que conta é quais tipos de peça o cliente já trouxe. */
     ctx.plano.alocacoes.forEach(function (a) {
       var r = resumo[a.demanda.clienteId];
       if (!r) return;
       r.demandas++;
       r.custo += a.custo.total;
+      if (a.peca) r.tiposPeca[a.peca.id] = true;
     });
 
     var padrao = estado.testes.filter(function (t) { return !t.clientes || !t.clientes.length; }).length;
@@ -63,7 +62,7 @@
           '<div class="sub"><span class="mono">' + e(c.id) + '</span></div></td>' +
         '<td>' + (c.segmento ? '<span class="etiqueta">' + e(c.segmento) + '</span>' : '<span class="sub">—</span>') + '</td>' +
         '<td class="num">' + r.procedimentos + '<div class="sub">+ ' + padrao + ' padrão</div></td>' +
-        '<td class="num">' + r.pecas + '</td>' +
+        '<td class="num">' + Object.keys(r.tiposPeca).length + '</td>' +
         '<td class="num">' + r.demandas + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(r.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
@@ -83,7 +82,7 @@
         (estado.clientes.length
           ? '<div class="tabela-rolagem"><table><thead><tr>' +
             '<th>Cliente</th><th>Segmento</th><th class="num">Procedimentos exigidos</th>' +
-            '<th class="num">Peças</th><th class="num">Demandas</th><th class="num">Custo confirmado</th><th></th>' +
+            '<th class="num">Tipos de peça</th><th class="num">Demandas</th><th class="num">Custo confirmado</th><th></th>' +
             '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
           : ui.vazio('Nenhum cliente cadastrado', 'Cadastre o primeiro cliente para poder registrar peças e confirmar testes.')) +
       '</div>';
@@ -95,13 +94,10 @@
       var r = resumo[cliente.id];
       tr.querySelector('.editar').onclick = function () { abrirEdicao(cliente); };
       tr.querySelector('.excluir').onclick = function () {
-        var pendencias = [];
-        if (r.pecas) pendencias.push(r.pecas + ' peça(s)');
-        if (r.demandas) pendencias.push(r.demandas + ' demanda(s)');
         ui.confirmarAcao(
           'Remover "' + cliente.nome + '"?' +
-          (pendencias.length
-            ? ' Ele tem ' + pendencias.join(' e ') + ', que ficarão sem cliente e somem dos filtros.'
+          (r.demandas
+            ? ' Ele tem ' + r.demandas + ' demanda(s), que ficarão sem cliente e somem dos filtros.'
             : '') +
           ' O cliente também sai da lista de exigência dos procedimentos.',
           function () {

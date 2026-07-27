@@ -51,7 +51,7 @@
       '</div></div>';
 
     ui.modal({
-      titulo: novo ? 'Novo equipamento' : 'Editar ' + equipamento.id,
+      titulo: novo ? 'Novo equipamento' : 'Editar ' + equipamento.nome,
       corpo: corpo,
       confirmar: 'Salvar equipamento',
       aoConfirmar: function (v) {
@@ -87,7 +87,7 @@
         : '');
 
     var janela = ui.modal({
-      titulo: 'Paradas de ' + equipamento.id,
+      titulo: 'Paradas de ' + equipamento.nome,
       corpo: corpo,
       confirmar: 'Agendar parada',
       aoConfirmar: function (v) {
@@ -118,7 +118,8 @@
       var uso = Math.min(100, Math.round(o.dias / capacidade * 100));
       var dias = eq.diasUteis.slice().sort().map(function (d) { return util.NOMES_DIA[d]; }).join(' ');
       return '<tr data-equip="' + e(eq.id) + '">' +
-        '<td><span class="mono forte">' + e(eq.id) + '</span><div class="sub">' + e(eq.nome) + '</div></td>' +
+        '<td><div class="forte">' + e(eq.nome) + '</div>' +
+          '<div class="sub mono">' + e(eq.id) + '</div></td>' +
         '<td class="num">' + eq.posicoes + '</td>' +
         '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
           '<div class="sub">' + e(dias) + '</div></td>' +
@@ -165,7 +166,7 @@
       tr.querySelector('.excluir').onclick = function () {
         var dependentes = estado.testes.filter(function (t) { return t.equipamentoId === eq.id; });
         ui.confirmarAcao(
-          'Remover ' + eq.id + ' — ' + eq.nome + '?' +
+          'Remover ' + eq.nome + '?' +
           (dependentes.length
             ? ' ' + dependentes.length + ' procedimento(s) usam este equipamento e ficarão sem bancada, ' +
               'aparecendo como demandas sem janela até você apontá-los para outro.'
