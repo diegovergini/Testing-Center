@@ -90,11 +90,9 @@
     }
     var clientePadrao = escolherClientePadrao();
 
-    var fasesDisponiveis = TC.data.FASES.filter(function (f) {
-      return (teste.fases || []).indexOf(f.id) !== -1;
-    });
-    var fasePadrao = ctx.filtros.fase && (teste.fases || []).indexOf(ctx.filtros.fase) !== -1
-      ? ctx.filtros.fase : (fasesDisponiveis[0] ? fasesDisponiveis[0].id : '');
+    var tipoPadrao = ctx.filtros.tipoLti ||
+      (ctx.filtros.fase && (teste.fases || []).indexOf(ctx.filtros.fase) !== -1 ? ctx.filtros.fase : '') ||
+      (teste.fases && teste.fases[0]) || 'DV';
 
     var corpo =
       '<div class="aviso">' +
@@ -104,11 +102,13 @@
         '. A data de início é calculada automaticamente pela disponibilidade da peça e do equipamento.' +
       '</div>' +
       '<div class="grade-campos">' +
+        '<div class="campo"><label>Nº da LTI (ordem de serviço)</label>' +
+          '<input name="lti" placeholder="Ex.: LTI-2026-0142" autocomplete="off"></div>' +
+        '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' +
+          ui.opcoes(TC.data.TIPOS_LTI, tipoPadrao) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' +
           ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
         '<div class="campo"><label>Peça a ensaiar</label><select name="pecaId"></select></div>' +
-        '<div class="campo"><label>Fase de projeto</label><select name="fase">' +
-          ui.opcoes(fasesDisponiveis.length ? fasesDisponiveis : TC.data.FASES, fasePadrao) + '</select></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' +
           ui.opcoes(TC.data.PRIORIDADES, 'MEDIA') + '</select></div>' +
         '<div class="campo"><label>Amostras a consumir</label>' +
@@ -129,13 +129,24 @@
           ui.notificar('Cadastre uma peça compatível para este cliente antes de confirmar.');
           return false;
         }
+        if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
+          ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
+          janela.querySelector('[name=lti]').focus();
+          return false;
+        }
         var demanda = TC.store.criarDemanda({
-          testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId, fase: v.fase,
+          testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId,
+          lti: v.lti, tipoLti: v.tipoLti,
           prioridade: v.prioridade, quantidade: v.quantidade, prazo: v.prazo,
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         var plano = TC.scheduler.planejar(TC.store.get());
         var alocacao = plano.alocacoes.filter(function (a) { return a.demandaId === demanda.id; })[0];
+        if (alocacao && alocacao.cotacao) {
+          ui.notificar('Cotação registrada — custo estimado sem reservar bancada.');
+          ctx.ir('demandas');
+          return;
+        }
         if (alocacao && alocacao.inicio) {
           ui.notificar('Planejado em ' + alocacao.equipamento.id + ': ' +
             util.formatarData(alocacao.inicio, true) + ' → ' + util.formatarData(alocacao.fim, true));
@@ -177,20 +188,41 @@
       }
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
       var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, equipamento, peca);
+      var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
         'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
         ' + ' + e(String(custo.horas)) + ' h de ' + e(equipamento ? equipamento.id : '—') + ' ' +
         e(util.formatarMoeda(custo.custoEquipamento)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
-        (peca ? '. Amostras disponíveis a partir de ' + e(util.formatarData(peca.dataAmostras, true)) + '.' : '.') +
+        (cotacao
+          ? '. Como cotação, não reserva bancada nem entra no planejamento.'
+          : (peca ? '. Amostras disponíveis a partir de ' + e(util.formatarData(peca.dataAmostras, true)) + '.' : '.')) +
         '</div>';
     }
 
+    /* Só cotação pode ficar sem número de LTI; o formulário diz isso antes do envio. */
+    function atualizarTipo() {
+      var cotacao = selTipo.value === 'COTACAO';
+      campoLti.placeholder = cotacao ? 'Opcional na cotação' : 'Ex.: LTI-2026-0142';
+      campoLti.required = !cotacao;
+      rotuloLti.textContent = cotacao
+        ? 'Nº da LTI (ordem de serviço) — opcional'
+        : 'Nº da LTI (ordem de serviço)';
+      botaoConfirmar.textContent = cotacao ? 'Registrar cotação' : 'Confirmar e planejar';
+      atualizarPrevia();
+    }
+
+    var selTipo = janela.querySelector('[name=tipoLti]');
+    var campoLti = janela.querySelector('[name=lti]');
+    var rotuloLti = campoLti.parentElement.querySelector('label');
+
     selCliente.addEventListener('change', atualizarPecas);
     selPeca.addEventListener('change', atualizarPrevia);
+    selTipo.addEventListener('change', atualizarTipo);
     janela.querySelector('[name=quantidade]').addEventListener('input', atualizarPrevia);
     atualizarPecas();
+    atualizarTipo();
   }
 
   /* ---- Formulário de procedimento ---- */

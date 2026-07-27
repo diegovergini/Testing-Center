@@ -15,7 +15,9 @@
     { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' }
   ];
 
-  var filtros = { busca: '', clienteId: '', area: '', fase: '', status: '', equipamentoId: '' };
+  /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
+     demandas e planejamento pela classificação da LTI (inclui Cotação). */
+  var filtros = { busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '' };
   var rotaAtual = 'catalogo';
 
   function contadores(estado, plano) {

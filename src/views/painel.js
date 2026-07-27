@@ -40,12 +40,13 @@
     var estado = ctx.estado, hoje = ctx.hoje;
     var todas = ctx.plano.alocacoes.filter(function (a) { return a.demanda.status !== 'CANCELADO'; });
 
-    var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0;
+    var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0, cotacoes = 0;
     todas.forEach(function (a) {
       custoTotal += a.custo.total;
       horasTotal += a.custo.horas;
       if (a.atrasado) atrasadas++;
-      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
+      if (a.cotacao) cotacoes++;
+      else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
       if (a.demanda.status === 'CONCLUIDO') concluidas++;
     });
 
@@ -65,7 +66,7 @@
           (a.peca ? a.peca.nome : '—') + ' termina ' + Math.abs(a.folga) + ' dia(s) após o prazo de ' +
           util.formatarData(a.demanda.prazo, true) + '.' });
       }
-      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) {
+      if (!a.cotacao && !a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) {
         alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ': ' + a.motivo });
       }
     });
@@ -83,9 +84,11 @@
       var c = util.porId(estado.clientes, a.demanda.clienteId);
       return c ? c.nome : a.demanda.clienteId;
     });
-    var porFase = agrupar(todas, function (a) {
-      var f = util.porId(TC.data.FASES, a.demanda.fase);
-      return f ? f.nome : a.demanda.fase;
+    /* Cotação fica de fora do agrupamento por fase: ela não representa carga de bancada,
+       é orçamento pendente de confirmação. */
+    var porFase = agrupar(todas.filter(function (a) { return !a.cotacao; }), function (a) {
+      var f = util.porId(TC.data.FASES, a.demanda.tipoLti);
+      return f ? f.nome : a.demanda.tipoLti;
     });
     var porArea = agrupar(todas, function (a) {
       var ar = a.teste ? util.porId(TC.data.AREAS, a.teste.area) : null;
@@ -107,6 +110,8 @@
         '<div class="indicador"><div class="rotulo">Riscos de prazo</div>' +
           '<div class="valor" style="color:' + (atrasadas + semJanela ? 'var(--erro)' : 'var(--ok)') + '">' + (atrasadas + semJanela) + '</div>' +
           '<div class="nota">' + atrasadas + ' fora do prazo · ' + semJanela + ' sem janela</div></div>' +
+        '<div class="indicador"><div class="rotulo">Cotações</div><div class="valor">' + cotacoes + '</div>' +
+          '<div class="nota">orçamento, fora do planejamento</div></div>' +
       '</div>' +
       (alertas.length
         ? '<div class="cartao"><div class="cartao-topo"><h3>Pontos de atenção</h3></div><div class="cartao-corpo">' +
@@ -118,7 +123,8 @@
         : '') +
       '<div class="cartao"><div class="cartao-topo"><h3>Custo por cliente</h3></div>' +
         '<div class="tabela-rolagem">' + barras(porCliente, 'Cliente') + '</div></div>' +
-      '<div class="cartao"><div class="cartao-topo"><h3>Custo por fase de projeto</h3></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Custo por fase de projeto</h3>' +
+        '<span class="sub">cotações não entram, pois ainda não são serviço confirmado</span></div>' +
         '<div class="tabela-rolagem">' + barras(porFase, 'Fase') + '</div></div>' +
       '<div class="cartao"><div class="cartao-topo"><h3>Custo por área do sistema</h3></div>' +
         '<div class="tabela-rolagem">' + barras(porArea, 'Área') + '</div></div>' +

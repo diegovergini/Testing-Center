@@ -102,7 +102,7 @@
 
     var visiveis = ctx.plano.agendadas.filter(function (a) {
       if (f.clienteId && a.demanda.clienteId !== f.clienteId) return false;
-      if (f.fase && a.demanda.fase !== f.fase) return false;
+      if (f.tipoLti && a.demanda.tipoLti !== f.tipoLti) return false;
       if (f.area && a.teste.area !== f.area && a.teste.area !== 'AMBOS') return false;
       return true;
     });
@@ -159,7 +159,7 @@
           '<div class="filtros" style="flex:1">' +
             '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
             '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-            '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
+            '<div class="campo"><label>Classificação</label><select id="f-tipo">' + ui.opcoes(TC.data.FASES, f.tipoLti, 'Todas') + '</select></div>' +
           '</div>' +
           '<div class="legenda">' +
             '<span><i style="background:var(--hot)"></i>Hot End</span>' +
@@ -198,7 +198,7 @@
       preferencias.somenteOcupados = !preferencias.somenteOcupados;
       ctx.atualizar();
     };
-    ['cliente:clienteId', 'area:area', 'fase:fase'].forEach(function (par) {
+    ['cliente:clienteId', 'area:area', 'tipo:tipoLti'].forEach(function (par) {
       var p = par.split(':');
       var alvo = container.querySelector('#f-' + p[0]);
       alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });

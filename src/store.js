@@ -9,8 +9,8 @@
   var estado = null;
   var ouvintes = [];
 
-  /* Converte dados gravados antes da redução das fases para DV / PV / VAVE. */
-  function migrarFases(estado) {
+  /* Converte dados gravados por versões anteriores. */
+  function migrar(estado) {
     var antigas = TC.data.FASES_ANTIGAS;
     var validas = TC.data.FASES.map(function (f) { return f.id; });
 
@@ -28,8 +28,15 @@
       t.fases = vistas.length ? vistas : [validas[0]];
     });
 
+    /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
+       de serviço, e o número fica em branco para ser preenchido. */
     (estado.demandas || []).forEach(function (d) {
-      d.fase = converter(d.fase) || validas[0];
+      var tipos = TC.data.TIPOS_LTI.map(function (t) { return t.id; });
+      if (!d.tipoLti || tipos.indexOf(d.tipoLti) === -1) {
+        d.tipoLti = converter(d.fase) || validas[0];
+      }
+      if (typeof d.lti !== 'string') d.lti = '';
+      delete d.fase;
     });
 
     return estado;
@@ -40,7 +47,7 @@
       var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
       if (bruto) {
         var lido = JSON.parse(bruto);
-        if (lido && lido.testes && lido.equipamentos) return migrarFases(lido);
+        if (lido && lido.testes && lido.equipamentos) return migrar(lido);
       }
     } catch (e) {
       console.warn('Não foi possível ler os dados salvos, recomeçando do catálogo padrão.', e);
@@ -80,7 +87,8 @@
         testeId: dados.testeId,
         pecaId: dados.pecaId,
         clienteId: dados.clienteId,
-        fase: dados.fase,
+        lti: (dados.lti || '').trim(),
+        tipoLti: dados.tipoLti || 'DV',
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
         prazo: dados.prazo || '',
@@ -202,7 +210,7 @@
       lido.demandas = lido.demandas || [];
       lido.pecas = lido.pecas || [];
       lido.clientes = lido.clientes || [];
-      estado = migrarFases(lido);
+      estado = migrar(lido);
       commit();
     },
     restaurarPadrao: function () {

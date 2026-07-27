@@ -106,6 +106,12 @@
 
   var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
 
+  /* Uma LTI de cotação é orçamento: calcula custo e duração, mas não reserva bancada. */
+  function ehCotacao(demanda) {
+    var tipo = util.porId(dados.TIPOS_LTI, demanda.tipoLti);
+    return !!tipo && tipo.planeja === false;
+  }
+
   /* Planeja todas as demandas ativas. Não altera o estado recebido. */
   function planejar(estado, dataBase) {
     var hoje = dataBase || util.hoje();
@@ -119,8 +125,11 @@
 
     var ativas = estado.demandas.filter(function (d) { return ATIVAS.indexOf(d.status) !== -1; });
 
-    var fixas = ativas.filter(function (d) { return !!d.inicioFixo; });
-    var livres = ativas.filter(function (d) { return !d.inicioFixo; });
+    var cotacoes = ativas.filter(ehCotacao);
+    var planejaveis = ativas.filter(function (d) { return !ehCotacao(d); });
+
+    var fixas = planejaveis.filter(function (d) { return !!d.inicioFixo; });
+    var livres = planejaveis.filter(function (d) { return !d.inicioFixo; });
 
     fixas.sort(function (a, b) { return util.diffDias(b.inicioFixo, a.inicioFixo); });
     livres.sort(function (a, b) {
@@ -137,24 +146,39 @@
 
     var alocacoes = [];
 
-    function processar(demanda) {
+    function montarBase(demanda) {
       var teste = util.porId(estado.testes, demanda.testeId);
       var peca = util.porId(estado.pecas, demanda.pecaId);
       var equipamento = teste ? util.porId(equipamentos, teste.equipamentoId) : null;
-      var custo = custoDemanda(demanda, teste, equipamento, peca);
-
-      var base = {
+      return {
         demandaId: demanda.id,
         demanda: demanda,
         teste: teste,
         peca: peca,
         equipamento: equipamento,
-        custo: custo,
+        custo: custoDemanda(demanda, teste, equipamento, peca),
+        cotacao: false,
         posicao: null,
         inicio: null,
         fim: null,
         motivo: null
       };
+    }
+
+    /* Cotação: custo e duração estimados, sem reservar posição. */
+    function processarCotacao(demanda) {
+      var base = montarBase(demanda);
+      base.cotacao = true;
+      base.motivo = 'Cotação — não ocupa bancada.';
+      if (base.teste && base.equipamento) {
+        base.diasOperacao = diasDeOperacao(base.teste, base.equipamento);
+      }
+      alocacoes.push(base);
+    }
+
+    function processar(demanda) {
+      var base = montarBase(demanda);
+      var teste = base.teste, peca = base.peca, equipamento = base.equipamento;
 
       if (!teste || !equipamento) {
         base.motivo = !teste ? 'Procedimento não encontrado no catálogo.'
@@ -208,6 +232,7 @@
 
     fixas.forEach(processar);
     livres.forEach(processar);
+    cotacoes.forEach(processarCotacao);
 
     alocacoes.sort(function (a, b) {
       if (!a.inicio && !b.inicio) return 0;
@@ -219,7 +244,9 @@
     return {
       alocacoes: alocacoes,
       agendadas: alocacoes.filter(function (a) { return !!a.inicio; }),
-      bloqueadas: alocacoes.filter(function (a) { return !a.inicio; })
+      /* Só é bloqueio o que deveria ter entrado na bancada e não entrou. */
+      bloqueadas: alocacoes.filter(function (a) { return !a.inicio && !a.cotacao; }),
+      cotacoes: alocacoes.filter(function (a) { return a.cotacao; })
     };
   }
 
@@ -232,6 +259,7 @@
     buscarJanela: buscarJanela,
     ehDiaUtil: ehDiaUtil,
     emManutencao: emManutencao,
+    ehCotacao: ehCotacao,
     STATUS_ATIVOS: ATIVAS
   };
 

@@ -8,8 +8,8 @@ O ciclo é o seguinte:
 
 ```
 Catálogo de testes ──► "Confirmar necessidade" ──► Demanda ──► Planejamento (Gantt)
-   custo e duração         cliente, peça, fase,      fila por      alocado no equipamento
-   por procedimento        prioridade e prazo        prioridade    respeitando as restrições
+   custo e duração         LTI, cliente, peça,       fila por      alocado no equipamento
+   por procedimento        classificação, prazo      prioridade    respeitando as restrições
 ```
 
 ## Como rodar
@@ -52,7 +52,7 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | Tela | Para quê |
 | --- | --- |
 | **Catálogo de testes** | Todos os procedimentos por área (Hot End / Cold End), fase de projeto e cliente, com horas de bancada e custo estimado. É daqui que se confirma a necessidade de um teste. |
-| **Demandas** | Fila de testes confirmados com a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
+| **Demandas** | Fila de testes confirmados com o nº da LTI, a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
 | **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
@@ -63,11 +63,25 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 
 São três: **DV** (validação de projeto com protótipos), **PV** (validação com peças de
 ferramental definitivo) e **VAVE** (revalidação após mudança de material, processo ou custo).
-Cada procedimento marca em quais fases se aplica, e a demanda registra em qual fase o teste
-foi pedido — é isso que separa o custo por fase no painel.
+Cada procedimento marca em quais fases se aplica.
 
 Dados salvos por versões anteriores, que usavam Conceito, PPAP e Série, são convertidos ao
 carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
+
+## LTI (ordem de serviço)
+
+Toda demanda carrega o número da LTI que a abriu e uma classificação:
+
+* **DV, PV ou VAVE** — entra no planejamento normalmente: reserva bancada, disputa fila por
+  prioridade e prazo, e aparece no Gantt. O número da LTI é obrigatório.
+* **Cotação** — é orçamento, ainda não é serviço confirmado. O custo e a duração são
+  calculados do mesmo jeito, para dar o valor a cotar, mas a demanda não reserva bancada,
+  não aparece no Gantt e não conta como "sem janela" no painel. O número da LTI é opcional,
+  já que uma cotação pode não ter ordem de serviço ainda.
+
+Quando uma LTI de cotação vira serviço de fato, basta editar a demanda e trocar a
+classificação para DV, PV ou VAVE — ela entra na fila e recebe uma janela no próximo
+recálculo do planejamento.
 
 ## Modelo de custo
 

@@ -15,6 +15,14 @@
   /* Fases de versões anteriores, convertidas ao carregar dados já salvos. */
   var FASES_ANTIGAS = { CONCEITO: 'DV', PPAP: 'PV', SERIE: 'VAVE' };
 
+  /* Classificação da LTI (ordem de serviço) que abre a demanda.
+     Cotação é orçamento: entra no custo, mas não reserva bancada. */
+  var TIPOS_LTI = [
+    { id: 'COTACAO', nome: 'Cotação', planeja: false, descricao: 'Orçamento; não ocupa bancada nem entra no planejamento' }
+  ].concat(FASES.map(function (f) {
+    return { id: f.id, nome: f.nome, planeja: true, descricao: f.descricao };
+  }));
+
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
     { id: 'COLD', nome: 'Cold End', descricao: 'Silencioso, ressonador, tubos, ponteira, coxins' },
@@ -219,6 +227,7 @@
   TC.data = {
     FASES: FASES,
     FASES_ANTIGAS: FASES_ANTIGAS,
+    TIPOS_LTI: TIPOS_LTI,
     AREAS: AREAS,
     PRIORIDADES: PRIORIDADES,
     seed: function () {

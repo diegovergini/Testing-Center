@@ -123,6 +123,19 @@
     return '<span class="etiqueta ' + (mapa[prioridade] || '') + '">' + e(p ? p.nome : prioridade) + '</span>';
   }
 
+  /* Cotação recebe tratamento visual distinto: não é fase de projeto, é orçamento. */
+  function etiquetaTipoLti(tipoId) {
+    var tipo = util.porId(TC.data.TIPOS_LTI, tipoId);
+    var rotulo = tipo ? (tipoId === 'COTACAO' ? tipo.nome : tipoId) : tipoId;
+    return '<span class="etiqueta ' + (tipoId === 'COTACAO' ? 'alerta' : 'marca') + '">' + e(rotulo) + '</span>';
+  }
+
+  /* O número da LTI é o que o gerente procura na tela; o tipo qualifica. */
+  function celulaLti(demanda) {
+    return '<div class="mono forte">' + e(demanda.lti || '—') + '</div>' +
+      '<div style="margin-top:3px">' + etiquetaTipoLti(demanda.tipoLti) + '</div>';
+  }
+
   function opcoes(lista, selecionado, rotuloVazio) {
     var html = rotuloVazio ? '<option value="">' + e(rotuloVazio) + '</option>' : '';
     return html + lista.map(function (item) {
@@ -144,6 +157,8 @@
     etiquetaArea: etiquetaArea,
     etiquetaStatus: etiquetaStatus,
     etiquetaPrioridade: etiquetaPrioridade,
+    etiquetaTipoLti: etiquetaTipoLti,
+    celulaLti: celulaLti,
     chipsFases: chipsFases,
     opcoes: opcoes,
     vazio: vazio,

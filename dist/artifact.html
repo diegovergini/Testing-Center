@@ -455,6 +455,14 @@ tbody tr:last-child td { border-bottom: none; }
   /* Fases de versões anteriores, convertidas ao carregar dados já salvos. */
   var FASES_ANTIGAS = { CONCEITO: 'DV', PPAP: 'PV', SERIE: 'VAVE' };
 
+  /* Classificação da LTI (ordem de serviço) que abre a demanda.
+     Cotação é orçamento: entra no custo, mas não reserva bancada. */
+  var TIPOS_LTI = [
+    { id: 'COTACAO', nome: 'Cotação', planeja: false, descricao: 'Orçamento; não ocupa bancada nem entra no planejamento' }
+  ].concat(FASES.map(function (f) {
+    return { id: f.id, nome: f.nome, planeja: true, descricao: f.descricao };
+  }));
+
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
     { id: 'COLD', nome: 'Cold End', descricao: 'Silencioso, ressonador, tubos, ponteira, coxins' },
@@ -659,6 +667,7 @@ tbody tr:last-child td { border-bottom: none; }
   TC.data = {
     FASES: FASES,
     FASES_ANTIGAS: FASES_ANTIGAS,
+    TIPOS_LTI: TIPOS_LTI,
     AREAS: AREAS,
     PRIORIDADES: PRIORIDADES,
     seed: function () {
@@ -784,6 +793,12 @@ tbody tr:last-child td { border-bottom: none; }
 
   var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
 
+  /* Uma LTI de cotação é orçamento: calcula custo e duração, mas não reserva bancada. */
+  function ehCotacao(demanda) {
+    var tipo = util.porId(dados.TIPOS_LTI, demanda.tipoLti);
+    return !!tipo && tipo.planeja === false;
+  }
+
   /* Planeja todas as demandas ativas. Não altera o estado recebido. */
   function planejar(estado, dataBase) {
     var hoje = dataBase || util.hoje();
@@ -797,8 +812,11 @@ tbody tr:last-child td { border-bottom: none; }
 
     var ativas = estado.demandas.filter(function (d) { return ATIVAS.indexOf(d.status) !== -1; });
 
-    var fixas = ativas.filter(function (d) { return !!d.inicioFixo; });
-    var livres = ativas.filter(function (d) { return !d.inicioFixo; });
+    var cotacoes = ativas.filter(ehCotacao);
+    var planejaveis = ativas.filter(function (d) { return !ehCotacao(d); });
+
+    var fixas = planejaveis.filter(function (d) { return !!d.inicioFixo; });
+    var livres = planejaveis.filter(function (d) { return !d.inicioFixo; });
 
     fixas.sort(function (a, b) { return util.diffDias(b.inicioFixo, a.inicioFixo); });
     livres.sort(function (a, b) {
@@ -815,24 +833,39 @@ tbody tr:last-child td { border-bottom: none; }
 
     var alocacoes = [];
 
-    function processar(demanda) {
+    function montarBase(demanda) {
       var teste = util.porId(estado.testes, demanda.testeId);
       var peca = util.porId(estado.pecas, demanda.pecaId);
       var equipamento = teste ? util.porId(equipamentos, teste.equipamentoId) : null;
-      var custo = custoDemanda(demanda, teste, equipamento, peca);
-
-      var base = {
+      return {
         demandaId: demanda.id,
         demanda: demanda,
         teste: teste,
         peca: peca,
         equipamento: equipamento,
-        custo: custo,
+        custo: custoDemanda(demanda, teste, equipamento, peca),
+        cotacao: false,
         posicao: null,
         inicio: null,
         fim: null,
         motivo: null
       };
+    }
+
+    /* Cotação: custo e duração estimados, sem reservar posição. */
+    function processarCotacao(demanda) {
+      var base = montarBase(demanda);
+      base.cotacao = true;
+      base.motivo = 'Cotação — não ocupa bancada.';
+      if (base.teste && base.equipamento) {
+        base.diasOperacao = diasDeOperacao(base.teste, base.equipamento);
+      }
+      alocacoes.push(base);
+    }
+
+    function processar(demanda) {
+      var base = montarBase(demanda);
+      var teste = base.teste, peca = base.peca, equipamento = base.equipamento;
 
       if (!teste || !equipamento) {
         base.motivo = !teste ? 'Procedimento não encontrado no catálogo.'
@@ -886,6 +919,7 @@ tbody tr:last-child td { border-bottom: none; }
 
     fixas.forEach(processar);
     livres.forEach(processar);
+    cotacoes.forEach(processarCotacao);
 
     alocacoes.sort(function (a, b) {
       if (!a.inicio && !b.inicio) return 0;
@@ -897,7 +931,9 @@ tbody tr:last-child td { border-bottom: none; }
     return {
       alocacoes: alocacoes,
       agendadas: alocacoes.filter(function (a) { return !!a.inicio; }),
-      bloqueadas: alocacoes.filter(function (a) { return !a.inicio; })
+      /* Só é bloqueio o que deveria ter entrado na bancada e não entrou. */
+      bloqueadas: alocacoes.filter(function (a) { return !a.inicio && !a.cotacao; }),
+      cotacoes: alocacoes.filter(function (a) { return a.cotacao; })
     };
   }
 
@@ -910,6 +946,7 @@ tbody tr:last-child td { border-bottom: none; }
     buscarJanela: buscarJanela,
     ehDiaUtil: ehDiaUtil,
     emManutencao: emManutencao,
+    ehCotacao: ehCotacao,
     STATUS_ATIVOS: ATIVAS
   };
 
@@ -928,8 +965,8 @@ tbody tr:last-child td { border-bottom: none; }
   var estado = null;
   var ouvintes = [];
 
-  /* Converte dados gravados antes da redução das fases para DV / PV / VAVE. */
-  function migrarFases(estado) {
+  /* Converte dados gravados por versões anteriores. */
+  function migrar(estado) {
     var antigas = TC.data.FASES_ANTIGAS;
     var validas = TC.data.FASES.map(function (f) { return f.id; });
 
@@ -947,8 +984,15 @@ tbody tr:last-child td { border-bottom: none; }
       t.fases = vistas.length ? vistas : [validas[0]];
     });
 
+    /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
+       de serviço, e o número fica em branco para ser preenchido. */
     (estado.demandas || []).forEach(function (d) {
-      d.fase = converter(d.fase) || validas[0];
+      var tipos = TC.data.TIPOS_LTI.map(function (t) { return t.id; });
+      if (!d.tipoLti || tipos.indexOf(d.tipoLti) === -1) {
+        d.tipoLti = converter(d.fase) || validas[0];
+      }
+      if (typeof d.lti !== 'string') d.lti = '';
+      delete d.fase;
     });
 
     return estado;
@@ -959,7 +1003,7 @@ tbody tr:last-child td { border-bottom: none; }
       var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
       if (bruto) {
         var lido = JSON.parse(bruto);
-        if (lido && lido.testes && lido.equipamentos) return migrarFases(lido);
+        if (lido && lido.testes && lido.equipamentos) return migrar(lido);
       }
     } catch (e) {
       console.warn('Não foi possível ler os dados salvos, recomeçando do catálogo padrão.', e);
@@ -999,7 +1043,8 @@ tbody tr:last-child td { border-bottom: none; }
         testeId: dados.testeId,
         pecaId: dados.pecaId,
         clienteId: dados.clienteId,
-        fase: dados.fase,
+        lti: (dados.lti || '').trim(),
+        tipoLti: dados.tipoLti || 'DV',
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
         prazo: dados.prazo || '',
@@ -1121,7 +1166,7 @@ tbody tr:last-child td { border-bottom: none; }
       lido.demandas = lido.demandas || [];
       lido.pecas = lido.pecas || [];
       lido.clientes = lido.clientes || [];
-      estado = migrarFases(lido);
+      estado = migrar(lido);
       commit();
     },
     restaurarPadrao: function () {
@@ -1259,6 +1304,19 @@ tbody tr:last-child td { border-bottom: none; }
     return '<span class="etiqueta ' + (mapa[prioridade] || '') + '">' + e(p ? p.nome : prioridade) + '</span>';
   }
 
+  /* Cotação recebe tratamento visual distinto: não é fase de projeto, é orçamento. */
+  function etiquetaTipoLti(tipoId) {
+    var tipo = util.porId(TC.data.TIPOS_LTI, tipoId);
+    var rotulo = tipo ? (tipoId === 'COTACAO' ? tipo.nome : tipoId) : tipoId;
+    return '<span class="etiqueta ' + (tipoId === 'COTACAO' ? 'alerta' : 'marca') + '">' + e(rotulo) + '</span>';
+  }
+
+  /* O número da LTI é o que o gerente procura na tela; o tipo qualifica. */
+  function celulaLti(demanda) {
+    return '<div class="mono forte">' + e(demanda.lti || '—') + '</div>' +
+      '<div style="margin-top:3px">' + etiquetaTipoLti(demanda.tipoLti) + '</div>';
+  }
+
   function opcoes(lista, selecionado, rotuloVazio) {
     var html = rotuloVazio ? '<option value="">' + e(rotuloVazio) + '</option>' : '';
     return html + lista.map(function (item) {
@@ -1280,6 +1338,8 @@ tbody tr:last-child td { border-bottom: none; }
     etiquetaArea: etiquetaArea,
     etiquetaStatus: etiquetaStatus,
     etiquetaPrioridade: etiquetaPrioridade,
+    etiquetaTipoLti: etiquetaTipoLti,
+    celulaLti: celulaLti,
     chipsFases: chipsFases,
     opcoes: opcoes,
     vazio: vazio,
@@ -1380,11 +1440,9 @@ tbody tr:last-child td { border-bottom: none; }
     }
     var clientePadrao = escolherClientePadrao();
 
-    var fasesDisponiveis = TC.data.FASES.filter(function (f) {
-      return (teste.fases || []).indexOf(f.id) !== -1;
-    });
-    var fasePadrao = ctx.filtros.fase && (teste.fases || []).indexOf(ctx.filtros.fase) !== -1
-      ? ctx.filtros.fase : (fasesDisponiveis[0] ? fasesDisponiveis[0].id : '');
+    var tipoPadrao = ctx.filtros.tipoLti ||
+      (ctx.filtros.fase && (teste.fases || []).indexOf(ctx.filtros.fase) !== -1 ? ctx.filtros.fase : '') ||
+      (teste.fases && teste.fases[0]) || 'DV';
 
     var corpo =
       '<div class="aviso">' +
@@ -1394,11 +1452,13 @@ tbody tr:last-child td { border-bottom: none; }
         '. A data de início é calculada automaticamente pela disponibilidade da peça e do equipamento.' +
       '</div>' +
       '<div class="grade-campos">' +
+        '<div class="campo"><label>Nº da LTI (ordem de serviço)</label>' +
+          '<input name="lti" placeholder="Ex.: LTI-2026-0142" autocomplete="off"></div>' +
+        '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' +
+          ui.opcoes(TC.data.TIPOS_LTI, tipoPadrao) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' +
           ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
         '<div class="campo"><label>Peça a ensaiar</label><select name="pecaId"></select></div>' +
-        '<div class="campo"><label>Fase de projeto</label><select name="fase">' +
-          ui.opcoes(fasesDisponiveis.length ? fasesDisponiveis : TC.data.FASES, fasePadrao) + '</select></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' +
           ui.opcoes(TC.data.PRIORIDADES, 'MEDIA') + '</select></div>' +
         '<div class="campo"><label>Amostras a consumir</label>' +
@@ -1419,13 +1479,24 @@ tbody tr:last-child td { border-bottom: none; }
           ui.notificar('Cadastre uma peça compatível para este cliente antes de confirmar.');
           return false;
         }
+        if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
+          ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
+          janela.querySelector('[name=lti]').focus();
+          return false;
+        }
         var demanda = TC.store.criarDemanda({
-          testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId, fase: v.fase,
+          testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId,
+          lti: v.lti, tipoLti: v.tipoLti,
           prioridade: v.prioridade, quantidade: v.quantidade, prazo: v.prazo,
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         var plano = TC.scheduler.planejar(TC.store.get());
         var alocacao = plano.alocacoes.filter(function (a) { return a.demandaId === demanda.id; })[0];
+        if (alocacao && alocacao.cotacao) {
+          ui.notificar('Cotação registrada — custo estimado sem reservar bancada.');
+          ctx.ir('demandas');
+          return;
+        }
         if (alocacao && alocacao.inicio) {
           ui.notificar('Planejado em ' + alocacao.equipamento.id + ': ' +
             util.formatarData(alocacao.inicio, true) + ' → ' + util.formatarData(alocacao.fim, true));
@@ -1467,20 +1538,41 @@ tbody tr:last-child td { border-bottom: none; }
       }
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
       var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, equipamento, peca);
+      var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
         'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
         ' + ' + e(String(custo.horas)) + ' h de ' + e(equipamento ? equipamento.id : '—') + ' ' +
         e(util.formatarMoeda(custo.custoEquipamento)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
-        (peca ? '. Amostras disponíveis a partir de ' + e(util.formatarData(peca.dataAmostras, true)) + '.' : '.') +
+        (cotacao
+          ? '. Como cotação, não reserva bancada nem entra no planejamento.'
+          : (peca ? '. Amostras disponíveis a partir de ' + e(util.formatarData(peca.dataAmostras, true)) + '.' : '.')) +
         '</div>';
     }
 
+    /* Só cotação pode ficar sem número de LTI; o formulário diz isso antes do envio. */
+    function atualizarTipo() {
+      var cotacao = selTipo.value === 'COTACAO';
+      campoLti.placeholder = cotacao ? 'Opcional na cotação' : 'Ex.: LTI-2026-0142';
+      campoLti.required = !cotacao;
+      rotuloLti.textContent = cotacao
+        ? 'Nº da LTI (ordem de serviço) — opcional'
+        : 'Nº da LTI (ordem de serviço)';
+      botaoConfirmar.textContent = cotacao ? 'Registrar cotação' : 'Confirmar e planejar';
+      atualizarPrevia();
+    }
+
+    var selTipo = janela.querySelector('[name=tipoLti]');
+    var campoLti = janela.querySelector('[name=lti]');
+    var rotuloLti = campoLti.parentElement.querySelector('label');
+
     selCliente.addEventListener('change', atualizarPecas);
     selPeca.addEventListener('change', atualizarPrevia);
+    selTipo.addEventListener('change', atualizarTipo);
     janela.querySelector('[name=quantidade]').addEventListener('input', atualizarPrevia);
     atualizarPecas();
+    atualizarTipo();
   }
 
   /* ---- Formulário de procedimento ---- */
@@ -1629,14 +1721,22 @@ tbody tr:last-child td { border-bottom: none; }
     return alocacoes.filter(function (a) {
       var d = a.demanda;
       if (f.clienteId && d.clienteId !== f.clienteId) return false;
-      if (f.fase && d.fase !== f.fase) return false;
+      if (f.tipoLti && d.tipoLti !== f.tipoLti) return false;
       if (f.area && a.teste && a.teste.area !== f.area && a.teste.area !== 'AMBOS') return false;
       if (f.status && d.status !== f.status) return false;
+      if (f.busca) {
+        var alvo = ((d.lti || '') + ' ' + (a.teste ? a.teste.nome : '') + ' ' +
+          (a.peca ? a.peca.nome : '')).toLowerCase();
+        if (alvo.indexOf(f.busca.toLowerCase()) === -1) return false;
+      }
       return true;
     });
   }
 
   function celulaJanela(a) {
+    if (a.cotacao) {
+      return '<span class="etiqueta alerta">Cotação</span><div class="sub">não ocupa bancada</div>';
+    }
     if (!a.inicio) {
       return '<span class="etiqueta erro">Sem janela</span><div class="sub">' + e(a.motivo || '') + '</div>';
     }
@@ -1671,7 +1771,7 @@ tbody tr:last-child td { border-bottom: none; }
         '<div class="sub">' + e(a.peca ? a.peca.programa : '') + '</div>' +
       '</td>' +
       '<td>' + (a.teste ? ui.etiquetaArea(a.teste.area) : '') + '</td>' +
-      '<td><span class="etiqueta">' + e(d.fase || '—') + '</span></td>' +
+      '<td>' + ui.celulaLti(d) + '</td>' +
       '<td>' + ui.etiquetaPrioridade(d.prioridade) + '</td>' +
       '<td class="num">' + e(String(d.quantidade)) + '</td>' +
       '<td>' + celulaJanela(a) + '</td>' +
@@ -1692,22 +1792,24 @@ tbody tr:last-child td { border-bottom: none; }
       return !demanda.clienteId || p.clienteId === demanda.clienteId;
     });
     var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
-    var fases = TC.data.FASES;
 
     var corpo =
       '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
-        (alocacao && alocacao.inicio
+        (alocacao && alocacao.cotacao
+          ? ' · cotação, não ocupa bancada'
+          : alocacao && alocacao.inicio
           ? ' · planejado para ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
             ' em ' + e(alocacao.equipamento.id)
           : ' · ainda sem janela') +
       '</div>' +
       '<div class="grade-campos">' +
+        '<div class="campo"><label>Nº da LTI (ordem de serviço)</label><input name="lti" value="' + e(demanda.lti || '') + '"></div>' +
+        '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' + ui.opcoes(TC.data.TIPOS_LTI, demanda.tipoLti) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
         '<div class="campo"><label>Peça</label><select name="pecaId">' +
           pecas.map(function (p) {
             return '<option value="' + e(p.id) + '"' + (p.id === demanda.pecaId ? ' selected' : '') + '>' + e(p.nome) + '</option>';
           }).join('') + '</select></div>' +
-        '<div class="campo"><label>Fase</label><select name="fase">' + ui.opcoes(fases, demanda.fase) + '</select></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
         '<div class="campo"><label>Status</label><select name="status">' + ui.opcoes(statusLista, demanda.status) + '</select></div>' +
         '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
@@ -1716,19 +1818,24 @@ tbody tr:last-child td { border-bottom: none; }
       '</div>' +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
 
-    ui.modal({
+    var janela = ui.modal({
       titulo: 'Editar demanda',
       corpo: corpo,
       confirmar: 'Salvar e replanejar',
       aoConfirmar: function (v) {
+        if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
+          ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
+          return false;
+        }
         TC.store.atualizarDemanda(demanda.id, {
-          clienteId: v.clienteId, pecaId: v.pecaId, fase: v.fase, prioridade: v.prioridade,
-          status: v.status, quantidade: Number(v.quantidade) || 1, prazo: v.prazo,
-          inicioFixo: v.inicioFixo, observacao: v.observacao
+          clienteId: v.clienteId, pecaId: v.pecaId, lti: v.lti.trim(), tipoLti: v.tipoLti,
+          prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
+          prazo: v.prazo, inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');
       }
     });
+    return janela;
   }
 
   function render(container, ctx) {
@@ -1736,11 +1843,12 @@ tbody tr:last-child td { border-bottom: none; }
     var todas = ctx.plano.alocacoes;
     var lista = filtrar(todas, f);
 
-    var custoTotal = 0, atrasadas = 0, semJanela = 0;
+    var custoTotal = 0, atrasadas = 0, semJanela = 0, cotacoes = 0;
     lista.forEach(function (a) {
       custoTotal += a.custo.total;
       if (a.atrasado) atrasadas++;
-      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
+      if (a.cotacao) cotacoes++;
+      else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
     });
 
     var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
@@ -1761,16 +1869,19 @@ tbody tr:last-child td { border-bottom: none; }
           '<div class="nota">terminam depois do prazo do cliente</div></div>' +
         '<div class="indicador"><div class="rotulo">Sem janela</div><div class="valor" style="color:' + (semJanela ? 'var(--alerta)' : 'inherit') + '">' + semJanela + '</div>' +
           '<div class="nota">equipamento ausente ou lotado</div></div>' +
+        '<div class="indicador"><div class="rotulo">Cotações</div><div class="valor">' + cotacoes + '</div>' +
+          '<div class="nota">não ocupam bancada</div></div>' +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
+          '<div class="campo busca"><label>Buscar LTI</label><input id="f-busca" placeholder="nº da LTI, procedimento ou peça" value="' + e(f.busca || '') + '"></div>' +
           '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
           '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-          '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
+          '<div class="campo"><label>Classificação</label><select id="f-tipo">' + ui.opcoes(TC.data.TIPOS_LTI, f.tipoLti, 'Todas') + '</select></div>' +
           '<div class="campo"><label>Status</label><select id="f-status">' + ui.opcoes(statusLista, f.status, 'Todos') + '</select></div>' +
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Procedimento</th><th>Peça</th><th>Área</th><th>Fase</th><th>Prioridade</th><th class="num">Amostras</th>' +
+          '<th>Procedimento</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
           '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
           '</tr></thead><tbody>' + lista.map(linha).join('') + '</tbody></table></div>'
           : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
@@ -1779,7 +1890,19 @@ tbody tr:last-child td { border-bottom: none; }
     container.querySelector('#ir-catalogo').onclick = function () { ctx.ir('catalogo'); };
     container.querySelector('#csv').onclick = function () { exportarCsv(lista); };
 
-    ['cliente:clienteId', 'area:area', 'fase:fase', 'status:status'].forEach(function (par) {
+    var busca = container.querySelector('#f-busca');
+    var atraso;
+    busca.addEventListener('input', function () {
+      clearTimeout(atraso);
+      atraso = setTimeout(function () {
+        f.busca = busca.value;
+        ctx.atualizar();
+        var novoCampo = container.querySelector('#f-busca');
+        if (novoCampo) { novoCampo.focus(); novoCampo.setSelectionRange(novoCampo.value.length, novoCampo.value.length); }
+      }, 250);
+    });
+
+    ['cliente:clienteId', 'area:area', 'tipo:tipoLti', 'status:status'].forEach(function (par) {
       var p = par.split(':');
       var alvo = container.querySelector('#f-' + p[0]);
       alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });
@@ -1799,20 +1922,21 @@ tbody tr:last-child td { border-bottom: none; }
   }
 
   function exportarCsv(lista) {
-    var cabecalho = ['Codigo', 'Procedimento', 'Peca', 'Cliente', 'Fase', 'Prioridade', 'Amostras',
+    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Peca', 'Cliente', 'Prioridade', 'Amostras',
       'Equipamento', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status'];
     var linhas = lista.map(function (a) {
       return [
+        a.demanda.lti || '',
+        a.demanda.tipoLti,
         a.demanda.testeId,
         a.teste ? a.teste.nome : '',
         a.peca ? a.peca.nome : '',
         a.demanda.clienteId,
-        a.demanda.fase,
         a.demanda.prioridade,
         a.demanda.quantidade,
         a.equipamento ? a.equipamento.id : '',
-        a.inicio || '',
-        a.fim || '',
+        a.cotacao ? '' : (a.inicio || ''),
+        a.cotacao ? '' : (a.fim || ''),
         a.demanda.prazo || '',
         a.folga === null || a.folga === undefined ? '' : a.folga,
         a.custo.total,
@@ -1942,7 +2066,7 @@ tbody tr:last-child td { border-bottom: none; }
 
     var visiveis = ctx.plano.agendadas.filter(function (a) {
       if (f.clienteId && a.demanda.clienteId !== f.clienteId) return false;
-      if (f.fase && a.demanda.fase !== f.fase) return false;
+      if (f.tipoLti && a.demanda.tipoLti !== f.tipoLti) return false;
       if (f.area && a.teste.area !== f.area && a.teste.area !== 'AMBOS') return false;
       return true;
     });
@@ -1999,7 +2123,7 @@ tbody tr:last-child td { border-bottom: none; }
           '<div class="filtros" style="flex:1">' +
             '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
             '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-            '<div class="campo"><label>Fase</label><select id="f-fase">' + ui.opcoes(TC.data.FASES, f.fase, 'Todas') + '</select></div>' +
+            '<div class="campo"><label>Classificação</label><select id="f-tipo">' + ui.opcoes(TC.data.FASES, f.tipoLti, 'Todas') + '</select></div>' +
           '</div>' +
           '<div class="legenda">' +
             '<span><i style="background:var(--hot)"></i>Hot End</span>' +
@@ -2038,7 +2162,7 @@ tbody tr:last-child td { border-bottom: none; }
       preferencias.somenteOcupados = !preferencias.somenteOcupados;
       ctx.atualizar();
     };
-    ['cliente:clienteId', 'area:area', 'fase:fase'].forEach(function (par) {
+    ['cliente:clienteId', 'area:area', 'tipo:tipoLti'].forEach(function (par) {
       var p = par.split(':');
       var alvo = container.querySelector('#f-' + p[0]);
       alvo.addEventListener('change', function () { f[p[1]] = alvo.value; ctx.atualizar(); });
@@ -2541,12 +2665,13 @@ tbody tr:last-child td { border-bottom: none; }
     var estado = ctx.estado, hoje = ctx.hoje;
     var todas = ctx.plano.alocacoes.filter(function (a) { return a.demanda.status !== 'CANCELADO'; });
 
-    var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0;
+    var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0, cotacoes = 0;
     todas.forEach(function (a) {
       custoTotal += a.custo.total;
       horasTotal += a.custo.horas;
       if (a.atrasado) atrasadas++;
-      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
+      if (a.cotacao) cotacoes++;
+      else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
       if (a.demanda.status === 'CONCLUIDO') concluidas++;
     });
 
@@ -2566,7 +2691,7 @@ tbody tr:last-child td { border-bottom: none; }
           (a.peca ? a.peca.nome : '—') + ' termina ' + Math.abs(a.folga) + ' dia(s) após o prazo de ' +
           util.formatarData(a.demanda.prazo, true) + '.' });
       }
-      if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) {
+      if (!a.cotacao && !a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) {
         alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ': ' + a.motivo });
       }
     });
@@ -2584,9 +2709,11 @@ tbody tr:last-child td { border-bottom: none; }
       var c = util.porId(estado.clientes, a.demanda.clienteId);
       return c ? c.nome : a.demanda.clienteId;
     });
-    var porFase = agrupar(todas, function (a) {
-      var f = util.porId(TC.data.FASES, a.demanda.fase);
-      return f ? f.nome : a.demanda.fase;
+    /* Cotação fica de fora do agrupamento por fase: ela não representa carga de bancada,
+       é orçamento pendente de confirmação. */
+    var porFase = agrupar(todas.filter(function (a) { return !a.cotacao; }), function (a) {
+      var f = util.porId(TC.data.FASES, a.demanda.tipoLti);
+      return f ? f.nome : a.demanda.tipoLti;
     });
     var porArea = agrupar(todas, function (a) {
       var ar = a.teste ? util.porId(TC.data.AREAS, a.teste.area) : null;
@@ -2608,6 +2735,8 @@ tbody tr:last-child td { border-bottom: none; }
         '<div class="indicador"><div class="rotulo">Riscos de prazo</div>' +
           '<div class="valor" style="color:' + (atrasadas + semJanela ? 'var(--erro)' : 'var(--ok)') + '">' + (atrasadas + semJanela) + '</div>' +
           '<div class="nota">' + atrasadas + ' fora do prazo · ' + semJanela + ' sem janela</div></div>' +
+        '<div class="indicador"><div class="rotulo">Cotações</div><div class="valor">' + cotacoes + '</div>' +
+          '<div class="nota">orçamento, fora do planejamento</div></div>' +
       '</div>' +
       (alertas.length
         ? '<div class="cartao"><div class="cartao-topo"><h3>Pontos de atenção</h3></div><div class="cartao-corpo">' +
@@ -2619,7 +2748,8 @@ tbody tr:last-child td { border-bottom: none; }
         : '') +
       '<div class="cartao"><div class="cartao-topo"><h3>Custo por cliente</h3></div>' +
         '<div class="tabela-rolagem">' + barras(porCliente, 'Cliente') + '</div></div>' +
-      '<div class="cartao"><div class="cartao-topo"><h3>Custo por fase de projeto</h3></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Custo por fase de projeto</h3>' +
+        '<span class="sub">cotações não entram, pois ainda não são serviço confirmado</span></div>' +
         '<div class="tabela-rolagem">' + barras(porFase, 'Fase') + '</div></div>' +
       '<div class="cartao"><div class="cartao-topo"><h3>Custo por área do sistema</h3></div>' +
         '<div class="tabela-rolagem">' + barras(porArea, 'Área') + '</div></div>' +
@@ -2662,7 +2792,9 @@ tbody tr:last-child td { border-bottom: none; }
     { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' }
   ];
 
-  var filtros = { busca: '', clienteId: '', area: '', fase: '', status: '', equipamentoId: '' };
+  /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
+     demandas e planejamento pela classificação da LTI (inclui Cotação). */
+  var filtros = { busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '' };
   var rotaAtual = 'catalogo';
 
   function contadores(estado, plano) {

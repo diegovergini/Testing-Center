@@ -32,7 +32,8 @@ function peca(extra) {
 
 function demanda(extra) {
   return Object.assign({
-    id: 'DM-01', testeId: 'TP-01', pecaId: 'PC-01', clienteId: 'CLI-01', fase: 'DV',
+    id: 'DM-01', testeId: 'TP-01', pecaId: 'PC-01', clienteId: 'CLI-01',
+    lti: 'LTI-0001', tipoLti: 'DV',
     prioridade: 'MEDIA', quantidade: 1, prazo: '', inicioFixo: '', status: 'PENDENTE',
     criadoEm: SEGUNDA
   }, extra);
@@ -267,4 +268,37 @@ test('as fases do catálogo são apenas DV, PV e VAVE', () => {
     assert.ok(t.fases.length, t.id + ' ficou sem fase');
     t.fases.forEach((f) => assert.ok(validas.includes(f), t.id + ' usa fase inválida ' + f));
   });
+});
+
+test('demanda de cotação não reserva bancada, mas entra no custo', () => {
+  const s = estado({ demandas: [demanda({ id: 'COT', tipoLti: 'COTACAO', lti: '' })] });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  const a = alocacaoDe(plano, 'COT');
+
+  assert.equal(a.cotacao, true);
+  assert.equal(a.inicio, null, 'cotação não recebe janela');
+  assert.ok(a.custo.total > 0, 'o custo ainda é calculado para orçamento');
+  assert.equal(plano.agendadas.length, 0);
+  assert.equal(plano.bloqueadas.length, 0, 'cotação não conta como bloqueada');
+  assert.equal(plano.cotacoes.length, 1);
+});
+
+test('cotação não disputa nem ocupa a posição de demandas planejáveis', () => {
+  const s = estado({
+    demandas: [
+      demanda({ id: 'COT', tipoLti: 'COTACAO', lti: '' }),
+      demanda({ id: 'REAL', tipoLti: 'DV' })
+    ]
+  });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  assert.equal(alocacaoDe(plano, 'REAL').inicio, SEGUNDA, 'a demanda real usa a bancada normalmente');
+  assert.equal(alocacaoDe(plano, 'COT').inicio, null);
+});
+
+test('ehCotacao reconhece a classificação COTACAO e só ela', () => {
+  assert.equal(scheduler.ehCotacao({ tipoLti: 'COTACAO' }), true);
+  assert.equal(scheduler.ehCotacao({ tipoLti: 'DV' }), false);
+  assert.equal(scheduler.ehCotacao({ tipoLti: 'PV' }), false);
+  assert.equal(scheduler.ehCotacao({ tipoLti: 'VAVE' }), false);
+  assert.equal(scheduler.ehCotacao({ tipoLti: 'ALGO_INEXISTENTE' }), false);
 });

@@ -28,7 +28,9 @@ test('importar converte as fases antigas para DV, PV e VAVE', () => {
   assert.deepEqual(estado.testes[0].fases, ['DV'], 'CONCEITO vira DV e não duplica o DV existente');
   assert.deepEqual(estado.testes[1].fases, ['PV', 'VAVE']);
   assert.deepEqual(estado.testes[2].fases, ['DV']);
-  assert.equal(estado.demandas[0].fase, 'PV');
+  assert.equal(estado.demandas[0].tipoLti, 'PV', 'a antiga fase da demanda vira a classificação da LTI');
+  assert.equal(estado.demandas[0].fase, undefined, 'o campo fase não existe mais na demanda');
+  assert.equal(estado.demandas[0].lti, '', 'LTI sem número fica em branco para ser preenchida');
 
   const validas = dados.FASES.map((f) => f.id);
   estado.testes.forEach((t) => {
