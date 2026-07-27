@@ -23,24 +23,51 @@
     return false;
   }
 
-  /* Quantos dias de operação o ensaio consome neste equipamento.
-     Equipamento contínuo roda 24 h/dia; os demais, apenas as horas do turno. */
-  function diasDeOperacao(teste, equipamento) {
+  /* Lista de equipamentos que o procedimento ocupa ao mesmo tempo. */
+  function idsDeEquipamento(teste) {
+    if (!teste) return [];
+    if (teste.equipamentoIds) return teste.equipamentoIds;
+    return teste.equipamentoId ? [teste.equipamentoId] : [];
+  }
+
+  /* Um ensaio só avança quando TODAS as bancadas que ele ocupa estão operando:
+     o turno mais curto e a interseção dos dias úteis mandam no ritmo. */
+  function horasPorDiaCombinadas(lista) {
+    return lista.reduce(function (menor, eq) {
+      var horas = eq.continuo ? 24 : (eq.horasDia || 8);
+      return Math.min(menor, horas);
+    }, 24);
+  }
+
+  function ehDiaUtilEmTodos(lista, iso) {
+    for (var i = 0; i < lista.length; i++) if (!ehDiaUtil(lista[i], iso)) return false;
+    return true;
+  }
+
+  function algumEmManutencao(lista, iso) {
+    for (var i = 0; i < lista.length; i++) if (emManutencao(lista[i], iso)) return true;
+    return false;
+  }
+
+  /* Quantos dias de operação o ensaio consome no conjunto de bancadas. */
+  function diasDeOperacao(teste, equipamentos) {
+    var lista = [].concat(equipamentos || []);
     var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
-    var horasPorDia = equipamento.continuo ? 24 : (equipamento.horasDia || 8);
+    var horasPorDia = lista.length ? horasPorDiaCombinadas(lista) : 8;
     return Math.max(1, Math.ceil(horas / horasPorDia));
   }
 
   /* A partir de uma data de início, devolve a janela de calendário que o ensaio ocupa.
-     Dias não úteis dentro da janela continuam ocupando a posição (a peça segue montada).
-     Devolve null se a janela atravessar uma parada de manutenção. */
-  function calcularJanela(equipamento, inicio, diasNecessarios) {
+     Dias não úteis dentro da janela continuam ocupando as posições (a peça segue montada).
+     Devolve null se a janela atravessar uma parada de manutenção de qualquer bancada. */
+  function calcularJanela(equipamentos, inicio, diasNecessarios) {
+    var lista = [].concat(equipamentos || []);
     var cursor = inicio;
     var contados = 0;
     var guarda = 0;
     while (contados < diasNecessarios && guarda++ < HORIZONTE_DIAS) {
-      if (emManutencao(equipamento, cursor)) return null;
-      if (ehDiaUtil(equipamento, cursor)) contados++;
+      if (algumEmManutencao(lista, cursor)) return null;
+      if (ehDiaUtilEmTodos(lista, cursor)) contados++;
       if (contados < diasNecessarios) cursor = util.somaDias(cursor, 1);
     }
     return contados === diasNecessarios ? { inicio: inicio, fim: cursor } : null;
@@ -57,21 +84,52 @@
     return null;
   }
 
-  /* Procura a primeira janela livre numa posição, a partir de dataMinima. */
-  function buscarJanela(equipamento, reservas, dataMinima, diasNecessarios) {
+  /* Primeira posição livre do equipamento para a janela.
+     Devolve o índice, ou -1 e a data em que a posição mais cedo se libera. */
+  function posicaoLivre(posicoes, janela) {
+    var liberaEm = null;
+    for (var p = 0; p < posicoes.length; p++) {
+      var conflito = primeiroConflito(posicoes[p], janela);
+      if (!conflito) return { posicao: p, liberaEm: null };
+      if (!liberaEm || util.diffDias(conflito.fim, liberaEm) > 0) liberaEm = conflito.fim;
+    }
+    return { posicao: -1, liberaEm: liberaEm };
+  }
+
+  /* Procura a primeira janela em que TODAS as bancadas têm uma posição livre. */
+  function buscarJanela(equipamentos, reservasPorEquipamento, dataMinima, diasNecessarios) {
+    var lista = [].concat(equipamentos || []);
+    if (!lista.length) return null;
     var cursor = dataMinima;
     var limite = util.somaDias(dataMinima, HORIZONTE_DIAS);
     var guarda = 0;
+
     while (util.diffDias(cursor, limite) > 0 && guarda++ < HORIZONTE_DIAS) {
-      if (!ehDiaUtil(equipamento, cursor) || emManutencao(equipamento, cursor)) {
+      if (!ehDiaUtilEmTodos(lista, cursor) || algumEmManutencao(lista, cursor)) {
         cursor = util.somaDias(cursor, 1);
         continue;
       }
-      var janela = calcularJanela(equipamento, cursor, diasNecessarios);
+      var janela = calcularJanela(lista, cursor, diasNecessarios);
       if (!janela) { cursor = util.somaDias(cursor, 1); continue; }
-      var conflito = primeiroConflito(reservas, janela);
-      if (conflito) { cursor = util.somaDias(conflito.fim, 1); continue; }
-      return janela;
+
+      var escolhidas = {};
+      var ocupado = false;
+      /* Como todas as bancadas precisam estar livres juntas, a próxima tentativa só
+         faz sentido depois que a última delas se liberar. */
+      var proximaTentativa = null;
+      for (var i = 0; i < lista.length; i++) {
+        var r = posicaoLivre(reservasPorEquipamento[lista[i].id], janela);
+        if (r.posicao === -1) {
+          ocupado = true;
+          if (r.liberaEm && (!proximaTentativa || util.diffDias(r.liberaEm, proximaTentativa) < 0)) {
+            proximaTentativa = r.liberaEm;
+          }
+        } else {
+          escolhidas[lista[i].id] = r.posicao;
+        }
+      }
+      if (!ocupado) return { janela: janela, posicoes: escolhidas };
+      cursor = proximaTentativa ? util.somaDias(proximaTentativa, 1) : util.somaDias(cursor, 1);
     }
     return null;
   }
@@ -81,12 +139,15 @@
     return p ? p.peso : 9;
   }
 
-  /* Custo de uma demanda: mão de obra/insumos + hora-máquina + amostras consumidas. */
-  function custoDemanda(demanda, teste, equipamento, peca) {
+  /* Custo de uma demanda: mão de obra/insumos + hora-máquina + amostras consumidas.
+     Ensaio que ocupa mais de uma bancada paga a hora de todas elas. */
+  function custoDemanda(demanda, teste, equipamentos, peca) {
     if (!teste) return { horas: 0, custoBase: 0, custoEquipamento: 0, custoAmostras: 0, total: 0 };
+    var lista = [].concat(equipamentos || []).filter(Boolean);
     var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
     var quantidade = demanda && demanda.quantidade ? demanda.quantidade : teste.amostras;
-    var custoEquipamento = horas * (equipamento ? equipamento.custoHora : 0);
+    var custoHoraTotal = lista.reduce(function (soma, eq) { return soma + (eq.custoHora || 0); }, 0);
+    var custoEquipamento = horas * custoHoraTotal;
     var custoAmostras = quantidade * (peca ? peca.custoAmostra || 0 : 0);
     var custoBase = teste.custoBase || 0;
     return {
@@ -100,8 +161,8 @@
   }
 
   /* Custo de referência do catálogo, sem peça associada. */
-  function custoCatalogo(teste, equipamento) {
-    return custoDemanda(null, teste, equipamento, null);
+  function custoCatalogo(teste, equipamentos) {
+    return custoDemanda(null, teste, equipamentos, null);
   }
 
   var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
@@ -149,16 +210,24 @@
     function montarBase(demanda) {
       var teste = util.porId(estado.testes, demanda.testeId);
       var peca = util.porId(estado.pecas, demanda.pecaId);
-      var equipamento = teste ? util.porId(equipamentos, teste.equipamentoId) : null;
+      var ids = idsDeEquipamento(teste);
+      var lista = [];
+      var faltando = [];
+      ids.forEach(function (id) {
+        var eq = util.porId(equipamentos, id);
+        if (eq) lista.push(eq); else faltando.push(id);
+      });
       return {
         demandaId: demanda.id,
         demanda: demanda,
         teste: teste,
         peca: peca,
-        equipamento: equipamento,
-        custo: custoDemanda(demanda, teste, equipamento, peca),
+        equipamentos: lista,
+        equipamentosFaltando: faltando,
+        custo: custoDemanda(demanda, teste, lista, peca),
         cotacao: false,
-        posicao: null,
+        /* posicoes: { equipamentoId: índice da posição ocupada } */
+        posicoes: null,
         inicio: null,
         fim: null,
         motivo: null
@@ -170,24 +239,38 @@
       var base = montarBase(demanda);
       base.cotacao = true;
       base.motivo = 'Cotação — não ocupa bancada.';
-      if (base.teste && base.equipamento) {
-        base.diasOperacao = diasDeOperacao(base.teste, base.equipamento);
+      if (base.teste && base.equipamentos.length) {
+        base.diasOperacao = diasDeOperacao(base.teste, base.equipamentos);
       }
       alocacoes.push(base);
     }
 
+    function nomesDe(lista) {
+      return lista.map(function (eq) { return eq.nome; }).join(' + ');
+    }
+
     function processar(demanda) {
       var base = montarBase(demanda);
-      var teste = base.teste, equipamento = base.equipamento;
+      var teste = base.teste;
+      var lista = base.equipamentos;
 
-      if (!teste || !equipamento) {
-        base.motivo = !teste ? 'Procedimento não encontrado no catálogo.'
-          : 'Equipamento "' + teste.equipamentoId + '" não cadastrado.';
+      if (!teste) {
+        base.motivo = 'Procedimento não encontrado no catálogo.';
+        alocacoes.push(base);
+        return;
+      }
+      if (base.equipamentosFaltando.length) {
+        base.motivo = 'Equipamento "' + base.equipamentosFaltando.join('", "') + '" não cadastrado.';
+        alocacoes.push(base);
+        return;
+      }
+      if (!lista.length) {
+        base.motivo = 'Procedimento sem equipamento definido.';
         alocacoes.push(base);
         return;
       }
 
-      var dias = diasDeOperacao(teste, equipamento);
+      var dias = diasDeOperacao(teste, lista);
       /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
          datas diferentes conforme o cliente e o programa. */
       var disponibilidadePeca = demanda.dataAmostras || hoje;
@@ -195,32 +278,36 @@
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
 
       var melhor = null;
-      for (var p = 0; p < equipamento.posicoes; p++) {
-        var janela;
-        if (demanda.inicioFixo) {
-          janela = calcularJanela(equipamento, demanda.inicioFixo, dias);
-          if (janela && primeiroConflito(reservas[equipamento.id][p], janela)) janela = null;
-        } else {
-          janela = buscarJanela(equipamento, reservas[equipamento.id][p], dataMinima, dias);
+      if (demanda.inicioFixo) {
+        var janelaFixa = calcularJanela(lista, demanda.inicioFixo, dias);
+        if (janelaFixa) {
+          var escolhidas = {};
+          var livre = true;
+          lista.forEach(function (eq) {
+            var r = posicaoLivre(reservas[eq.id], janelaFixa);
+            if (r.posicao === -1) livre = false; else escolhidas[eq.id] = r.posicao;
+          });
+          if (livre) melhor = { janela: janelaFixa, posicoes: escolhidas };
         }
-        if (!janela) continue;
-        if (!melhor || util.diffDias(janela.inicio, melhor.janela.inicio) > 0) {
-          melhor = { posicao: p, janela: janela };
-        }
+      } else {
+        melhor = buscarJanela(lista, reservas, dataMinima, dias);
       }
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
-          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) + ' indisponível em todas as posições de ' + equipamento.nome + '.'
-          : 'Sem janela livre em ' + equipamento.nome + ' dentro do horizonte de planejamento.';
+          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) +
+            ' indisponível em ' + nomesDe(lista) + '.'
+          : 'Sem janela livre em ' + nomesDe(lista) + ' dentro do horizonte de planejamento.';
         base.diasOperacao = dias;
         alocacoes.push(base);
         return;
       }
 
-      reservas[equipamento.id][melhor.posicao].push(melhor.janela);
+      lista.forEach(function (eq) {
+        reservas[eq.id][melhor.posicoes[eq.id]].push(melhor.janela);
+      });
 
-      base.posicao = melhor.posicao;
+      base.posicoes = melhor.posicoes;
       base.inicio = melhor.janela.inicio;
       base.fim = melhor.janela.fim;
       base.diasOperacao = dias;
@@ -262,6 +349,7 @@
     ehDiaUtil: ehDiaUtil,
     emManutencao: emManutencao,
     ehCotacao: ehCotacao,
+    idsDeEquipamento: idsDeEquipamento,
     STATUS_ATIVOS: ATIVAS
   };
 

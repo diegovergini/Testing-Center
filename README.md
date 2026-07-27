@@ -40,7 +40,11 @@ respeitando, nesta ordem:
    cliente e o programa).
 2. **Disponibilidade do equipamento** — cada equipamento tem um número de posições em
    paralelo, um calendário (dias da semana e horas por dia, ou regime contínuo 24 h) e
-   janelas de manutenção. Um ensaio nunca atravessa uma parada programada.
+   janelas de manutenção. Um ensaio nunca atravessa uma parada programada. Um procedimento
+   pode ocupar **mais de uma bancada ao mesmo tempo**: nesse caso a janela precisa estar
+   livre em todas elas simultaneamente, e o ritmo é ditado pela de turno mais curto —
+   500 h num dinamômetro 24 h/dia levam 21 dias sozinhas, mas 63 se o ensaio também prender
+   uma bancada de 8 h/dia.
 3. **Fila** — demandas são ordenadas por prioridade, depois por prazo do cliente, depois por
    ordem de criação. Uma demanda com data de início forçada reserva a posição antes de todas.
 
@@ -53,7 +57,7 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | Tela | Para quê |
 | --- | --- |
 | **Catálogo de testes** | Todos os procedimentos por área (Hot End / Cold End) e cliente, com revisão vigente, horas de bancada e custo estimado. É daqui que se confirma a necessidade de um teste. |
-| **Demandas** | Fila de testes confirmados com o nº da LTI, a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
+| **Demandas** | Fila de testes confirmados com o nº da LTI, projeto, part number, a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
 | **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
@@ -80,6 +84,8 @@ qual versão foi executada.
 
 Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
 LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo, calendário e custo-hora.
+Um procedimento pode marcar várias bancadas — o ensaio então reserva todas, aparece em todas
+as linhas do Gantt e paga a hora-máquina de cada uma.
 
 As **peças** são tipos genéricos — Hot End, Canning, Cold End, Muffler e Component. Não
 pertencem a um cliente nem a uma área: qualquer cliente pode trazer amostra de qualquer tipo.
@@ -99,6 +105,9 @@ Toda demanda carrega o número da LTI que a abriu e uma classificação:
 Quando uma LTI de cotação vira serviço de fato, basta editar a demanda e trocar a
 classificação para DV, PV ou VAVE — ela entra na fila e recebe uma janela no próximo
 recálculo do planejamento.
+
+Além da LTI, a demanda registra o **projeto** e o **part number** da peça ensaiada. O campo
+de projeto sugere os projetos já usados, para o mesmo programa não virar três grafias.
 
 ## Modelo de custo
 

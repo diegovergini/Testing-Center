@@ -97,12 +97,37 @@ test('salvar cliente novo gera código e editar preserva o existente', () => {
 
 test('remover equipamento deixa os procedimentos visíveis, mas sem bancada', () => {
   store.restaurarPadrao();
-  const dependentes = store.get().testes.filter((t) => t.equipamentoId === 'BURNER-1').length;
+  const usa = (t) => (t.equipamentoIds || []).includes('BURNER-1');
+  const dependentes = store.get().testes.filter(usa).length;
   assert.ok(dependentes > 0);
 
   store.removerEquipamento('BURNER-1');
   const estado = store.get();
   assert.equal(estado.equipamentos.filter((e) => e.id === 'BURNER-1').length, 0);
-  assert.equal(estado.testes.filter((t) => t.equipamentoId === 'BURNER-1').length, dependentes,
+  assert.equal(estado.testes.filter(usa).length, dependentes,
     'os procedimentos continuam no catálogo para serem reapontados');
+});
+
+test('importar converte equipamento único do procedimento para lista', () => {
+  const base = dados.seed();
+  base.testes[0] = Object.assign({}, base.testes[0], { equipamentoId: 'BURNER-2' });
+  delete base.testes[0].equipamentoIds;
+
+  store.importar(JSON.stringify(base));
+  const t = store.get().testes[0];
+  assert.deepEqual(t.equipamentoIds, ['BURNER-2']);
+  assert.equal(t.equipamentoId, undefined, 'o campo antigo não fica para trás');
+});
+
+test('demanda antiga ganha os campos de projeto e part number vazios', () => {
+  const base = dados.seed();
+  base.demandas = [
+    { id: 'D7', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: 'CLI-VW',
+      tipoLti: 'DV', lti: 'LTI-7', prioridade: 'MEDIA', quantidade: 1, status: 'PENDENTE',
+      dataAmostras: '2026-08-01' }
+  ];
+  store.importar(JSON.stringify(base));
+  const d = store.get().demandas[0];
+  assert.equal(d.projeto, '');
+  assert.equal(d.partNumber, '');
 });

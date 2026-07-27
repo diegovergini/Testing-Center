@@ -18,7 +18,7 @@ function equipamento(extra) {
 
 function teste(extra) {
   return Object.assign({
-    id: 'TP-01', nome: 'Ensaio', area: 'COLD', equipamentoId: 'EQ-01', revisao: 'Rev. 01',
+    id: 'TP-01', nome: 'Ensaio', area: 'COLD', equipamentoIds: ['EQ-01'], revisao: 'Rev. 01',
     clientes: [], horasSetup: 0, horasEnsaio: 8, amostras: 1, custoBase: 1000
   }, extra);
 }
@@ -53,11 +53,11 @@ function alocacaoDe(plano, id) {
 }
 
 test('duração converte horas em dias conforme o regime do equipamento', () => {
-  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 8 }), equipamento()), 1);
-  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 24 }), equipamento()), 3);
-  assert.equal(scheduler.diasDeOperacao(teste({ horasSetup: 4, horasEnsaio: 20 }), equipamento()), 3);
-  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 72 }), equipamento({ continuo: true })), 3);
-  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 1 }), equipamento()), 1, 'nunca menos de um dia');
+  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 8 }), [equipamento()]), 1);
+  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 24 }), [equipamento()]), 3);
+  assert.equal(scheduler.diasDeOperacao(teste({ horasSetup: 4, horasEnsaio: 20 }), [equipamento()]), 3);
+  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 72 }), [equipamento({ continuo: true })]), 3);
+  assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 1 }), [equipamento()]), 1, 'nunca menos de um dia');
 });
 
 test('nenhum ensaio começa antes da chegada das amostras', () => {
@@ -108,7 +108,7 @@ test('posições em paralelo são usadas antes de empurrar a fila', () => {
   const a = alocacaoDe(plano, 'A'), b = alocacaoDe(plano, 'B'), c = alocacaoDe(plano, 'C');
   assert.equal(a.inicio, SEGUNDA);
   assert.equal(b.inicio, SEGUNDA);
-  assert.notEqual(a.posicao, b.posicao);
+  assert.notEqual(a.posicoes['EQ-01'], b.posicoes['EQ-01'], 'cada uma numa posição diferente');
   assert.equal(c.inicio, '2026-07-08', 'a terceira só entra quando a primeira posição vaga');
 });
 
@@ -218,7 +218,7 @@ test('demandas concluídas e canceladas não ocupam bancada', () => {
 });
 
 test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
-  const s = estado({ testes: [teste({ equipamentoId: 'INEXISTENTE' })] });
+  const s = estado({ testes: [teste({ equipamentoIds: ['INEXISTENTE'] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
   assert.match(plano.bloqueadas[0].motivo, /não cadastrado/);
@@ -226,7 +226,7 @@ test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
 
 test('custo soma mão de obra, hora-máquina e amostras', () => {
   const t = teste({ horasSetup: 2, horasEnsaio: 8, custoBase: 1000 });
-  const c = scheduler.custoDemanda({ quantidade: 3 }, t, equipamento({ custoHora: 100 }), peca({ custoAmostra: 500 }));
+  const c = scheduler.custoDemanda({ quantidade: 3 }, t, [equipamento({ custoHora: 100 })], peca({ custoAmostra: 500 }));
   assert.equal(c.horas, 10);
   assert.equal(c.custoEquipamento, 1000);
   assert.equal(c.custoAmostras, 1500);
@@ -234,7 +234,7 @@ test('custo soma mão de obra, hora-máquina e amostras', () => {
 });
 
 test('custo de catálogo usa a quantidade padrão do procedimento e ignora amostras', () => {
-  const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, custoBase: 500 }), equipamento({ custoHora: 200 }));
+  const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, custoBase: 500 }), [equipamento({ custoHora: 200 })]);
   assert.equal(c.quantidade, 4);
   assert.equal(c.custoAmostras, 0);
   assert.equal(c.total, 500 + 1600);
@@ -277,12 +277,15 @@ test('o catálogo não amarra procedimento a fase e sempre traz a revisão', () 
 test('todo procedimento do catálogo aponta para um equipamento existente', () => {
   const base = require('../src/data.js').seed();
   const ids = base.equipamentos.map((eq) => eq.id);
+  
   assert.deepEqual(base.equipamentos.map((eq) => eq.nome), [
     'Burner 1', 'Burner 2', 'Burner 3', 'Shaker', 'MTS 1', 'MTS 2', 'MTS 3', 'MTS 4',
     'LMS / PTA', 'ColdFlow', 'Dynamometer'
   ]);
   base.testes.forEach((t) => {
-    assert.ok(ids.includes(t.equipamentoId), t.id + ' aponta para ' + t.equipamentoId);
+    const usados = scheduler.idsDeEquipamento(t);
+    assert.ok(usados.length, t.id + ' está sem equipamento');
+    usados.forEach((id) => assert.ok(ids.includes(id), t.id + ' aponta para ' + id));
   });
 });
 
@@ -328,4 +331,91 @@ test('ehCotacao reconhece a classificação COTACAO e só ela', () => {
   assert.equal(scheduler.ehCotacao({ tipoLti: 'PV' }), false);
   assert.equal(scheduler.ehCotacao({ tipoLti: 'VAVE' }), false);
   assert.equal(scheduler.ehCotacao({ tipoLti: 'ALGO_INEXISTENTE' }), false);
+});
+
+test('ensaio em duas bancadas reserva posição nas duas ao mesmo tempo', () => {
+  const s = estado({
+    equipamentos: [
+      equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
+      equipamento({ id: 'EQ-02', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
+    ],
+    testes: [teste({ equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
+  });
+  const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
+  assert.deepEqual(a.equipamentos.map((eq) => eq.id), ['EQ-01', 'EQ-02']);
+  assert.equal(a.inicio, SEGUNDA);
+  assert.equal(a.posicoes['EQ-01'], 0);
+  assert.equal(a.posicoes['EQ-02'], 0);
+});
+
+test('bancada compartilhada empurra o outro ensaio, mesmo com a dela livre', () => {
+  /* DUPLO usa EQ-01 + EQ-02; SIMPLES usa só EQ-02, que fica preso pelo primeiro. */
+  const s = estado({
+    equipamentos: [
+      equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
+      equipamento({ id: 'EQ-02', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
+    ],
+    testes: [
+      teste({ id: 'TP-DUPLO', equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 72 }),
+      teste({ id: 'TP-SIMPLES', equipamentoIds: ['EQ-02'], horasEnsaio: 24 })
+    ],
+    demandas: [
+      demanda({ id: 'DUPLO', testeId: 'TP-DUPLO', prioridade: 'ALTA' }),
+      demanda({ id: 'SIMPLES', testeId: 'TP-SIMPLES', prioridade: 'BAIXA' })
+    ]
+  });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  const duplo = alocacaoDe(plano, 'DUPLO');
+  const simples = alocacaoDe(plano, 'SIMPLES');
+  assert.equal(duplo.inicio, SEGUNDA);
+  assert.equal(duplo.fim, '2026-07-08');
+  assert.ok(util.diffDias(duplo.fim, simples.inicio) > 0,
+    'o ensaio simples não pode entrar enquanto a bancada estiver presa pelo duplo');
+});
+
+test('o ritmo é ditado pela bancada de turno mais curto', () => {
+  /* 48 h numa bancada 24 h/dia dariam 2 dias; com uma de 8 h/dia junto, viram 6. */
+  const s = estado({
+    equipamentos: [
+      equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
+      equipamento({ id: 'EQ-02', continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5] })
+    ],
+    testes: [teste({ equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
+  });
+  const eqs = s.equipamentos;
+  assert.equal(scheduler.diasDeOperacao(s.testes[0], eqs), 6);
+
+  const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
+  /* Só conta dia útil da interseção: seg-sex. 6 dias úteis a partir de 06/07 -> 13/07. */
+  assert.equal(a.inicio, SEGUNDA);
+  assert.equal(a.fim, '2026-07-13');
+});
+
+test('manutenção em qualquer uma das bancadas bloqueia a janela', () => {
+  const s = estado({
+    equipamentos: [
+      equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
+      equipamento({
+        id: 'EQ-02', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6],
+        manutencao: [{ id: 'MN-1', inicio: '2026-07-07', fim: '2026-07-10', motivo: 'Calibração' }]
+      })
+    ],
+    testes: [teste({ equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
+  });
+  const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
+  assert.equal(a.inicio, '2026-07-11', 'a parada da segunda bancada empurra o ensaio');
+});
+
+test('custo soma a hora-máquina de todas as bancadas ocupadas', () => {
+  const t = teste({ horasSetup: 0, horasEnsaio: 10, custoBase: 0 });
+  const c = scheduler.custoDemanda({ quantidade: 1 }, t,
+    [equipamento({ custoHora: 100 }), equipamento({ custoHora: 250 })], null);
+  assert.equal(c.custoEquipamento, 10 * 350);
+});
+
+test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () => {
+  const s = estado({ testes: [teste({ equipamentoIds: [] })] });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  assert.equal(plano.bloqueadas.length, 1);
+  assert.match(plano.bloqueadas[0].motivo, /sem equipamento/i);
 });

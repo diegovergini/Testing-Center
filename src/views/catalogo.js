@@ -16,7 +16,7 @@
     return estado.testes.filter(function (t) {
       if (f.area && t.area !== f.area && t.area !== 'AMBOS') return false;
       if (!aplicaAoCliente(t, f.clienteId)) return false;
-      if (f.equipamentoId && t.equipamentoId !== f.equipamentoId) return false;
+      if (f.equipamentoId && TC.scheduler.idsDeEquipamento(t).indexOf(f.equipamentoId) === -1) return false;
       if (busca) {
         var alvo = (t.id + ' ' + t.nome + ' ' + (t.norma || '') + ' ' +
           (t.revisao || '') + ' ' + (t.descricao || '')).toLowerCase();
@@ -26,10 +26,20 @@
     });
   }
 
+  /* Devolve os equipamentos do procedimento e os códigos que não existem mais no cadastro. */
+  function equipamentosDe(estado, teste) {
+    var lista = [], faltando = [];
+    TC.scheduler.idsDeEquipamento(teste).forEach(function (id) {
+      var eq = util.porId(estado.equipamentos, id);
+      if (eq) lista.push(eq); else faltando.push(id);
+    });
+    return { lista: lista, faltando: faltando };
+  }
+
   function linha(estado, teste) {
-    var equipamento = util.porId(estado.equipamentos, teste.equipamentoId);
-    var custo = TC.scheduler.custoCatalogo(teste, equipamento);
-    var dias = equipamento ? TC.scheduler.diasDeOperacao(teste, equipamento) : null;
+    var eqs = equipamentosDe(estado, teste);
+    var custo = TC.scheduler.custoCatalogo(teste, eqs.lista);
+    var dias = eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) : null;
     var clientes = (teste.clientes || []).map(function (id) {
       var c = util.porId(estado.clientes, id);
       return c ? c.nome : id;
@@ -48,9 +58,12 @@
         : '<span class="sub">sem revisão</span>') + '</td>' +
       '<td>' + ui.etiquetaArea(teste.area) + '</td>' +
       '<td>' +
-        (equipamento
-          ? '<div class="forte">' + e(equipamento.nome) + '</div>'
-          : '<span class="etiqueta erro">não cadastrado</span>') +
+        eqs.lista.map(function (eq) { return '<div class="forte">' + e(eq.nome) + '</div>'; }).join('') +
+        eqs.faltando.map(function (id) {
+          return '<div><span class="etiqueta erro">' + e(id) + ' não cadastrado</span></div>';
+        }).join('') +
+        (eqs.lista.length > 1 ? '<div class="sub">ocupa as ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
+        (!eqs.lista.length && !eqs.faltando.length ? '<span class="etiqueta erro">sem equipamento</span>' : '') +
       '</td>' +
       '<td class="num">' + e(String(custo.horas)) + ' h' +
         '<div class="sub">' + (dias ? dias + ' d na bancada' : '—') + '</div></td>' +
@@ -70,7 +83,8 @@
 
   function abrirConfirmacao(ctx, teste) {
     var estado = ctx.estado;
-    var equipamento = util.porId(estado.equipamentos, teste.equipamentoId);
+    var eqs = equipamentosDe(estado, teste);
+    var nomes = eqs.lista.map(function (eq) { return eq.nome; }).join(' + ');
 
     var clientePadrao = ctx.filtros.clienteId ||
       (teste.clientes && teste.clientes[0]) ||
@@ -80,12 +94,19 @@
     var amostrasPadrao = util.hoje();
     var prazoPadrao = util.somaDias(util.hoje(), 60);
 
+    /* Projetos já usados viram sugestão, para o mesmo programa não virar três grafias. */
+    var projetosConhecidos = [];
+    estado.demandas.forEach(function (d) {
+      if (d.projeto && projetosConhecidos.indexOf(d.projeto) === -1) projetosConhecidos.push(d.projeto);
+    });
+
     var corpo =
       '<div class="aviso">' +
         e(teste.nome) + (teste.revisao ? ' · ' + e(teste.revisao) : '') +
         ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
-        e(equipamento ? equipamento.nome : '?') + '</strong> por ' +
-        e(equipamento ? TC.scheduler.diasDeOperacao(teste, equipamento) + ' dia(s)' : '—') +
+        e(nomes || '?') + '</strong> por ' +
+        e(eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) + ' dia(s)' : '—') +
+        (eqs.lista.length > 1 ? ', com as ' + eqs.lista.length + ' bancadas reservadas ao mesmo tempo' : '') +
         '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento.' +
       '</div>' +
       '<div class="grade-campos">' +
@@ -95,6 +116,13 @@
           ui.opcoes(TC.data.TIPOS_LTI, tipoPadrao) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' +
           ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
+        '<div class="campo"><label>Projeto</label>' +
+          '<input name="projeto" list="projetos-conhecidos" autocomplete="off" placeholder="Ex.: MQB-A0 / EA211">' +
+          '<datalist id="projetos-conhecidos">' +
+            projetosConhecidos.map(function (p) { return '<option value="' + e(p) + '"></option>'; }).join('') +
+          '</datalist></div>' +
+        '<div class="campo"><label>Part Number</label>' +
+          '<input name="partNumber" autocomplete="off" placeholder="Ex.: 04E253011AB"></div>' +
         '<div class="campo"><label>Peça a ensaiar</label><select name="pecaId">' +
           ui.opcoes(estado.pecas, '') + '</select></div>' +
         '<div class="campo"><label>Amostras disponíveis a partir de</label>' +
@@ -137,6 +165,7 @@
         }
         var demanda = TC.store.criarDemanda({
           testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId,
+          projeto: v.projeto, partNumber: v.partNumber,
           lti: v.lti, tipoLti: v.tipoLti,
           prioridade: v.prioridade, quantidade: v.quantidade,
           dataAmostras: v.dataAmostras, prazo: v.prazo,
@@ -150,7 +179,7 @@
           return;
         }
         if (alocacao && alocacao.inicio) {
-          ui.notificar('Planejado em ' + alocacao.equipamento.nome + ': ' +
+          ui.notificar('Planejado em ' + alocacao.equipamentos.map(function (eq) { return eq.nome; }).join(' + ') + ': ' +
             util.formatarData(alocacao.inicio, true) + ' → ' + util.formatarData(alocacao.fim, true));
         } else {
           ui.notificar('Demanda criada, mas sem janela disponível — veja o planejamento.');
@@ -167,12 +196,12 @@
     function atualizarPrevia() {
       var peca = util.porId(estado.pecas, selPeca.value);
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
-      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, equipamento, peca);
+      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, eqs.lista, peca);
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
         'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
-        ' + ' + e(String(custo.horas)) + ' h de ' + e(equipamento ? equipamento.nome : '—') + ' ' +
+        ' + ' + e(String(custo.horas)) + ' h de ' + e(nomes || '—') + ' ' +
         e(util.formatarMoeda(custo.custoEquipamento)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
         (cotacao
@@ -211,7 +240,8 @@
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoId: estado.equipamentos[0].id, horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
+    var idsAtuais = TC.scheduler.idsDeEquipamento(teste);
 
     var corpo =
       '<div class="grade-campos">' +
@@ -223,13 +253,19 @@
           '<input name="revisao" value="' + e(teste.revisao || '') + '" placeholder="Ex.: Rev. 03"></div>' +
         '<div class="campo"><label>Área do sistema</label><select name="area">' +
           ui.opcoes(TC.data.AREAS, teste.area) + '</select></div>' +
-        '<div class="campo"><label>Equipamento</label><select name="equipamentoId">' +
-          ui.opcoes(estado.equipamentos, teste.equipamentoId) + '</select></div>' +
         '<div class="campo"><label>Horas de setup</label><input type="number" name="horasSetup" min="0" step="0.5" value="' + e(String(teste.horasSetup)) + '"></div>' +
         '<div class="campo"><label>Horas de ensaio</label><input type="number" name="horasEnsaio" min="0" step="0.5" value="' + e(String(teste.horasEnsaio)) + '"></div>' +
         '<div class="campo"><label>Amostras necessárias</label><input type="number" name="amostras" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
         '<div class="campo"><label>Custo de mão de obra e insumos (R$)</label><input type="number" name="custoBase" min="0" step="100" value="' + e(String(teste.custoBase)) + '"></div>' +
       '</div>' +
+      '<div class="campo"><label>Equipamentos que o ensaio ocupa ' +
+        '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo)</span></label><div>' +
+        estado.equipamentos.map(function (eq) {
+          return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
+            '<input type="checkbox" name="equipamentoIds" data-grupo="1" value="' + e(eq.id) + '" style="width:auto"' +
+            (idsAtuais.indexOf(eq.id) !== -1 ? ' checked' : '') + '>' + e(eq.nome) + '</label>';
+        }).join('') +
+      '</div></div>' +
       '<div class="campo"><label>Exigido pelos clientes (nenhum = procedimento padrão)</label><div>' +
         estado.clientes.map(function (c) {
           return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
@@ -245,9 +281,13 @@
       confirmar: 'Salvar procedimento',
       aoConfirmar: function (v) {
         if (!v.nome) { ui.notificar('Informe o nome do procedimento.'); return false; }
+        if (!v.equipamentoIds || !v.equipamentoIds.length) {
+          ui.notificar('Selecione ao menos um equipamento.');
+          return false;
+        }
         TC.store.salvarTeste({
           id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
-          area: v.area, equipamentoId: v.equipamentoId, clientes: v.clientes || [],
+          area: v.area, equipamentoIds: v.equipamentoIds, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
           amostras: Number(v.amostras) || 1, custoBase: Number(v.custoBase) || 0,
           descricao: v.descricao
@@ -263,8 +303,7 @@
 
     var totalHoras = 0, totalCusto = 0;
     lista.forEach(function (t) {
-      var eq = util.porId(estado.equipamentos, t.equipamentoId);
-      var c = TC.scheduler.custoCatalogo(t, eq);
+      var c = TC.scheduler.custoCatalogo(t, equipamentosDe(estado, t).lista);
       totalHoras += c.horas; totalCusto += c.total;
     });
 

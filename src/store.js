@@ -32,10 +32,15 @@
       delete p.quantidade;
     });
 
-    /* O procedimento não é mais amarrado a fase de projeto. */
+    /* O procedimento não é mais amarrado a fase de projeto, e pode ocupar
+       mais de uma bancada ao mesmo tempo. */
     (estado.testes || []).forEach(function (t) {
       delete t.fases;
       if (typeof t.revisao !== 'string') t.revisao = '';
+      if (!t.equipamentoIds) {
+        t.equipamentoIds = t.equipamentoId ? [t.equipamentoId] : [];
+      }
+      delete t.equipamentoId;
     });
 
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
@@ -46,6 +51,8 @@
         d.tipoLti = converter(d.fase) || validas[0];
       }
       if (typeof d.lti !== 'string') d.lti = '';
+      if (typeof d.projeto !== 'string') d.projeto = '';
+      if (typeof d.partNumber !== 'string') d.partNumber = '';
       if (!d.dataAmostras) d.dataAmostras = dataAntigaDaPeca[d.pecaId] || util.hoje();
       delete d.fase;
     });
@@ -98,6 +105,8 @@
         testeId: dados.testeId,
         pecaId: dados.pecaId,
         clienteId: dados.clienteId,
+        projeto: (dados.projeto || '').trim(),
+        partNumber: (dados.partNumber || '').trim(),
         lti: (dados.lti || '').trim(),
         tipoLti: dados.tipoLti || 'DV',
         prioridade: dados.prioridade || 'MEDIA',

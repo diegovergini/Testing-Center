@@ -13,8 +13,8 @@
       if (f.area && a.teste && a.teste.area !== f.area && a.teste.area !== 'AMBOS') return false;
       if (f.status && d.status !== f.status) return false;
       if (f.busca) {
-        var alvo = ((d.lti || '') + ' ' + (a.teste ? a.teste.nome : '') + ' ' +
-          (a.peca ? a.peca.nome : '')).toLowerCase();
+        var alvo = ((d.lti || '') + ' ' + (d.projeto || '') + ' ' + (d.partNumber || '') + ' ' +
+          (a.teste ? a.teste.nome : '') + ' ' + (a.peca ? a.peca.nome : '')).toLowerCase();
         if (alvo.indexOf(f.busca.toLowerCase()) === -1) return false;
       }
       return true;
@@ -31,9 +31,11 @@
     var extras = [];
     if (a.esperaAmostra) extras.push('aguarda amostra ' + a.esperaAmostra + ' d');
     if (a.esperaFila > 0) extras.push('fila ' + a.esperaFila + ' d');
+    var bancadas = a.equipamentos.map(function (eq) {
+      return eq.nome + (eq.posicoes > 1 ? ' pos. ' + (a.posicoes[eq.id] + 1) : '');
+    }).join(' + ');
     return '<span class="forte">' + e(util.formatarData(a.inicio, true)) + ' → ' + e(util.formatarData(a.fim, true)) + '</span>' +
-      '<div class="sub">' + e(a.equipamento.nome + ' · pos. ' + (a.posicao + 1) +
-        (extras.length ? ' · ' + extras.join(' · ') : '')) + '</div>';
+      '<div class="sub">' + e(bancadas + (extras.length ? ' · ' + extras.join(' · ') : '')) + '</div>';
   }
 
   function celulaPrazo(a) {
@@ -54,6 +56,10 @@
         '<div class="sub"><span class="mono">' + e(d.testeId) + '</span>' +
           (a.teste && a.teste.revisao ? ' · ' + e(a.teste.revisao) : '') +
           (a.teste ? ' · ' + e(a.teste.norma || '') : '') + '</div>' +
+      '</td>' +
+      '<td>' +
+        '<div class="forte">' + e(d.projeto || '—') + '</div>' +
+        '<div class="sub">' + e(d.partNumber || 'sem part number') + '</div>' +
       '</td>' +
       '<td>' +
         '<div>' + e(a.peca ? a.peca.nome : '—') + '</div>' +
@@ -86,13 +92,15 @@
           ? ' · cotação, não ocupa bancada'
           : alocacao && alocacao.inicio
           ? ' · planejado para ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
-            ' em ' + e(alocacao.equipamento.nome)
+            ' em ' + e(alocacao.equipamentos.map(function (eq) { return eq.nome; }).join(' + '))
           : ' · ainda sem janela') +
       '</div>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Nº da LTI (ordem de serviço)</label><input name="lti" value="' + e(demanda.lti || '') + '"></div>' +
         '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' + ui.opcoes(TC.data.TIPOS_LTI, demanda.tipoLti) + '</select></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
+        '<div class="campo"><label>Projeto</label><input name="projeto" value="' + e(demanda.projeto || '') + '"></div>' +
+        '<div class="campo"><label>Part Number</label><input name="partNumber" value="' + e(demanda.partNumber || '') + '"></div>' +
         '<div class="campo"><label>Peça</label><select name="pecaId">' +
           ui.opcoes(estado.pecas, demanda.pecaId) + '</select></div>' +
         '<div class="campo"><label>Amostras disponíveis a partir de</label>' +
@@ -120,6 +128,7 @@
         }
         TC.store.atualizarDemanda(demanda.id, {
           clienteId: v.clienteId, pecaId: v.pecaId, lti: v.lti.trim(), tipoLti: v.tipoLti,
+          projeto: v.projeto.trim(), partNumber: v.partNumber.trim(),
           prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
           dataAmostras: v.dataAmostras, prazo: v.prazo,
           inicioFixo: v.inicioFixo, observacao: v.observacao
@@ -166,14 +175,14 @@
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
-          '<div class="campo busca"><label>Buscar LTI</label><input id="f-busca" placeholder="nº da LTI, procedimento ou peça" value="' + e(f.busca || '') + '"></div>' +
+          '<div class="campo busca"><label>Buscar LTI</label><input id="f-busca" placeholder="LTI, projeto, part number, procedimento ou peça" value="' + e(f.busca || '') + '"></div>' +
           '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
           '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
           '<div class="campo"><label>Classificação</label><select id="f-tipo">' + ui.opcoes(TC.data.TIPOS_LTI, f.tipoLti, 'Todas') + '</select></div>' +
           '<div class="campo"><label>Status</label><select id="f-status">' + ui.opcoes(statusLista, f.status, 'Todos') + '</select></div>' +
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Procedimento</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
+          '<th>Procedimento</th><th>Projeto</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
           '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
           '</tr></thead><tbody>' + lista.map(linha).join('') + '</tbody></table></div>'
           : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
@@ -214,9 +223,9 @@
   }
 
   function exportarCsv(lista) {
-    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Revisao', 'Peca', 'Cliente',
-      'Prioridade', 'Amostras', 'Equipamento', 'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo',
-      'Folga_dias', 'Custo_total', 'Status'];
+    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Revisao', 'Projeto',
+      'Part_Number', 'Peca', 'Cliente', 'Prioridade', 'Amostras', 'Equipamentos',
+      'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status'];
     var linhas = lista.map(function (a) {
       return [
         a.demanda.lti || '',
@@ -224,11 +233,13 @@
         a.demanda.testeId,
         a.teste ? a.teste.nome : '',
         a.teste ? (a.teste.revisao || '') : '',
+        a.demanda.projeto || '',
+        a.demanda.partNumber || '',
         a.peca ? a.peca.nome : '',
         a.demanda.clienteId,
         a.demanda.prioridade,
         a.demanda.quantidade,
-        a.equipamento ? a.equipamento.nome : '',
+        a.equipamentos.map(function (eq) { return eq.nome; }).join(' + '),
         a.demanda.dataAmostras || '',
         a.cotacao ? '' : (a.inicio || ''),
         a.cotacao ? '' : (a.fim || ''),

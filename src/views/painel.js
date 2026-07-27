@@ -138,7 +138,7 @@
               return '<tr><td class="forte">' + e(util.formatarData(a.inicio, true)) + '</td>' +
                 '<td>' + e(a.teste.nome) + '</td>' +
                 '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
-                '<td>' + e(a.equipamento.nome) + '</td>' +
+                '<td>' + e(a.equipamentos.map(function (eq) { return eq.nome; }).join(' + ')) + '</td>' +
                 '<td class="num">' + (util.diffDias(a.inicio, a.fim) + 1) + ' d</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
