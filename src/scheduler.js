@@ -49,12 +49,21 @@
     return false;
   }
 
+  /* Horas que realmente prendem a bancada. O report é feito depois, na mesa. */
+  function horasDeBancada(teste) {
+    return (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+  }
+
+  /* Horas faturadas ao cliente: bancada + elaboração do relatório. */
+  function horasFaturaveis(teste) {
+    return horasDeBancada(teste) + (teste.horasReport || 0);
+  }
+
   /* Quantos dias de operação o ensaio consome no conjunto de bancadas. */
   function diasDeOperacao(teste, equipamentos) {
     var lista = [].concat(equipamentos || []);
-    var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
     var horasPorDia = lista.length ? horasPorDiaCombinadas(lista) : 8;
-    return Math.max(1, Math.ceil(horas / horasPorDia));
+    return Math.max(1, Math.ceil(horasDeBancada(teste) / horasPorDia));
   }
 
   /* A partir de uma data de início, devolve a janela de calendário que o ensaio ocupa.
@@ -139,30 +148,40 @@
     return p ? p.peso : 9;
   }
 
-  /* Custo de uma demanda: mão de obra/insumos + hora-máquina + amostras consumidas.
-     Ensaio que ocupa mais de uma bancada paga a hora de todas elas. */
+  /* Custo do procedimento:
+       (horas de setup + ensaio + report) x hourly rate + insumos
+     A demanda soma ainda as amostras consumidas, que dependem da peça escolhida. */
   function custoDemanda(demanda, teste, equipamentos, peca) {
-    if (!teste) return { horas: 0, custoBase: 0, custoEquipamento: 0, custoAmostras: 0, total: 0 };
-    var lista = [].concat(equipamentos || []).filter(Boolean);
-    var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+    if (!teste) {
+      return {
+        horasBancada: 0, horasReport: 0, horasFaturaveis: 0, hourlyRate: 0,
+        custoHoras: 0, custoInsumos: 0, custoAmostras: 0, custoProcedimento: 0, total: 0
+      };
+    }
     var quantidade = demanda && demanda.quantidade ? demanda.quantidade : teste.amostras;
-    var custoHoraTotal = lista.reduce(function (soma, eq) { return soma + (eq.custoHora || 0); }, 0);
-    var custoEquipamento = horas * custoHoraTotal;
+    var horas = horasFaturaveis(teste);
+    var rate = teste.hourlyRate || 0;
+    var custoHoras = horas * rate;
+    var custoInsumos = teste.custoInsumos || 0;
+    var custoProcedimento = custoHoras + custoInsumos;
     var custoAmostras = quantidade * (peca ? peca.custoAmostra || 0 : 0);
-    var custoBase = teste.custoBase || 0;
     return {
-      horas: horas,
+      horasBancada: horasDeBancada(teste),
+      horasReport: teste.horasReport || 0,
+      horasFaturaveis: horas,
+      hourlyRate: rate,
       quantidade: quantidade,
-      custoBase: custoBase,
-      custoEquipamento: custoEquipamento,
+      custoHoras: custoHoras,
+      custoInsumos: custoInsumos,
+      custoProcedimento: custoProcedimento,
       custoAmostras: custoAmostras,
-      total: custoBase + custoEquipamento + custoAmostras
+      total: custoProcedimento + custoAmostras
     };
   }
 
   /* Custo de referência do catálogo, sem peça associada. */
-  function custoCatalogo(teste, equipamentos) {
-    return custoDemanda(null, teste, equipamentos, null);
+  function custoCatalogo(teste) {
+    return custoDemanda(null, teste, null, null);
   }
 
   var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
@@ -350,6 +369,8 @@
     emManutencao: emManutencao,
     ehCotacao: ehCotacao,
     idsDeEquipamento: idsDeEquipamento,
+    horasDeBancada: horasDeBancada,
+    horasFaturaveis: horasFaturaveis,
     STATUS_ATIVOS: ATIVAS
   };
 

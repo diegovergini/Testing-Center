@@ -513,8 +513,9 @@ tbody tr:last-child td { border-bottom: none; }
 
   /* Catálogo de procedimentos.
      revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
-     custoBase = mão de obra, preparação, instrumentação e insumos (não inclui hora-máquina nem amostras).
-     horasSetup + horasEnsaio alimentam tanto o custo quanto o planejamento.
+     Custo do procedimento = (horasSetup + horasEnsaio + horasReport) x hourlyRate + custoInsumos.
+     Só horasSetup + horasEnsaio ocupam bancada; horasReport é trabalho de escritório e
+     entra no custo, não na agenda do equipamento.
      equipamentoIds = bancadas que o ensaio ocupa ao mesmo tempo; a janela precisa estar
      livre em todas elas simultaneamente.
      clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos.
@@ -524,126 +525,144 @@ tbody tr:last-child td { border-bottom: none; }
       id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente', revisao: 'Rev. 04',
       clientes: ['CLI-VW', 'CLI-SCA'],
       area: 'HOT', equipamentoIds: ['BURNER-1'],
-      horasSetup: 8, horasEnsaio: 600, amostras: 2, custoBase: 12800,
+      horasSetup: 8, horasEnsaio: 600, horasReport: 16, amostras: 2,
+      hourlyRate: 610, custoInsumos: 12800,
       descricao: 'Ciclagem de gás quente com gradiente térmico para avaliar trincas em soldas e cones.'
     },
     {
       id: 'TP-HOT-02', nome: 'Ciclagem térmica acelerada', norma: 'ISO 19453-5', revisao: 'Rev. 02',
       clientes: [],
       area: 'HOT', equipamentoIds: ['BURNER-2'],
-      horasSetup: 4, horasEnsaio: 336, amostras: 2, custoBase: 6400,
+      horasSetup: 4, horasEnsaio: 336, horasReport: 8, amostras: 2,
+      hourlyRate: 610, custoInsumos: 6400,
       descricao: 'Ciclos rápidos de aquecimento e resfriamento para verificar integridade de juntas e revestimentos.'
     },
     {
       id: 'TP-HOT-03', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54', revisao: 'Rev. 01',
       clientes: [],
       area: 'HOT', equipamentoIds: ['BURNER-3'],
-      horasSetup: 4, horasEnsaio: 1000, amostras: 3, custoBase: 9800,
+      horasSetup: 4, horasEnsaio: 1000, horasReport: 8, amostras: 3,
+      hourlyRate: 580, custoInsumos: 9800,
       descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico e austenítico.'
     },
     {
       id: 'TP-HOT-04', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente', revisao: 'Rev. 03',
       clientes: ['CLI-VW', 'CLI-SCA'],
       area: 'HOT', equipamentoIds: ['BURNER-1'],
-      horasSetup: 6, horasEnsaio: 480, amostras: 2, custoBase: 16900,
+      horasSetup: 6, horasEnsaio: 480, horasReport: 12, amostras: 2,
+      hourlyRate: 610, custoInsumos: 16900,
       descricao: 'Envelhecimento térmico do washcoat equivalente à vida útil do veículo.'
     },
     {
       id: 'TP-HOT-05', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6', revisao: 'Rev. 05',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
       area: 'HOT', equipamentoIds: ['BURNER-2'],
-      horasSetup: 6, horasEnsaio: 48, amostras: 2, custoBase: 11400,
+      horasSetup: 6, horasEnsaio: 48, horasReport: 12, amostras: 2,
+      hourlyRate: 610, custoInsumos: 11400,
       descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
     },
     {
       id: 'TP-VIB-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3', revisao: 'Rev. 03',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['SHAKER'],
-      horasSetup: 8, horasEnsaio: 72, amostras: 2, custoBase: 5600,
+      horasSetup: 8, horasEnsaio: 72, horasReport: 8, amostras: 2,
+      hourlyRate: 480, custoInsumos: 5600,
       descricao: 'Perfil PSD por eixo representando a vida em estrada do sistema e dos suportes.'
     },
     {
       id: 'TP-VIB-02', nome: 'Varredura senoidal e busca de ressonância', norma: 'IEC 60068-2-6', revisao: 'Rev. 02',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['SHAKER'],
-      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 3200,
+      horasSetup: 4, horasEnsaio: 16, horasReport: 6, amostras: 1,
+      hourlyRate: 480, custoInsumos: 3200,
       descricao: 'Levantamento das frequências naturais e amplificação nos pontos de fixação.'
     },
     {
       id: 'TP-MEC-01', nome: 'Fadiga estrutural de suporte', norma: 'Procedimento interno LAB-BRK', revisao: 'Rev. 06',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['MTS-1'],
-      horasSetup: 6, horasEnsaio: 400, amostras: 3, custoBase: 7600,
+      horasSetup: 6, horasEnsaio: 400, horasReport: 10, amostras: 3,
+      hourlyRate: 380, custoInsumos: 7600,
       descricao: 'Carregamento cíclico do bracket até a vida-alvo, com monitoramento de rigidez.'
     },
     {
       id: 'TP-MEC-02', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX', revisao: 'Rev. 04',
       clientes: ['CLI-FOR', 'CLI-TEN'],
       area: 'HOT', equipamentoIds: ['MTS-2'],
-      horasSetup: 6, horasEnsaio: 180, amostras: 3, custoBase: 7300,
+      horasSetup: 6, horasEnsaio: 180, horasReport: 8, amostras: 3,
+      hourlyRate: 380, custoInsumos: 7300,
       descricao: 'Deslocamento angular e axial cíclico até 1 milhão de ciclos.'
     },
     {
       id: 'TP-MEC-03', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR', revisao: 'Rev. 02',
       clientes: ['CLI-EBE'],
       area: 'COLD', equipamentoIds: ['MTS-3'],
-      horasSetup: 3, horasEnsaio: 120, amostras: 5, custoBase: 3400,
+      horasSetup: 3, horasEnsaio: 120, horasReport: 6, amostras: 5,
+      hourlyRate: 320, custoInsumos: 3400,
       descricao: 'Carregamento cíclico do isolador de borracha até perda de rigidez especificada.'
     },
     {
       id: 'TP-MEC-04', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1', revisao: 'Rev. 01',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['MTS-4'],
-      horasSetup: 1, horasEnsaio: 6, amostras: 6, custoBase: 1500,
+      horasSetup: 1, horasEnsaio: 6, horasReport: 3, amostras: 6,
+      hourlyRate: 320, custoInsumos: 1500,
       descricao: 'Caracterização mecânica do inox de entrada por lote.'
     },
     {
       id: 'TP-MEC-05', nome: 'Fadiga de solda por flexão', norma: 'ISO 17639 / interno', revisao: 'Rev. 03',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['MTS-4'],
-      horasSetup: 3, horasEnsaio: 96, amostras: 4, custoBase: 4100,
+      horasSetup: 3, horasEnsaio: 96, horasReport: 6, amostras: 4,
+      hourlyRate: 320, custoInsumos: 4100,
       descricao: 'Flexão alternada no cordão de solda para levantar a curva S-N da junta.'
     },
     {
       id: 'TP-ACU-01', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820', revisao: 'Rev. 02',
       clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
       area: 'COLD', equipamentoIds: ['LMS-PTA'],
-      horasSetup: 4, horasEnsaio: 16, amostras: 1, custoBase: 6100,
+      horasSetup: 4, horasEnsaio: 16, horasReport: 8, amostras: 1,
+      hourlyRate: 560, custoInsumos: 6100,
       descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
     },
     {
       id: 'TP-ACU-02', nome: 'Ruído de boca de escape e análise de ordens', norma: 'ISO 362 / interno', revisao: 'Rev. 04',
       clientes: ['CLI-STL', 'CLI-VW'],
       area: 'COLD', equipamentoIds: ['LMS-PTA', 'DYNO'],
-      horasSetup: 6, horasEnsaio: 24, amostras: 1, custoBase: 9200,
+      horasSetup: 6, horasEnsaio: 24, horasReport: 12, amostras: 1,
+      hourlyRate: 1510, custoInsumos: 9200,
       descricao: 'Nível sonoro na saída e conteúdo de ordens do motor com o sistema montado.'
     },
     {
       id: 'TP-FLW-01', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544', revisao: 'Rev. 03',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['COLDFLOW'],
-      horasSetup: 2, horasEnsaio: 8, amostras: 1, custoBase: 1800,
+      horasSetup: 2, horasEnsaio: 8, horasReport: 4, amostras: 1,
+      hourlyRate: 240, custoInsumos: 1800,
       descricao: 'Levantamento da curva de contrapressão em função da vazão.'
     },
     {
       id: 'TP-FLW-02', nome: 'Uniformidade de fluxo no substrato', norma: 'Procedimento interno LAB-UI', revisao: 'Rev. 02',
       clientes: ['CLI-VW', 'CLI-STL'],
       area: 'HOT', equipamentoIds: ['COLDFLOW'],
-      horasSetup: 4, horasEnsaio: 12, amostras: 1, custoBase: 5300,
+      horasSetup: 4, horasEnsaio: 12, horasReport: 6, amostras: 1,
+      hourlyRate: 240, custoInsumos: 5300,
       descricao: 'Mapeamento de velocidade na face do substrato e cálculo do índice de uniformidade.'
     },
     {
       id: 'TP-DYN-01', nome: 'Durabilidade em dinamômetro de motor', norma: 'Ciclo de durabilidade do cliente', revisao: 'Rev. 05',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
       area: 'AMBOS', equipamentoIds: ['DYNO', 'LMS-PTA'],
-      horasSetup: 24, horasEnsaio: 500, amostras: 1, custoBase: 28500,
+      horasSetup: 24, horasEnsaio: 500, horasReport: 24, amostras: 1,
+      hourlyRate: 1510, custoInsumos: 28500,
       descricao: 'Sistema completo em motor, reproduzindo o ciclo de durabilidade veicular.'
     },
     {
       id: 'TP-DYN-02', nome: 'Contrapressão e temperatura em ciclo de motor', norma: 'Procedimento interno LAB-ENG', revisao: 'Rev. 02',
       clientes: [],
       area: 'AMBOS', equipamentoIds: ['DYNO'],
-      horasSetup: 12, horasEnsaio: 72, amostras: 1, custoBase: 13400,
+      horasSetup: 12, horasEnsaio: 72, horasReport: 12, amostras: 1,
+      hourlyRate: 950, custoInsumos: 13400,
       descricao: 'Instrumentação do sistema em motor para levantar temperatura e contrapressão em carga.'
     }
   ];
@@ -731,12 +750,21 @@ tbody tr:last-child td { border-bottom: none; }
     return false;
   }
 
+  /* Horas que realmente prendem a bancada. O report é feito depois, na mesa. */
+  function horasDeBancada(teste) {
+    return (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+  }
+
+  /* Horas faturadas ao cliente: bancada + elaboração do relatório. */
+  function horasFaturaveis(teste) {
+    return horasDeBancada(teste) + (teste.horasReport || 0);
+  }
+
   /* Quantos dias de operação o ensaio consome no conjunto de bancadas. */
   function diasDeOperacao(teste, equipamentos) {
     var lista = [].concat(equipamentos || []);
-    var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
     var horasPorDia = lista.length ? horasPorDiaCombinadas(lista) : 8;
-    return Math.max(1, Math.ceil(horas / horasPorDia));
+    return Math.max(1, Math.ceil(horasDeBancada(teste) / horasPorDia));
   }
 
   /* A partir de uma data de início, devolve a janela de calendário que o ensaio ocupa.
@@ -821,30 +849,40 @@ tbody tr:last-child td { border-bottom: none; }
     return p ? p.peso : 9;
   }
 
-  /* Custo de uma demanda: mão de obra/insumos + hora-máquina + amostras consumidas.
-     Ensaio que ocupa mais de uma bancada paga a hora de todas elas. */
+  /* Custo do procedimento:
+       (horas de setup + ensaio + report) x hourly rate + insumos
+     A demanda soma ainda as amostras consumidas, que dependem da peça escolhida. */
   function custoDemanda(demanda, teste, equipamentos, peca) {
-    if (!teste) return { horas: 0, custoBase: 0, custoEquipamento: 0, custoAmostras: 0, total: 0 };
-    var lista = [].concat(equipamentos || []).filter(Boolean);
-    var horas = (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+    if (!teste) {
+      return {
+        horasBancada: 0, horasReport: 0, horasFaturaveis: 0, hourlyRate: 0,
+        custoHoras: 0, custoInsumos: 0, custoAmostras: 0, custoProcedimento: 0, total: 0
+      };
+    }
     var quantidade = demanda && demanda.quantidade ? demanda.quantidade : teste.amostras;
-    var custoHoraTotal = lista.reduce(function (soma, eq) { return soma + (eq.custoHora || 0); }, 0);
-    var custoEquipamento = horas * custoHoraTotal;
+    var horas = horasFaturaveis(teste);
+    var rate = teste.hourlyRate || 0;
+    var custoHoras = horas * rate;
+    var custoInsumos = teste.custoInsumos || 0;
+    var custoProcedimento = custoHoras + custoInsumos;
     var custoAmostras = quantidade * (peca ? peca.custoAmostra || 0 : 0);
-    var custoBase = teste.custoBase || 0;
     return {
-      horas: horas,
+      horasBancada: horasDeBancada(teste),
+      horasReport: teste.horasReport || 0,
+      horasFaturaveis: horas,
+      hourlyRate: rate,
       quantidade: quantidade,
-      custoBase: custoBase,
-      custoEquipamento: custoEquipamento,
+      custoHoras: custoHoras,
+      custoInsumos: custoInsumos,
+      custoProcedimento: custoProcedimento,
       custoAmostras: custoAmostras,
-      total: custoBase + custoEquipamento + custoAmostras
+      total: custoProcedimento + custoAmostras
     };
   }
 
   /* Custo de referência do catálogo, sem peça associada. */
-  function custoCatalogo(teste, equipamentos) {
-    return custoDemanda(null, teste, equipamentos, null);
+  function custoCatalogo(teste) {
+    return custoDemanda(null, teste, null, null);
   }
 
   var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
@@ -1032,6 +1070,8 @@ tbody tr:last-child td { border-bottom: none; }
     emManutencao: emManutencao,
     ehCotacao: ehCotacao,
     idsDeEquipamento: idsDeEquipamento,
+    horasDeBancada: horasDeBancada,
+    horasFaturaveis: horasFaturaveis,
     STATUS_ATIVOS: ATIVAS
   };
 
@@ -1082,6 +1122,18 @@ tbody tr:last-child td { border-bottom: none; }
         t.equipamentoIds = t.equipamentoId ? [t.equipamentoId] : [];
       }
       delete t.equipamentoId;
+
+      /* O custo passou a ser horas x hourly rate + insumos. Sem hourly rate gravado,
+         herdamos a soma do custo-hora das bancadas do ensaio, que era o que valia antes. */
+      if (typeof t.horasReport !== 'number') t.horasReport = 0;
+      if (typeof t.hourlyRate !== 'number') {
+        t.hourlyRate = t.equipamentoIds.reduce(function (soma, id) {
+          var eq = util.porId(estado.equipamentos || [], id);
+          return soma + (eq && eq.custoHora ? eq.custoHora : 0);
+        }, 0);
+      }
+      if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
+      delete t.custoBase;
     });
 
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
@@ -1485,7 +1537,7 @@ tbody tr:last-child td { border-bottom: none; }
 
   function linha(estado, teste) {
     var eqs = equipamentosDe(estado, teste);
-    var custo = TC.scheduler.custoCatalogo(teste, eqs.lista);
+    var custo = TC.scheduler.custoCatalogo(teste);
     var dias = eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) : null;
     var clientes = (teste.clientes || []).map(function (id) {
       var c = util.porId(estado.clientes, id);
@@ -1512,12 +1564,14 @@ tbody tr:last-child td { border-bottom: none; }
         (eqs.lista.length > 1 ? '<div class="sub">ocupa as ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
         (!eqs.lista.length && !eqs.faltando.length ? '<span class="etiqueta erro">sem equipamento</span>' : '') +
       '</td>' +
-      '<td class="num">' + e(String(custo.horas)) + ' h' +
-        '<div class="sub">' + (dias ? dias + ' d na bancada' : '—') + '</div></td>' +
+      '<td class="num">' + e(String(custo.horasBancada)) + ' h' +
+        '<div class="sub">' + (dias ? dias + ' d na bancada' : '—') +
+        (custo.horasReport ? ' · +' + custo.horasReport + ' h report' : '') + '</div></td>' +
       '<td class="num">' + e(String(teste.amostras)) + '</td>' +
-      '<td class="num forte" title="Mão de obra ' + e(util.formatarMoeda(custo.custoBase)) +
-        ' + hora-máquina ' + e(util.formatarMoeda(custo.custoEquipamento)) + '">' +
-        e(util.formatarMoeda(custo.total)) +
+      '<td class="num forte" title="' + e(String(custo.horasFaturaveis)) + ' h x ' +
+        e(util.formatarMoeda(custo.hourlyRate)) + '/h = ' + e(util.formatarMoeda(custo.custoHoras)) +
+        ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) + '">' +
+        e(util.formatarMoeda(custo.custoProcedimento)) +
         '<div class="sub">+ amostras</div></td>' +
       '<td class="num">' +
         '<button class="botao primario pequeno confirmar">Confirmar necessidade</button> ' +
@@ -1647,9 +1701,10 @@ tbody tr:last-child td { border-bottom: none; }
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
-        'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
-        ' + ' + e(String(custo.horas)) + ' h de ' + e(nomes || '—') + ' ' +
-        e(util.formatarMoeda(custo.custoEquipamento)) +
+        e(String(custo.horasFaturaveis)) + ' h (' + e(String(custo.horasBancada)) + ' de bancada + ' +
+        e(String(custo.horasReport)) + ' de report) x ' + e(util.formatarMoeda(custo.hourlyRate)) + '/h = ' +
+        e(util.formatarMoeda(custo.custoHoras)) +
+        ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
         (cotacao
           ? '. Como cotação, não reserva bancada nem entra no planejamento.'
@@ -1687,7 +1742,7 @@ tbody tr:last-child td { border-bottom: none; }
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
     var idsAtuais = TC.scheduler.idsDeEquipamento(teste);
 
     var corpo =
@@ -1702,9 +1757,12 @@ tbody tr:last-child td { border-bottom: none; }
           ui.opcoes(TC.data.AREAS, teste.area) + '</select></div>' +
         '<div class="campo"><label>Horas de setup</label><input type="number" name="horasSetup" min="0" step="0.5" value="' + e(String(teste.horasSetup)) + '"></div>' +
         '<div class="campo"><label>Horas de ensaio</label><input type="number" name="horasEnsaio" min="0" step="0.5" value="' + e(String(teste.horasEnsaio)) + '"></div>' +
+        '<div class="campo"><label>Horas de report</label><input type="number" name="horasReport" min="0" step="0.5" value="' + e(String(teste.horasReport || 0)) + '"></div>' +
+        '<div class="campo"><label>Hourly Rate (R$/h)</label><input type="number" name="hourlyRate" min="0" step="10" value="' + e(String(teste.hourlyRate || 0)) + '"></div>' +
+        '<div class="campo"><label>Custo de insumos (R$)</label><input type="number" name="custoInsumos" min="0" step="100" value="' + e(String(teste.custoInsumos || 0)) + '"></div>' +
         '<div class="campo"><label>Amostras necessárias</label><input type="number" name="amostras" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
-        '<div class="campo"><label>Custo de mão de obra e insumos (R$)</label><input type="number" name="custoBase" min="0" step="100" value="' + e(String(teste.custoBase)) + '"></div>' +
       '</div>' +
+      '<div class="campo" id="previa-custo"></div>' +
       '<div class="campo"><label>Equipamentos que o ensaio ocupa ' +
         '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo)</span></label><div>' +
         estado.equipamentos.map(function (eq) {
@@ -1722,7 +1780,7 @@ tbody tr:last-child td { border-bottom: none; }
       '</div></div>' +
       '<div class="campo"><label>Descrição</label><textarea name="descricao" rows="2">' + e(teste.descricao || '') + '</textarea></div>';
 
-    ui.modal({
+    var janela = ui.modal({
       titulo: novo ? 'Novo procedimento' : 'Editar ' + teste.id,
       corpo: corpo,
       confirmar: 'Salvar procedimento',
@@ -1736,12 +1794,35 @@ tbody tr:last-child td { border-bottom: none; }
           id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
           area: v.area, equipamentoIds: v.equipamentoIds, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
-          amostras: Number(v.amostras) || 1, custoBase: Number(v.custoBase) || 0,
+          horasReport: Number(v.horasReport) || 0, amostras: Number(v.amostras) || 1,
+          hourlyRate: Number(v.hourlyRate) || 0, custoInsumos: Number(v.custoInsumos) || 0,
           descricao: v.descricao
         });
         ui.notificar('Procedimento salvo.');
       }
     });
+
+    /* A conta do custo aparece enquanto se digita, para o cadastro não virar caixa-preta. */
+    var previaCusto = janela.querySelector('#previa-custo');
+    function atualizarCusto() {
+      function num(campo) { return Number(janela.querySelector('[name=' + campo + ']').value) || 0; }
+      var horasBancada = num('horasSetup') + num('horasEnsaio');
+      var horasReport = num('horasReport');
+      var horas = horasBancada + horasReport;
+      var rate = num('hourlyRate');
+      var insumos = num('custoInsumos');
+      previaCusto.innerHTML =
+        '<div class="aviso"><strong>Custo do procedimento ' +
+        e(util.formatarMoeda(horas * rate + insumos)) + '</strong> — (' +
+        e(String(horasBancada)) + ' h de bancada + ' + e(String(horasReport)) + ' h de report) × ' +
+        e(util.formatarMoeda(rate)) + '/h = ' + e(util.formatarMoeda(horas * rate)) +
+        ' + insumos ' + e(util.formatarMoeda(insumos)) +
+        '. As amostras entram depois, na demanda.</div>';
+    }
+    ['horasSetup', 'horasEnsaio', 'horasReport', 'hourlyRate', 'custoInsumos'].forEach(function (campo) {
+      janela.querySelector('[name=' + campo + ']').addEventListener('input', atualizarCusto);
+    });
+    atualizarCusto();
   }
 
   function render(container, ctx) {
@@ -1750,8 +1831,8 @@ tbody tr:last-child td { border-bottom: none; }
 
     var totalHoras = 0, totalCusto = 0;
     lista.forEach(function (t) {
-      var c = TC.scheduler.custoCatalogo(t, equipamentosDe(estado, t).lista);
-      totalHoras += c.horas; totalCusto += c.total;
+      var c = TC.scheduler.custoCatalogo(t);
+      totalHoras += c.horasBancada; totalCusto += c.total;
     });
 
     container.innerHTML =
@@ -2184,7 +2265,7 @@ tbody tr:last-child td { border-bottom: none; }
       (a.peca ? ' · ' + a.peca.nome : '') +
       '\n' + a.equipamentos.map(function (eq) { return eq.nome; }).join(' + ') +
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
-      '\n' + a.custo.horas + ' h · ' + util.formatarMoeda(a.custo.total) +
+      '\n' + a.custo.horasBancada + ' h de bancada · ' + util.formatarMoeda(a.custo.total) +
       (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
     return '<div class="gantt-barra ' + classe + (a.atrasado ? ' atrasado' : '') + '" ' +
       'data-demanda="' + e(a.demandaId) + '" title="' + e(titulo) + '" ' +
@@ -2439,8 +2520,9 @@ tbody tr:last-child td { border-bottom: none; }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Equipamentos: capacidade, calendário, custo-hora e paradas de manutenção.
-   É este cadastro que limita o planejamento. */
+/* Equipamentos: capacidade, calendário e paradas de manutenção.
+   É este cadastro que limita o planejamento. O custo não sai daqui: ele é calculado
+   pelo hourly rate do procedimento. */
 (function (global) {
   'use strict';
 
@@ -2464,8 +2546,7 @@ tbody tr:last-child td { border-bottom: none; }
         var m = mapa[eq.id] = mapa[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
         m.dias += Math.min(dias, horizonte);
         m.ensaios += 1;
-        m.horas += a.custo.horas;
-        m.custo += a.custo.horas * (eq.custoHora || 0);
+        m.horas += a.custo.horasBancada;
       });
     });
     return mapa;
@@ -2473,7 +2554,7 @@ tbody tr:last-child td { border-bottom: none; }
 
   function abrirEdicao(equipamento) {
     var novo = !equipamento;
-    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 0, manutencao: [] };
+    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] };
 
     var corpo =
       '<div class="grade-campos">' +
@@ -2482,7 +2563,6 @@ tbody tr:last-child td { border-bottom: none; }
         '<div class="campo"><label>Nome</label><input name="nome" value="' + e(equipamento.nome) + '" required></div>' +
         '<div class="campo"><label>Posições em paralelo</label><input type="number" min="1" name="posicoes" value="' + e(String(equipamento.posicoes)) + '"></div>' +
         '<div class="campo"><label>Horas por dia</label><input type="number" min="1" max="24" name="horasDia" value="' + e(String(equipamento.horasDia)) + '"></div>' +
-        '<div class="campo"><label>Custo por hora (R$)</label><input type="number" min="0" step="10" name="custoHora" value="' + e(String(equipamento.custoHora)) + '"></div>' +
       '</div>' +
       '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
         '<input type="checkbox" name="continuo" style="width:auto"' + (equipamento.continuo ? ' checked' : '') + '>' +
@@ -2506,8 +2586,7 @@ tbody tr:last-child td { border-bottom: none; }
         TC.store.salvarEquipamento({
           id: v.id, nome: v.nome, posicoes: Number(v.posicoes) || 1,
           continuo: !!v.continuo, horasDia: Number(v.horasDia) || 8,
-          diasUteis: dias, custoHora: Number(v.custoHora) || 0,
-          manutencao: equipamento.manutencao || []
+          diasUteis: dias, manutencao: equipamento.manutencao || []
         });
         ui.notificar('Equipamento salvo — planejamento recalculado.');
       }
@@ -2568,7 +2647,6 @@ tbody tr:last-child td { border-bottom: none; }
         '<td class="num">' + eq.posicoes + '</td>' +
         '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
           '<div class="sub">' + e(dias) + '</div></td>' +
-        '<td class="num">' + e(util.formatarMoeda(eq.custoHora)) + '</td>' +
         '<td class="num">' + o.ensaios + '</td>' +
         '<td style="min-width:150px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -2576,7 +2654,7 @@ tbody tr:last-child td { border-bottom: none; }
               (uso > 85 ? ' erro' : uso > 60 ? ' alerta' : '') + '" style="width:' + uso + '%"></span></span>' +
             '<span class="sub">' + uso + '%</span></div>' +
         '</td>' +
-        '<td class="num">' + e(util.formatarMoeda(o.custo)) + '</td>' +
+        '<td class="num">' + Math.round(o.horas) + ' h</td>' +
         '<td>' + ((eq.manutencao || []).length
           ? '<span class="etiqueta alerta">' + eq.manutencao.length + ' parada(s)</span>'
           : '<span class="sub">—</span>') + '</td>' +
@@ -2591,15 +2669,15 @@ tbody tr:last-child td { border-bottom: none; }
     container.innerHTML =
       '<div class="cabecalho">' +
         '<div><h2>Equipamentos</h2>' +
-        '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita.</p></div>' +
+        '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita. O custo do ensaio não vem daqui: ele sai do hourly rate do procedimento.</p></div>' +
         '<div class="acoes"><button class="botao primario" id="novo">+ Novo equipamento</button></div>' +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
           '<span class="sub">Percentual calculado sobre posições × dias disponíveis</span></div>' +
         '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th><th class="num">R$/h</th>' +
-          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Custo-máquina</th><th>Manutenção</th><th></th>' +
+          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th>' +
+          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Horas alocadas</th><th>Manutenção</th><th></th>' +
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '</div>';
 
@@ -2758,7 +2836,7 @@ tbody tr:last-child td { border-bottom: none; }
       var k = chave(a) || '—';
       var g = mapa[k] = mapa[k] || { chave: k, custo: 0, horas: 0, ensaios: 0 };
       g.custo += a.custo.total;
-      g.horas += a.custo.horas;
+      g.horas += a.custo.horasFaturaveis;
       g.ensaios += 1;
     });
     return Object.keys(mapa).map(function (k) { return mapa[k]; })
@@ -2789,7 +2867,7 @@ tbody tr:last-child td { border-bottom: none; }
     var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0, cotacoes = 0;
     todas.forEach(function (a) {
       custoTotal += a.custo.total;
-      horasTotal += a.custo.horas;
+      horasTotal += a.custo.horasBancada;
       if (a.atrasado) atrasadas++;
       if (a.cotacao) cotacoes++;
       else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;

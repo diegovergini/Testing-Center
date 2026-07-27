@@ -92,7 +92,7 @@
       (a.peca ? ' · ' + a.peca.nome : '') +
       '\n' + a.equipamentos.map(function (eq) { return eq.nome; }).join(' + ') +
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
-      '\n' + a.custo.horas + ' h · ' + util.formatarMoeda(a.custo.total) +
+      '\n' + a.custo.horasBancada + ' h de bancada · ' + util.formatarMoeda(a.custo.total) +
       (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
     return '<div class="gantt-barra ' + classe + (a.atrasado ? ' atrasado' : '') + '" ' +
       'data-demanda="' + e(a.demandaId) + '" title="' + e(titulo) + '" ' +

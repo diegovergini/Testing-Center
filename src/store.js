@@ -41,6 +41,18 @@
         t.equipamentoIds = t.equipamentoId ? [t.equipamentoId] : [];
       }
       delete t.equipamentoId;
+
+      /* O custo passou a ser horas x hourly rate + insumos. Sem hourly rate gravado,
+         herdamos a soma do custo-hora das bancadas do ensaio, que era o que valia antes. */
+      if (typeof t.horasReport !== 'number') t.horasReport = 0;
+      if (typeof t.hourlyRate !== 'number') {
+        t.hourlyRate = t.equipamentoIds.reduce(function (soma, id) {
+          var eq = util.porId(estado.equipamentos || [], id);
+          return soma + (eq && eq.custoHora ? eq.custoHora : 0);
+        }, 0);
+      }
+      if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
+      delete t.custoBase;
     });
 
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem

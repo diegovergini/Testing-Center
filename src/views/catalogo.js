@@ -38,7 +38,7 @@
 
   function linha(estado, teste) {
     var eqs = equipamentosDe(estado, teste);
-    var custo = TC.scheduler.custoCatalogo(teste, eqs.lista);
+    var custo = TC.scheduler.custoCatalogo(teste);
     var dias = eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) : null;
     var clientes = (teste.clientes || []).map(function (id) {
       var c = util.porId(estado.clientes, id);
@@ -65,12 +65,14 @@
         (eqs.lista.length > 1 ? '<div class="sub">ocupa as ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
         (!eqs.lista.length && !eqs.faltando.length ? '<span class="etiqueta erro">sem equipamento</span>' : '') +
       '</td>' +
-      '<td class="num">' + e(String(custo.horas)) + ' h' +
-        '<div class="sub">' + (dias ? dias + ' d na bancada' : '—') + '</div></td>' +
+      '<td class="num">' + e(String(custo.horasBancada)) + ' h' +
+        '<div class="sub">' + (dias ? dias + ' d na bancada' : '—') +
+        (custo.horasReport ? ' · +' + custo.horasReport + ' h report' : '') + '</div></td>' +
       '<td class="num">' + e(String(teste.amostras)) + '</td>' +
-      '<td class="num forte" title="Mão de obra ' + e(util.formatarMoeda(custo.custoBase)) +
-        ' + hora-máquina ' + e(util.formatarMoeda(custo.custoEquipamento)) + '">' +
-        e(util.formatarMoeda(custo.total)) +
+      '<td class="num forte" title="' + e(String(custo.horasFaturaveis)) + ' h x ' +
+        e(util.formatarMoeda(custo.hourlyRate)) + '/h = ' + e(util.formatarMoeda(custo.custoHoras)) +
+        ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) + '">' +
+        e(util.formatarMoeda(custo.custoProcedimento)) +
         '<div class="sub">+ amostras</div></td>' +
       '<td class="num">' +
         '<button class="botao primario pequeno confirmar">Confirmar necessidade</button> ' +
@@ -200,9 +202,10 @@
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
-        'mão de obra e insumos ' + e(util.formatarMoeda(custo.custoBase)) +
-        ' + ' + e(String(custo.horas)) + ' h de ' + e(nomes || '—') + ' ' +
-        e(util.formatarMoeda(custo.custoEquipamento)) +
+        e(String(custo.horasFaturaveis)) + ' h (' + e(String(custo.horasBancada)) + ' de bancada + ' +
+        e(String(custo.horasReport)) + ' de report) x ' + e(util.formatarMoeda(custo.hourlyRate)) + '/h = ' +
+        e(util.formatarMoeda(custo.custoHoras)) +
+        ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
         (cotacao
           ? '. Como cotação, não reserva bancada nem entra no planejamento.'
@@ -240,7 +243,7 @@
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, amostras: 2, custoBase: 0, descricao: '' };
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
     var idsAtuais = TC.scheduler.idsDeEquipamento(teste);
 
     var corpo =
@@ -255,9 +258,12 @@
           ui.opcoes(TC.data.AREAS, teste.area) + '</select></div>' +
         '<div class="campo"><label>Horas de setup</label><input type="number" name="horasSetup" min="0" step="0.5" value="' + e(String(teste.horasSetup)) + '"></div>' +
         '<div class="campo"><label>Horas de ensaio</label><input type="number" name="horasEnsaio" min="0" step="0.5" value="' + e(String(teste.horasEnsaio)) + '"></div>' +
+        '<div class="campo"><label>Horas de report</label><input type="number" name="horasReport" min="0" step="0.5" value="' + e(String(teste.horasReport || 0)) + '"></div>' +
+        '<div class="campo"><label>Hourly Rate (R$/h)</label><input type="number" name="hourlyRate" min="0" step="10" value="' + e(String(teste.hourlyRate || 0)) + '"></div>' +
+        '<div class="campo"><label>Custo de insumos (R$)</label><input type="number" name="custoInsumos" min="0" step="100" value="' + e(String(teste.custoInsumos || 0)) + '"></div>' +
         '<div class="campo"><label>Amostras necessárias</label><input type="number" name="amostras" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
-        '<div class="campo"><label>Custo de mão de obra e insumos (R$)</label><input type="number" name="custoBase" min="0" step="100" value="' + e(String(teste.custoBase)) + '"></div>' +
       '</div>' +
+      '<div class="campo" id="previa-custo"></div>' +
       '<div class="campo"><label>Equipamentos que o ensaio ocupa ' +
         '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo)</span></label><div>' +
         estado.equipamentos.map(function (eq) {
@@ -275,7 +281,7 @@
       '</div></div>' +
       '<div class="campo"><label>Descrição</label><textarea name="descricao" rows="2">' + e(teste.descricao || '') + '</textarea></div>';
 
-    ui.modal({
+    var janela = ui.modal({
       titulo: novo ? 'Novo procedimento' : 'Editar ' + teste.id,
       corpo: corpo,
       confirmar: 'Salvar procedimento',
@@ -289,12 +295,35 @@
           id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
           area: v.area, equipamentoIds: v.equipamentoIds, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
-          amostras: Number(v.amostras) || 1, custoBase: Number(v.custoBase) || 0,
+          horasReport: Number(v.horasReport) || 0, amostras: Number(v.amostras) || 1,
+          hourlyRate: Number(v.hourlyRate) || 0, custoInsumos: Number(v.custoInsumos) || 0,
           descricao: v.descricao
         });
         ui.notificar('Procedimento salvo.');
       }
     });
+
+    /* A conta do custo aparece enquanto se digita, para o cadastro não virar caixa-preta. */
+    var previaCusto = janela.querySelector('#previa-custo');
+    function atualizarCusto() {
+      function num(campo) { return Number(janela.querySelector('[name=' + campo + ']').value) || 0; }
+      var horasBancada = num('horasSetup') + num('horasEnsaio');
+      var horasReport = num('horasReport');
+      var horas = horasBancada + horasReport;
+      var rate = num('hourlyRate');
+      var insumos = num('custoInsumos');
+      previaCusto.innerHTML =
+        '<div class="aviso"><strong>Custo do procedimento ' +
+        e(util.formatarMoeda(horas * rate + insumos)) + '</strong> — (' +
+        e(String(horasBancada)) + ' h de bancada + ' + e(String(horasReport)) + ' h de report) × ' +
+        e(util.formatarMoeda(rate)) + '/h = ' + e(util.formatarMoeda(horas * rate)) +
+        ' + insumos ' + e(util.formatarMoeda(insumos)) +
+        '. As amostras entram depois, na demanda.</div>';
+    }
+    ['horasSetup', 'horasEnsaio', 'horasReport', 'hourlyRate', 'custoInsumos'].forEach(function (campo) {
+      janela.querySelector('[name=' + campo + ']').addEventListener('input', atualizarCusto);
+    });
+    atualizarCusto();
   }
 
   function render(container, ctx) {
@@ -303,8 +332,8 @@
 
     var totalHoras = 0, totalCusto = 0;
     lista.forEach(function (t) {
-      var c = TC.scheduler.custoCatalogo(t, equipamentosDe(estado, t).lista);
-      totalHoras += c.horas; totalCusto += c.total;
+      var c = TC.scheduler.custoCatalogo(t);
+      totalHoras += c.horasBancada; totalCusto += c.total;
     });
 
     container.innerHTML =

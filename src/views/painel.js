@@ -12,7 +12,7 @@
       var k = chave(a) || '—';
       var g = mapa[k] = mapa[k] || { chave: k, custo: 0, horas: 0, ensaios: 0 };
       g.custo += a.custo.total;
-      g.horas += a.custo.horas;
+      g.horas += a.custo.horasFaturaveis;
       g.ensaios += 1;
     });
     return Object.keys(mapa).map(function (k) { return mapa[k]; })
@@ -43,7 +43,7 @@
     var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0, cotacoes = 0;
     todas.forEach(function (a) {
       custoTotal += a.custo.total;
-      horasTotal += a.custo.horas;
+      horasTotal += a.custo.horasBancada;
       if (a.atrasado) atrasadas++;
       if (a.cotacao) cotacoes++;
       else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;

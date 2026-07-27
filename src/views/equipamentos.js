@@ -1,5 +1,6 @@
-/* Equipamentos: capacidade, calendário, custo-hora e paradas de manutenção.
-   É este cadastro que limita o planejamento. */
+/* Equipamentos: capacidade, calendário e paradas de manutenção.
+   É este cadastro que limita o planejamento. O custo não sai daqui: ele é calculado
+   pelo hourly rate do procedimento. */
 (function (global) {
   'use strict';
 
@@ -23,8 +24,7 @@
         var m = mapa[eq.id] = mapa[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
         m.dias += Math.min(dias, horizonte);
         m.ensaios += 1;
-        m.horas += a.custo.horas;
-        m.custo += a.custo.horas * (eq.custoHora || 0);
+        m.horas += a.custo.horasBancada;
       });
     });
     return mapa;
@@ -32,7 +32,7 @@
 
   function abrirEdicao(equipamento) {
     var novo = !equipamento;
-    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 0, manutencao: [] };
+    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] };
 
     var corpo =
       '<div class="grade-campos">' +
@@ -41,7 +41,6 @@
         '<div class="campo"><label>Nome</label><input name="nome" value="' + e(equipamento.nome) + '" required></div>' +
         '<div class="campo"><label>Posições em paralelo</label><input type="number" min="1" name="posicoes" value="' + e(String(equipamento.posicoes)) + '"></div>' +
         '<div class="campo"><label>Horas por dia</label><input type="number" min="1" max="24" name="horasDia" value="' + e(String(equipamento.horasDia)) + '"></div>' +
-        '<div class="campo"><label>Custo por hora (R$)</label><input type="number" min="0" step="10" name="custoHora" value="' + e(String(equipamento.custoHora)) + '"></div>' +
       '</div>' +
       '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
         '<input type="checkbox" name="continuo" style="width:auto"' + (equipamento.continuo ? ' checked' : '') + '>' +
@@ -65,8 +64,7 @@
         TC.store.salvarEquipamento({
           id: v.id, nome: v.nome, posicoes: Number(v.posicoes) || 1,
           continuo: !!v.continuo, horasDia: Number(v.horasDia) || 8,
-          diasUteis: dias, custoHora: Number(v.custoHora) || 0,
-          manutencao: equipamento.manutencao || []
+          diasUteis: dias, manutencao: equipamento.manutencao || []
         });
         ui.notificar('Equipamento salvo — planejamento recalculado.');
       }
@@ -127,7 +125,6 @@
         '<td class="num">' + eq.posicoes + '</td>' +
         '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
           '<div class="sub">' + e(dias) + '</div></td>' +
-        '<td class="num">' + e(util.formatarMoeda(eq.custoHora)) + '</td>' +
         '<td class="num">' + o.ensaios + '</td>' +
         '<td style="min-width:150px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -135,7 +132,7 @@
               (uso > 85 ? ' erro' : uso > 60 ? ' alerta' : '') + '" style="width:' + uso + '%"></span></span>' +
             '<span class="sub">' + uso + '%</span></div>' +
         '</td>' +
-        '<td class="num">' + e(util.formatarMoeda(o.custo)) + '</td>' +
+        '<td class="num">' + Math.round(o.horas) + ' h</td>' +
         '<td>' + ((eq.manutencao || []).length
           ? '<span class="etiqueta alerta">' + eq.manutencao.length + ' parada(s)</span>'
           : '<span class="sub">—</span>') + '</td>' +
@@ -150,15 +147,15 @@
     container.innerHTML =
       '<div class="cabecalho">' +
         '<div><h2>Equipamentos</h2>' +
-        '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita.</p></div>' +
+        '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita. O custo do ensaio não vem daqui: ele sai do hourly rate do procedimento.</p></div>' +
         '<div class="acoes"><button class="botao primario" id="novo">+ Novo equipamento</button></div>' +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
           '<span class="sub">Percentual calculado sobre posições × dias disponíveis</span></div>' +
         '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th><th class="num">R$/h</th>' +
-          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Custo-máquina</th><th>Manutenção</th><th></th>' +
+          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th>' +
+          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Horas alocadas</th><th>Manutenção</th><th></th>' +
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '</div>';
 

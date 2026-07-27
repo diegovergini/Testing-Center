@@ -61,7 +61,7 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
 | **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
-| **Equipamentos** | Capacidade instalada: posições, calendário, custo-hora e paradas. |
+| **Equipamentos** | Capacidade instalada: posições, calendário e paradas. É restrição de agenda, não de custo. |
 | **Peças e amostras** | Os tipos de peça que o laboratório ensaia, com o custo unitário da amostra e o consumo acumulado. |
 
 ## Fases de projeto
@@ -78,14 +78,15 @@ carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
 ## Catálogo, equipamentos e peças
 
 O **catálogo** guarda o procedimento com sua **revisão vigente** (`Rev. 04`), a norma, a área
-do sistema, o equipamento que ele ocupa, o tempo de bancada e o custo. A revisão acompanha o
+do sistema, os equipamentos que ele ocupa, as horas (setup, ensaio e report), o hourly rate e
+o custo de insumos. A revisão acompanha o
 procedimento em toda a aplicação — tabela, demanda, Gantt e CSV — para não restar dúvida sobre
 qual versão foi executada.
 
 Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
-LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo, calendário e custo-hora.
-Um procedimento pode marcar várias bancadas — o ensaio então reserva todas, aparece em todas
-as linhas do Gantt e paga a hora-máquina de cada uma.
+LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo e calendário — são
+restrições de agenda, não de custo. Um procedimento pode marcar várias bancadas: o ensaio
+então reserva todas e aparece em todas as linhas do Gantt.
 
 As **peças** são tipos genéricos — Hot End, Canning, Cold End, Muffler e Component. Não
 pertencem a um cliente nem a uma área: qualquer cliente pode trazer amostra de qualquer tipo.
@@ -112,13 +113,19 @@ de projeto sugere os projetos já usados, para o mesmo programa não virar três
 ## Modelo de custo
 
 ```
-custo do ensaio = custo base do procedimento      (mão de obra, instrumentação, insumos)
-                + horas × custo-hora do equipamento (setup + ensaio)
-                + amostras × custo unitário da peça
+custo do procedimento = (horas de setup + ensaio + report) × hourly rate
+                      + custo de insumos
+
+custo da demanda      = custo do procedimento
+                      + amostras × custo unitário da peça
 ```
 
-Os três componentes são editáveis: o custo base no catálogo, o custo-hora em Equipamentos e
-o custo da amostra em Peças.
+Hourly rate, horas e custo de insumos ficam no procedimento (catálogo); o custo unitário da
+amostra fica no tipo de peça. O hourly rate é a taxa cheia do laboratório — por isso o
+equipamento não tem mais custo-hora próprio, para a mesma hora não ser cobrada duas vezes.
+
+**Horas de report contam no custo, mas não na agenda.** Elaborar o relatório é trabalho de
+mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é setup + ensaio.
 
 ## Dados
 

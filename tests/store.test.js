@@ -131,3 +131,20 @@ test('demanda antiga ganha os campos de projeto e part number vazios', () => {
   assert.equal(d.projeto, '');
   assert.equal(d.partNumber, '');
 });
+
+test('importar converte custoBase em custo de insumos e herda o hourly rate da bancada', () => {
+  const base = dados.seed();
+  base.testes[0] = {
+    id: 'TP-ANTIGO', nome: 'Ensaio antigo', norma: '', revisao: 'Rev. 01', clientes: [],
+    area: 'HOT', equipamentoId: 'BURNER-1',
+    horasSetup: 2, horasEnsaio: 10, amostras: 1, custoBase: 5000, descricao: ''
+  };
+
+  store.importar(JSON.stringify(base));
+  const t = store.get().testes[0];
+
+  assert.equal(t.custoInsumos, 5000, 'o custo antigo vira custo de insumos');
+  assert.equal(t.custoBase, undefined);
+  assert.equal(t.horasReport, 0);
+  assert.equal(t.hourlyRate, 610, 'sem rate gravado, herda o custo-hora da bancada que usava');
+});

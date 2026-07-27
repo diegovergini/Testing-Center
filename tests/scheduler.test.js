@@ -19,7 +19,8 @@ function equipamento(extra) {
 function teste(extra) {
   return Object.assign({
     id: 'TP-01', nome: 'Ensaio', area: 'COLD', equipamentoIds: ['EQ-01'], revisao: 'Rev. 01',
-    clientes: [], horasSetup: 0, horasEnsaio: 8, amostras: 1, custoBase: 1000
+    clientes: [], horasSetup: 0, horasEnsaio: 8, horasReport: 0, amostras: 1,
+    hourlyRate: 100, custoInsumos: 1000
   }, extra);
 }
 
@@ -224,20 +225,40 @@ test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
   assert.match(plano.bloqueadas[0].motivo, /não cadastrado/);
 });
 
-test('custo soma mão de obra, hora-máquina e amostras', () => {
-  const t = teste({ horasSetup: 2, horasEnsaio: 8, custoBase: 1000 });
-  const c = scheduler.custoDemanda({ quantidade: 3 }, t, [equipamento({ custoHora: 100 })], peca({ custoAmostra: 500 }));
-  assert.equal(c.horas, 10);
-  assert.equal(c.custoEquipamento, 1000);
+test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () => {
+  const t = teste({ horasSetup: 2, horasEnsaio: 8, horasReport: 5, hourlyRate: 200, custoInsumos: 1000 });
+  const c = scheduler.custoDemanda({ quantidade: 3 }, t, null, peca({ custoAmostra: 500 }));
+
+  assert.equal(c.horasBancada, 10, 'setup + ensaio');
+  assert.equal(c.horasFaturaveis, 15, 'setup + ensaio + report');
+  assert.equal(c.custoHoras, 15 * 200);
+  assert.equal(c.custoInsumos, 1000);
+  assert.equal(c.custoProcedimento, 3000 + 1000);
   assert.equal(c.custoAmostras, 1500);
-  assert.equal(c.total, 3500);
+  assert.equal(c.total, 4000 + 1500);
+});
+
+test('a hora do equipamento não entra mais no custo', () => {
+  const t = teste({ horasSetup: 0, horasEnsaio: 10, horasReport: 0, hourlyRate: 100, custoInsumos: 0 });
+  const semBancada = scheduler.custoDemanda({ quantidade: 1 }, t, null, null);
+  const comDuas = scheduler.custoDemanda({ quantidade: 1 }, t,
+    [equipamento({ custoHora: 900 }), equipamento({ custoHora: 900 })], null);
+  assert.equal(semBancada.total, comDuas.total, 'o custo sai do hourly rate, não da bancada');
+  assert.equal(comDuas.total, 1000);
+});
+
+test('horas de report entram no custo, mas não ocupam bancada', () => {
+  const t = teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 40, hourlyRate: 100, custoInsumos: 0 });
+  const eq = equipamento({ horasDia: 8 });
+  assert.equal(scheduler.diasDeOperacao(t, [eq]), 1, 'só as 8 h de ensaio prendem a bancada');
+  assert.equal(scheduler.custoDemanda(null, t, [eq], null).custoHoras, 48 * 100);
 });
 
 test('custo de catálogo usa a quantidade padrão do procedimento e ignora amostras', () => {
-  const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, custoBase: 500 }), [equipamento({ custoHora: 200 })]);
+  const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, horasReport: 2, hourlyRate: 200, custoInsumos: 500 }));
   assert.equal(c.quantidade, 4);
   assert.equal(c.custoAmostras, 0);
-  assert.equal(c.total, 500 + 1600);
+  assert.equal(c.total, 500 + 10 * 200);
 });
 
 test('o catálogo de exemplo é planejável de ponta a ponta', () => {
@@ -406,16 +427,29 @@ test('manutenção em qualquer uma das bancadas bloqueia a janela', () => {
   assert.equal(a.inicio, '2026-07-11', 'a parada da segunda bancada empurra o ensaio');
 });
 
-test('custo soma a hora-máquina de todas as bancadas ocupadas', () => {
-  const t = teste({ horasSetup: 0, horasEnsaio: 10, custoBase: 0 });
-  const c = scheduler.custoDemanda({ quantidade: 1 }, t,
-    [equipamento({ custoHora: 100 }), equipamento({ custoHora: 250 })], null);
-  assert.equal(c.custoEquipamento, 10 * 350);
-});
-
 test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () => {
   const s = estado({ testes: [teste({ equipamentoIds: [] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
   assert.match(plano.bloqueadas[0].motivo, /sem equipamento/i);
+});
+
+test('todo procedimento do catálogo tem hourly rate e horas de report definidos', () => {
+  const base = require('../src/data.js').seed();
+  base.testes.forEach((t) => {
+    assert.equal(typeof t.hourlyRate, 'number', t.id + ' sem hourly rate');
+    assert.ok(t.hourlyRate > 0, t.id + ' com hourly rate zerado');
+    assert.equal(typeof t.horasReport, 'number', t.id + ' sem horas de report');
+    assert.equal(typeof t.custoInsumos, 'number', t.id + ' sem custo de insumos');
+    assert.equal(t.custoBase, undefined, t.id + ' ainda usa custoBase');
+  });
+});
+
+test('o custo do catálogo bate com a fórmula, procedimento a procedimento', () => {
+  const base = require('../src/data.js').seed();
+  base.testes.forEach((t) => {
+    const c = scheduler.custoCatalogo(t);
+    const esperado = (t.horasSetup + t.horasEnsaio + t.horasReport) * t.hourlyRate + t.custoInsumos;
+    assert.equal(c.custoProcedimento, esperado, t.id);
+  });
 });
