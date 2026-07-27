@@ -40,11 +40,12 @@ respeitando, nesta ordem:
    cliente e o programa).
 2. **Disponibilidade do equipamento** — cada equipamento tem um número de posições em
    paralelo, um calendário (dias da semana e horas por dia, ou regime contínuo 24 h) e
-   janelas de manutenção. Um ensaio nunca atravessa uma parada programada. Um procedimento
-   pode ocupar **mais de uma bancada ao mesmo tempo**: nesse caso a janela precisa estar
-   livre em todas elas simultaneamente, e o ritmo é ditado pela de turno mais curto —
-   500 h num dinamômetro 24 h/dia levam 21 dias sozinhas, mas 63 se o ensaio também prender
-   uma bancada de 8 h/dia.
+   janelas de manutenção. Um ensaio nunca atravessa uma parada programada. O procedimento
+   pede um **grupo** de bancada, e o planejamento escolhe dentro dele a unidade que libera
+   mais cedo. Um procedimento pode ocupar **mais de um grupo ao mesmo tempo**: aí a janela
+   precisa estar livre em todos simultaneamente, e o ritmo é ditado pela bancada de turno
+   mais curto — 500 h num dinamômetro 24 h/dia levam 21 dias sozinhas, mas 63 se o ensaio
+   também prender uma bancada de 8 h/dia.
 3. **Fila** — demandas são ordenadas por prioridade, depois por prazo do cliente, depois por
    ordem de criação. Uma demanda com data de início forçada reserva a posição antes de todas.
 
@@ -61,7 +62,7 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
 | **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
-| **Equipamentos** | Capacidade instalada: posições, calendário e paradas. É restrição de agenda, não de custo. |
+| **Equipamentos** | Capacidade instalada: grupo, posições, calendário e paradas. É restrição de agenda, não de custo. |
 | **Peças e amostras** | Os tipos de peça que o laboratório ensaia, com o custo unitário da amostra e o consumo acumulado. |
 
 ## Fases de projeto
@@ -85,8 +86,16 @@ qual versão foi executada.
 
 Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
 LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo e calendário — são
-restrições de agenda, não de custo. Um procedimento pode marcar várias bancadas: o ensaio
-então reserva todas e aparece em todas as linhas do Gantt.
+restrições de agenda, não de custo.
+
+Unidades que fazem a mesma coisa ficam num **grupo**: `Burner` reúne as três, `MTS` as
+quatro. O procedimento pede o grupo, nunca a unidade — quem escolhe a máquina é o
+planejamento, sempre a que libera mais cedo (empate no início vai para a que termina antes).
+Assim três ensaios de Burner rodam em paralelo nas três unidades, e o quarto emenda na
+primeira que vagar. Uma bancada sem grupo definido forma um grupo só dela.
+
+Um procedimento pode marcar vários grupos: o ensaio então reserva uma unidade de cada e
+aparece em todas as linhas correspondentes do Gantt.
 
 As **peças** são tipos genéricos — Hot End, Canning, Cold End, Muffler e Component. Não
 pertencem a um cliente nem a uma área: qualquer cliente pode trazer amostra de qualquer tipo.

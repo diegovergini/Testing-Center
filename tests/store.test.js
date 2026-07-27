@@ -95,28 +95,39 @@ test('salvar cliente novo gera código e editar preserva o existente', () => {
   assert.equal(globalThis.TC.util.porId(store.get().clientes, novo.id).nome, 'Marelli Brasil');
 });
 
-test('remover equipamento deixa os procedimentos visíveis, mas sem bancada', () => {
+test('remover uma unidade não desmonta o grupo dos procedimentos', () => {
   store.restaurarPadrao();
-  const usa = (t) => (t.equipamentoIds || []).includes('BURNER-1');
-  const dependentes = store.get().testes.filter(usa).length;
+  const usaBurner = (t) => (t.equipamentoGrupos || []).includes('Burner');
+  const dependentes = store.get().testes.filter(usaBurner).length;
   assert.ok(dependentes > 0);
 
   store.removerEquipamento('BURNER-1');
   const estado = store.get();
   assert.equal(estado.equipamentos.filter((e) => e.id === 'BURNER-1').length, 0);
-  assert.equal(estado.testes.filter(usa).length, dependentes,
-    'os procedimentos continuam no catálogo para serem reapontados');
+  assert.equal(estado.testes.filter(usaBurner).length, dependentes,
+    'os procedimentos seguem pedindo o grupo Burner, agora com 2 unidades');
+  assert.equal(estado.equipamentos.filter((e) => e.grupo === 'Burner').length, 2);
 });
 
-test('importar converte equipamento único do procedimento para lista', () => {
+test('importar troca a unidade do procedimento pelo grupo dela', () => {
   const base = dados.seed();
   base.testes[0] = Object.assign({}, base.testes[0], { equipamentoId: 'BURNER-2' });
-  delete base.testes[0].equipamentoIds;
+  delete base.testes[0].equipamentoGrupos;
 
   store.importar(JSON.stringify(base));
   const t = store.get().testes[0];
-  assert.deepEqual(t.equipamentoIds, ['BURNER-2']);
+  assert.deepEqual(t.equipamentoGrupos, ['Burner'], 'BURNER-2 pertence ao grupo Burner');
   assert.equal(t.equipamentoId, undefined, 'o campo antigo não fica para trás');
+  assert.equal(t.equipamentoIds, undefined);
+});
+
+test('importar deduplica grupos quando o procedimento listava unidades irmãs', () => {
+  const base = dados.seed();
+  base.testes[0] = Object.assign({}, base.testes[0], { equipamentoIds: ['MTS-1', 'MTS-3', 'DYNO'] });
+  delete base.testes[0].equipamentoGrupos;
+
+  store.importar(JSON.stringify(base));
+  assert.deepEqual(store.get().testes[0].equipamentoGrupos, ['MTS', 'Dynamometer']);
 });
 
 test('demanda antiga ganha os campos de projeto e part number vazios', () => {
@@ -139,6 +150,9 @@ test('importar converte custoBase em custo de insumos e herda o hourly rate da b
     area: 'HOT', equipamentoId: 'BURNER-1',
     horasSetup: 2, horasEnsaio: 10, amostras: 1, custoBase: 5000, descricao: ''
   };
+  /* o custo-hora saiu do cadastro de equipamento, mas backups antigos ainda o trazem */
+  base.equipamentos = base.equipamentos.map((eq) =>
+    eq.id === 'BURNER-1' ? Object.assign({}, eq, { custoHora: 610 }) : eq);
 
   store.importar(JSON.stringify(base));
   const t = store.get().testes[0];

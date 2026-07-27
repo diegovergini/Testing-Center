@@ -4,6 +4,8 @@
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util;
+  /* No navegador o scheduler já foi carregado; no Node (testes) resolvemos na hora. */
+  var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
 
   var CHAVE = 'testing-center/v1';
   var estado = null;
@@ -37,16 +39,28 @@
     (estado.testes || []).forEach(function (t) {
       delete t.fases;
       if (typeof t.revisao !== 'string') t.revisao = '';
-      if (!t.equipamentoIds) {
-        t.equipamentoIds = t.equipamentoId ? [t.equipamentoId] : [];
+      /* As unidades que o procedimento apontava ainda servem para herdar o hourly rate
+         antigo, então guardamos antes de trocá-las pelo grupo. */
+      var unidadesAntigas = t.equipamentoIds || (t.equipamentoId ? [t.equipamentoId] : []);
+
+      /* O procedimento passou a pedir o grupo de bancada, não a unidade. */
+      if (!t.equipamentoGrupos) {
+        var grupos = [];
+        unidadesAntigas.forEach(function (id) {
+          var eq = util.porId(estado.equipamentos || [], id);
+          var grupo = eq ? scheduler.grupoDe(eq) : id;
+          if (grupos.indexOf(grupo) === -1) grupos.push(grupo);
+        });
+        t.equipamentoGrupos = grupos;
       }
+      delete t.equipamentoIds;
       delete t.equipamentoId;
 
       /* O custo passou a ser horas x hourly rate + insumos. Sem hourly rate gravado,
          herdamos a soma do custo-hora das bancadas do ensaio, que era o que valia antes. */
       if (typeof t.horasReport !== 'number') t.horasReport = 0;
       if (typeof t.hourlyRate !== 'number') {
-        t.hourlyRate = t.equipamentoIds.reduce(function (soma, id) {
+        t.hourlyRate = unidadesAntigas.reduce(function (soma, id) {
           var eq = util.porId(estado.equipamentos || [], id);
           return soma + (eq && eq.custoHora ? eq.custoHora : 0);
         }, 0);

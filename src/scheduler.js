@@ -23,11 +23,32 @@
     return false;
   }
 
-  /* Lista de equipamentos que o procedimento ocupa ao mesmo tempo. */
-  function idsDeEquipamento(teste) {
+  /* Grupo do equipamento: família de unidades intercambiáveis. Sem grupo definido,
+     a própria unidade é o grupo. */
+  function grupoDe(equipamento) {
+    return equipamento.grupo || equipamento.nome || equipamento.id;
+  }
+
+  /* Agrupa o parque em famílias, preservando a ordem do cadastro. */
+  function agruparEquipamentos(equipamentos) {
+    var ordem = [];
+    var mapa = {};
+    (equipamentos || []).forEach(function (eq) {
+      var id = grupoDe(eq);
+      if (!mapa[id]) {
+        mapa[id] = { id: id, nome: id, membros: [] };
+        ordem.push(mapa[id]);
+      }
+      mapa[id].membros.push(eq);
+    });
+    return ordem;
+  }
+
+  /* Grupos de bancada que o procedimento ocupa ao mesmo tempo. */
+  function gruposDoTeste(teste) {
     if (!teste) return [];
-    if (teste.equipamentoIds) return teste.equipamentoIds;
-    return teste.equipamentoId ? [teste.equipamentoId] : [];
+    if (teste.equipamentoGrupos) return teste.equipamentoGrupos;
+    return [];
   }
 
   /* Um ensaio só avança quando TODAS as bancadas que ele ocupa estão operando:
@@ -143,6 +164,62 @@
     return null;
   }
 
+  var MAX_COMBINACOES = 400;
+
+  /* Uma unidade de cada grupo. Com poucos grupos e poucas unidades o produto é pequeno;
+     acima do teto caímos na primeira unidade de cada grupo para não travar o recálculo. */
+  function combinacoesDeUnidades(grupos) {
+    var total = grupos.reduce(function (n, g) { return n * g.membros.length; }, 1);
+    if (!total) return [];
+    if (total > MAX_COMBINACOES) {
+      return [grupos.map(function (g) { return g.membros[0]; })];
+    }
+    var combinacoes = [[]];
+    grupos.forEach(function (g) {
+      var proxima = [];
+      combinacoes.forEach(function (parcial) {
+        g.membros.forEach(function (unidade) { proxima.push(parcial.concat([unidade])); });
+      });
+      combinacoes = proxima;
+    });
+    return combinacoes;
+  }
+
+  /* Procura, entre todas as unidades possíveis, a que começa mais cedo.
+     Empate no início é desempatado por quem termina antes — uma bancada de turno
+     mais longo entrega o mesmo ensaio em menos dias. */
+  function melhorEntreGrupos(grupos, teste, reservasPorEquipamento, dataMinima, inicioFixo) {
+    var melhor = null;
+    combinacoesDeUnidades(grupos).forEach(function (unidades) {
+      var dias = diasDeOperacao(teste, unidades);
+      var achado = null;
+
+      if (inicioFixo) {
+        var janela = calcularJanela(unidades, inicioFixo, dias);
+        if (janela) {
+          var posicoes = {};
+          var livre = true;
+          unidades.forEach(function (eq) {
+            var r = posicaoLivre(reservasPorEquipamento[eq.id], janela);
+            if (r.posicao === -1) livre = false; else posicoes[eq.id] = r.posicao;
+          });
+          if (livre) achado = { janela: janela, posicoes: posicoes };
+        }
+      } else {
+        achado = buscarJanela(unidades, reservasPorEquipamento, dataMinima, dias);
+      }
+      if (!achado) return;
+
+      var candidato = { unidades: unidades, janela: achado.janela, posicoes: achado.posicoes, dias: dias };
+      if (!melhor) { melhor = candidato; return; }
+      var deltaInicio = util.diffDias(candidato.janela.inicio, melhor.janela.inicio);
+      if (deltaInicio > 0 || (deltaInicio === 0 && util.diffDias(candidato.janela.fim, melhor.janela.fim) > 0)) {
+        melhor = candidato;
+      }
+    });
+    return melhor;
+  }
+
   function pesoPrioridade(id) {
     var p = util.porId(dados.PRIORIDADES, id);
     return p ? p.peso : 9;
@@ -226,24 +303,27 @@
 
     var alocacoes = [];
 
+    var gruposDoParque = agruparEquipamentos(equipamentos);
+
     function montarBase(demanda) {
       var teste = util.porId(estado.testes, demanda.testeId);
       var peca = util.porId(estado.pecas, demanda.pecaId);
-      var ids = idsDeEquipamento(teste);
-      var lista = [];
+      var grupos = [];
       var faltando = [];
-      ids.forEach(function (id) {
-        var eq = util.porId(equipamentos, id);
-        if (eq) lista.push(eq); else faltando.push(id);
+      gruposDoTeste(teste).forEach(function (id) {
+        var g = util.porId(gruposDoParque, id);
+        if (g && g.membros.length) grupos.push(g); else faltando.push(id);
       });
       return {
         demandaId: demanda.id,
         demanda: demanda,
         teste: teste,
         peca: peca,
-        equipamentos: lista,
-        equipamentosFaltando: faltando,
-        custo: custoDemanda(demanda, teste, lista, peca),
+        grupos: grupos,
+        gruposFaltando: faltando,
+        /* equipamentos: as unidades efetivamente escolhidas; vazio até alocar. */
+        equipamentos: [],
+        custo: custoDemanda(demanda, teste, null, peca),
         cotacao: false,
         /* posicoes: { equipamentoId: índice da posição ocupada } */
         posicoes: null,
@@ -258,78 +338,64 @@
       var base = montarBase(demanda);
       base.cotacao = true;
       base.motivo = 'Cotação — não ocupa bancada.';
-      if (base.teste && base.equipamentos.length) {
-        base.diasOperacao = diasDeOperacao(base.teste, base.equipamentos);
+      if (base.teste && base.grupos.length) {
+        /* Estimativa pela primeira unidade de cada grupo, só para dar a duração. */
+        base.diasOperacao = diasDeOperacao(base.teste, base.grupos.map(function (g) { return g.membros[0]; }));
       }
       alocacoes.push(base);
     }
 
-    function nomesDe(lista) {
-      return lista.map(function (eq) { return eq.nome; }).join(' + ');
+    function nomesDosGrupos(grupos) {
+      return grupos.map(function (g) { return g.nome; }).join(' + ');
     }
 
     function processar(demanda) {
       var base = montarBase(demanda);
       var teste = base.teste;
-      var lista = base.equipamentos;
 
       if (!teste) {
         base.motivo = 'Procedimento não encontrado no catálogo.';
         alocacoes.push(base);
         return;
       }
-      if (base.equipamentosFaltando.length) {
-        base.motivo = 'Equipamento "' + base.equipamentosFaltando.join('", "') + '" não cadastrado.';
+      if (base.gruposFaltando.length) {
+        base.motivo = 'Grupo de equipamento "' + base.gruposFaltando.join('", "') + '" sem unidade cadastrada.';
         alocacoes.push(base);
         return;
       }
-      if (!lista.length) {
+      if (!base.grupos.length) {
         base.motivo = 'Procedimento sem equipamento definido.';
         alocacoes.push(base);
         return;
       }
 
-      var dias = diasDeOperacao(teste, lista);
       /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
          datas diferentes conforme o cliente e o programa. */
       var disponibilidadePeca = demanda.dataAmostras || hoje;
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
 
-      var melhor = null;
-      if (demanda.inicioFixo) {
-        var janelaFixa = calcularJanela(lista, demanda.inicioFixo, dias);
-        if (janelaFixa) {
-          var escolhidas = {};
-          var livre = true;
-          lista.forEach(function (eq) {
-            var r = posicaoLivre(reservas[eq.id], janelaFixa);
-            if (r.posicao === -1) livre = false; else escolhidas[eq.id] = r.posicao;
-          });
-          if (livre) melhor = { janela: janelaFixa, posicoes: escolhidas };
-        }
-      } else {
-        melhor = buscarJanela(lista, reservas, dataMinima, dias);
-      }
+      var melhor = melhorEntreGrupos(base.grupos, teste, reservas, dataMinima, demanda.inicioFixo);
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
           ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) +
-            ' indisponível em ' + nomesDe(lista) + '.'
-          : 'Sem janela livre em ' + nomesDe(lista) + ' dentro do horizonte de planejamento.';
-        base.diasOperacao = dias;
+            ' indisponível em ' + nomesDosGrupos(base.grupos) + '.'
+          : 'Sem janela livre em ' + nomesDosGrupos(base.grupos) + ' dentro do horizonte de planejamento.';
+        base.diasOperacao = diasDeOperacao(teste, base.grupos.map(function (g) { return g.membros[0]; }));
         alocacoes.push(base);
         return;
       }
 
-      lista.forEach(function (eq) {
+      melhor.unidades.forEach(function (eq) {
         reservas[eq.id][melhor.posicoes[eq.id]].push(melhor.janela);
       });
 
+      base.equipamentos = melhor.unidades;
       base.posicoes = melhor.posicoes;
       base.inicio = melhor.janela.inicio;
       base.fim = melhor.janela.fim;
-      base.diasOperacao = dias;
+      base.diasOperacao = melhor.dias;
       base.esperaAmostra = util.diffDias(hoje, disponibilidadePeca) > 0
         ? util.diffDias(hoje, disponibilidadePeca) : 0;
       base.esperaFila = util.diffDias(dataMinima, melhor.janela.inicio);
@@ -368,7 +434,9 @@
     ehDiaUtil: ehDiaUtil,
     emManutencao: emManutencao,
     ehCotacao: ehCotacao,
-    idsDeEquipamento: idsDeEquipamento,
+    gruposDoTeste: gruposDoTeste,
+    agruparEquipamentos: agruparEquipamentos,
+    grupoDe: grupoDe,
     horasDeBancada: horasDeBancada,
     horasFaturaveis: horasFaturaveis,
     STATUS_ATIVOS: ATIVAS

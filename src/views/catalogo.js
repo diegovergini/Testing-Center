@@ -16,7 +16,7 @@
     return estado.testes.filter(function (t) {
       if (f.area && t.area !== f.area && t.area !== 'AMBOS') return false;
       if (!aplicaAoCliente(t, f.clienteId)) return false;
-      if (f.equipamentoId && TC.scheduler.idsDeEquipamento(t).indexOf(f.equipamentoId) === -1) return false;
+      if (f.equipamentoId && TC.scheduler.gruposDoTeste(t).indexOf(f.equipamentoId) === -1) return false;
       if (busca) {
         var alvo = (t.id + ' ' + t.nome + ' ' + (t.norma || '') + ' ' +
           (t.revisao || '') + ' ' + (t.descricao || '')).toLowerCase();
@@ -26,20 +26,22 @@
     });
   }
 
-  /* Devolve os equipamentos do procedimento e os códigos que não existem mais no cadastro. */
-  function equipamentosDe(estado, teste) {
+  /* Devolve os grupos de bancada do procedimento e os que não têm unidade cadastrada. */
+  function gruposDe(estado, teste) {
+    var parque = TC.scheduler.agruparEquipamentos(estado.equipamentos);
     var lista = [], faltando = [];
-    TC.scheduler.idsDeEquipamento(teste).forEach(function (id) {
-      var eq = util.porId(estado.equipamentos, id);
-      if (eq) lista.push(eq); else faltando.push(id);
+    TC.scheduler.gruposDoTeste(teste).forEach(function (id) {
+      var g = util.porId(parque, id);
+      if (g && g.membros.length) lista.push(g); else faltando.push(id);
     });
     return { lista: lista, faltando: faltando };
   }
 
   function linha(estado, teste) {
-    var eqs = equipamentosDe(estado, teste);
+    var eqs = gruposDe(estado, teste);
     var custo = TC.scheduler.custoCatalogo(teste);
-    var dias = eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) : null;
+    var unidades = eqs.lista.map(function (g) { return g.membros[0]; });
+    var dias = unidades.length ? TC.scheduler.diasDeOperacao(teste, unidades) : null;
     var clientes = (teste.clientes || []).map(function (id) {
       var c = util.porId(estado.clientes, id);
       return c ? c.nome : id;
@@ -58,11 +60,15 @@
         : '<span class="sub">sem revisão</span>') + '</td>' +
       '<td>' + ui.etiquetaArea(teste.area) + '</td>' +
       '<td>' +
-        eqs.lista.map(function (eq) { return '<div class="forte">' + e(eq.nome) + '</div>'; }).join('') +
-        eqs.faltando.map(function (id) {
-          return '<div><span class="etiqueta erro">' + e(id) + ' não cadastrado</span></div>';
+        eqs.lista.map(function (g) {
+          return '<div class="forte">' + e(g.nome) +
+            (g.membros.length > 1 ? ' <span class="sub">(' + g.membros.length + ' unidades)</span>' : '') +
+            '</div>';
         }).join('') +
-        (eqs.lista.length > 1 ? '<div class="sub">ocupa as ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
+        eqs.faltando.map(function (id) {
+          return '<div><span class="etiqueta erro">' + e(id) + ' sem unidade</span></div>';
+        }).join('') +
+        (eqs.lista.length > 1 ? '<div class="sub">ocupa os ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
         (!eqs.lista.length && !eqs.faltando.length ? '<span class="etiqueta erro">sem equipamento</span>' : '') +
       '</td>' +
       '<td class="num">' + e(String(custo.horasBancada)) + ' h' +
@@ -85,8 +91,10 @@
 
   function abrirConfirmacao(ctx, teste) {
     var estado = ctx.estado;
-    var eqs = equipamentosDe(estado, teste);
-    var nomes = eqs.lista.map(function (eq) { return eq.nome; }).join(' + ');
+    var eqs = gruposDe(estado, teste);
+    var nomes = eqs.lista.map(function (g) { return g.nome; }).join(' + ');
+    var unidadesRef = eqs.lista.map(function (g) { return g.membros[0]; });
+    var temPool = eqs.lista.some(function (g) { return g.membros.length > 1; });
 
     var clientePadrao = ctx.filtros.clienteId ||
       (teste.clientes && teste.clientes[0]) ||
@@ -107,9 +115,10 @@
         e(teste.nome) + (teste.revisao ? ' · ' + e(teste.revisao) : '') +
         ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
         e(nomes || '?') + '</strong> por ' +
-        e(eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) + ' dia(s)' : '—') +
-        (eqs.lista.length > 1 ? ', com as ' + eqs.lista.length + ' bancadas reservadas ao mesmo tempo' : '') +
-        '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento.' +
+        e(unidadesRef.length ? TC.scheduler.diasDeOperacao(teste, unidadesRef) + ' dia(s)' : '—') +
+        (eqs.lista.length > 1 ? ', com os ' + eqs.lista.length + ' grupos reservados ao mesmo tempo' : '') +
+        '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento' +
+        (temPool ? ', escolhendo a unidade que libera mais cedo' : '') + '.' +
       '</div>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Nº da LTI (ordem de serviço)</label>' +
@@ -198,7 +207,7 @@
     function atualizarPrevia() {
       var peca = util.porId(estado.pecas, selPeca.value);
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
-      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, eqs.lista, peca);
+      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, null, peca);
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
@@ -243,8 +252,9 @@
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
-    var idsAtuais = TC.scheduler.idsDeEquipamento(teste);
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoGrupos: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
+    var gruposAtuais = TC.scheduler.gruposDoTeste(teste);
+    var parque = TC.scheduler.agruparEquipamentos(estado.equipamentos);
 
     var corpo =
       '<div class="grade-campos">' +
@@ -265,11 +275,13 @@
       '</div>' +
       '<div class="campo" id="previa-custo"></div>' +
       '<div class="campo"><label>Equipamentos que o ensaio ocupa ' +
-        '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo)</span></label><div>' +
-        estado.equipamentos.map(function (eq) {
+        '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo; ' +
+        'em grupo com várias unidades, o planejamento escolhe a que libera mais cedo)</span></label><div>' +
+        parque.map(function (g) {
           return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
-            '<input type="checkbox" name="equipamentoIds" data-grupo="1" value="' + e(eq.id) + '" style="width:auto"' +
-            (idsAtuais.indexOf(eq.id) !== -1 ? ' checked' : '') + '>' + e(eq.nome) + '</label>';
+            '<input type="checkbox" name="equipamentoGrupos" data-grupo="1" value="' + e(g.id) + '" style="width:auto"' +
+            (gruposAtuais.indexOf(g.id) !== -1 ? ' checked' : '') + '>' + e(g.nome) +
+            (g.membros.length > 1 ? ' <span class="sub">(' + g.membros.length + ')</span>' : '') + '</label>';
         }).join('') +
       '</div></div>' +
       '<div class="campo"><label>Exigido pelos clientes (nenhum = procedimento padrão)</label><div>' +
@@ -287,13 +299,13 @@
       confirmar: 'Salvar procedimento',
       aoConfirmar: function (v) {
         if (!v.nome) { ui.notificar('Informe o nome do procedimento.'); return false; }
-        if (!v.equipamentoIds || !v.equipamentoIds.length) {
+        if (!v.equipamentoGrupos || !v.equipamentoGrupos.length) {
           ui.notificar('Selecione ao menos um equipamento.');
           return false;
         }
         TC.store.salvarTeste({
           id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
-          area: v.area, equipamentoIds: v.equipamentoIds, clientes: v.clientes || [],
+          area: v.area, equipamentoGrupos: v.equipamentoGrupos, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
           horasReport: Number(v.horasReport) || 0, amostras: Number(v.amostras) || 1,
           hourlyRate: Number(v.hourlyRate) || 0, custoInsumos: Number(v.custoInsumos) || 0,
@@ -355,7 +367,8 @@
           '<div class="campo busca"><label>Buscar</label><input id="f-busca" placeholder="nome, código, norma ou revisão" value="' + e(f.busca || '') + '"></div>' +
           '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
           '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-          '<div class="campo"><label>Equipamento</label><select id="f-equip">' + ui.opcoes(estado.equipamentos, f.equipamentoId, 'Todos') + '</select></div>' +
+          '<div class="campo"><label>Equipamento</label><select id="f-equip">' +
+            ui.opcoes(TC.scheduler.agruparEquipamentos(estado.equipamentos), f.equipamentoId, 'Todos') + '</select></div>' +
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Código</th><th>Procedimento</th><th>Revisão</th><th>Área</th><th>Equipamento</th>' +

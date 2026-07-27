@@ -496,19 +496,21 @@ tbody tr:last-child td { border-bottom: none; }
 
   /* posicoes = quantos ensaios o equipamento roda em paralelo.
      continuo = true -> ensaio corre 24 h/dia sem operador.
-     diasUteis = dias da semana em que o equipamento opera (0 = domingo). */
+     diasUteis = dias da semana em que o equipamento opera (0 = domingo).
+     grupo = família de unidades intercambiáveis. O procedimento pede o grupo ("Burner"),
+     e o planejamento escolhe a unidade livre mais cedo. */
   var EQUIPAMENTOS = [
-    { id: 'BURNER-1', nome: 'Burner 1', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
-    { id: 'BURNER-2', nome: 'Burner 2', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 610, manutencao: [] },
-    { id: 'BURNER-3', nome: 'Burner 3', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 580, manutencao: [] },
-    { id: 'SHAKER', nome: 'Shaker', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 480, manutencao: [] },
-    { id: 'MTS-1', nome: 'MTS 1', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 380, manutencao: [] },
-    { id: 'MTS-2', nome: 'MTS 2', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 380, manutencao: [] },
-    { id: 'MTS-3', nome: 'MTS 3', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 320, manutencao: [] },
-    { id: 'MTS-4', nome: 'MTS 4', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], custoHora: 320, manutencao: [] },
-    { id: 'LMS-PTA', nome: 'LMS / PTA', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 560, manutencao: [] },
-    { id: 'COLDFLOW', nome: 'ColdFlow', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], custoHora: 240, manutencao: [] },
-    { id: 'DYNO', nome: 'Dynamometer', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], custoHora: 950, manutencao: [] }
+    { id: 'BURNER-1', nome: 'Burner 1', grupo: 'Burner', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'BURNER-2', nome: 'Burner 2', grupo: 'Burner', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'BURNER-3', nome: 'Burner 3', grupo: 'Burner', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'SHAKER', nome: 'Shaker', grupo: 'Shaker', posicoes: 1, continuo: false, horasDia: 16, diasUteis: [1, 2, 3, 4, 5], manutencao: [] },
+    { id: 'MTS-1', nome: 'MTS 1', grupo: 'MTS', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'MTS-2', nome: 'MTS 2', grupo: 'MTS', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'MTS-3', nome: 'MTS 3', grupo: 'MTS', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'MTS-4', nome: 'MTS 4', grupo: 'MTS', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
+    { id: 'LMS-PTA', nome: 'LMS / PTA', grupo: 'LMS / PTA', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] },
+    { id: 'COLDFLOW', nome: 'ColdFlow', grupo: 'ColdFlow', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] },
+    { id: 'DYNO', nome: 'Dynamometer', grupo: 'Dynamometer', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] }
   ];
 
   /* Catálogo de procedimentos.
@@ -516,15 +518,15 @@ tbody tr:last-child td { border-bottom: none; }
      Custo do procedimento = (horasSetup + horasEnsaio + horasReport) x hourlyRate + custoInsumos.
      Só horasSetup + horasEnsaio ocupam bancada; horasReport é trabalho de escritório e
      entra no custo, não na agenda do equipamento.
-     equipamentoIds = bancadas que o ensaio ocupa ao mesmo tempo; a janela precisa estar
-     livre em todas elas simultaneamente.
+     equipamentoGrupos = famílias de bancada que o ensaio ocupa ao mesmo tempo. O
+     planejamento escolhe, dentro de cada grupo, a unidade que libera mais cedo.
      clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos.
      O procedimento não é amarrado a fase de projeto: qualquer teste pode rodar em DV, PV ou VAVE. */
   var TESTES = [
     {
       id: 'TP-HOT-01', nome: 'Fadiga termomecânica (TMF)', norma: 'PV 1200 / cliente', revisao: 'Rev. 04',
       clientes: ['CLI-VW', 'CLI-SCA'],
-      area: 'HOT', equipamentoIds: ['BURNER-1'],
+      area: 'HOT', equipamentoGrupos: ['Burner'],
       horasSetup: 8, horasEnsaio: 600, horasReport: 16, amostras: 2,
       hourlyRate: 610, custoInsumos: 12800,
       descricao: 'Ciclagem de gás quente com gradiente térmico para avaliar trincas em soldas e cones.'
@@ -532,7 +534,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-02', nome: 'Ciclagem térmica acelerada', norma: 'ISO 19453-5', revisao: 'Rev. 02',
       clientes: [],
-      area: 'HOT', equipamentoIds: ['BURNER-2'],
+      area: 'HOT', equipamentoGrupos: ['Burner'],
       horasSetup: 4, horasEnsaio: 336, horasReport: 8, amostras: 2,
       hourlyRate: 610, custoInsumos: 6400,
       descricao: 'Ciclos rápidos de aquecimento e resfriamento para verificar integridade de juntas e revestimentos.'
@@ -540,7 +542,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-03', nome: 'Oxidação isotérmica de longa duração', norma: 'ASTM G54', revisao: 'Rev. 01',
       clientes: [],
-      area: 'HOT', equipamentoIds: ['BURNER-3'],
+      area: 'HOT', equipamentoGrupos: ['Burner'],
       horasSetup: 4, horasEnsaio: 1000, horasReport: 8, amostras: 3,
       hourlyRate: 580, custoInsumos: 9800,
       descricao: 'Exposição contínua em alta temperatura para qualificar inox ferrítico e austenítico.'
@@ -548,7 +550,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-04', nome: 'Envelhecimento acelerado de catalisador', norma: 'ZDAKW / cliente', revisao: 'Rev. 03',
       clientes: ['CLI-VW', 'CLI-SCA'],
-      area: 'HOT', equipamentoIds: ['BURNER-1'],
+      area: 'HOT', equipamentoGrupos: ['Burner'],
       horasSetup: 6, horasEnsaio: 480, horasReport: 12, amostras: 2,
       hourlyRate: 610, custoInsumos: 16900,
       descricao: 'Envelhecimento térmico do washcoat equivalente à vida útil do veículo.'
@@ -556,7 +558,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-HOT-05', nome: 'Light-off e eficiência de conversão', norma: 'Cliente / EURO 6', revisao: 'Rev. 05',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'HOT', equipamentoIds: ['BURNER-2'],
+      area: 'HOT', equipamentoGrupos: ['Burner'],
       horasSetup: 6, horasEnsaio: 48, horasReport: 12, amostras: 2,
       hourlyRate: 610, custoInsumos: 11400,
       descricao: 'Determinação da temperatura de light-off do catalisador e da eficiência pós-envelhecimento.'
@@ -564,7 +566,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-VIB-01', nome: 'Vibração aleatória 3 eixos', norma: 'ISO 16750-3', revisao: 'Rev. 03',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['SHAKER'],
+      area: 'AMBOS', equipamentoGrupos: ['Shaker'],
       horasSetup: 8, horasEnsaio: 72, horasReport: 8, amostras: 2,
       hourlyRate: 480, custoInsumos: 5600,
       descricao: 'Perfil PSD por eixo representando a vida em estrada do sistema e dos suportes.'
@@ -572,7 +574,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-VIB-02', nome: 'Varredura senoidal e busca de ressonância', norma: 'IEC 60068-2-6', revisao: 'Rev. 02',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['SHAKER'],
+      area: 'AMBOS', equipamentoGrupos: ['Shaker'],
       horasSetup: 4, horasEnsaio: 16, horasReport: 6, amostras: 1,
       hourlyRate: 480, custoInsumos: 3200,
       descricao: 'Levantamento das frequências naturais e amplificação nos pontos de fixação.'
@@ -580,7 +582,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-MEC-01', nome: 'Fadiga estrutural de suporte', norma: 'Procedimento interno LAB-BRK', revisao: 'Rev. 06',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['MTS-1'],
+      area: 'AMBOS', equipamentoGrupos: ['MTS'],
       horasSetup: 6, horasEnsaio: 400, horasReport: 10, amostras: 3,
       hourlyRate: 380, custoInsumos: 7600,
       descricao: 'Carregamento cíclico do bracket até a vida-alvo, com monitoramento de rigidez.'
@@ -588,7 +590,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-MEC-02', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX', revisao: 'Rev. 04',
       clientes: ['CLI-FOR', 'CLI-TEN'],
-      area: 'HOT', equipamentoIds: ['MTS-2'],
+      area: 'HOT', equipamentoGrupos: ['MTS'],
       horasSetup: 6, horasEnsaio: 180, horasReport: 8, amostras: 3,
       hourlyRate: 380, custoInsumos: 7300,
       descricao: 'Deslocamento angular e axial cíclico até 1 milhão de ciclos.'
@@ -596,7 +598,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-MEC-03', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR', revisao: 'Rev. 02',
       clientes: ['CLI-EBE'],
-      area: 'COLD', equipamentoIds: ['MTS-3'],
+      area: 'COLD', equipamentoGrupos: ['MTS'],
       horasSetup: 3, horasEnsaio: 120, horasReport: 6, amostras: 5,
       hourlyRate: 320, custoInsumos: 3400,
       descricao: 'Carregamento cíclico do isolador de borracha até perda de rigidez especificada.'
@@ -604,7 +606,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-MEC-04', nome: 'Tração e alongamento do material', norma: 'ISO 6892-1', revisao: 'Rev. 01',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['MTS-4'],
+      area: 'AMBOS', equipamentoGrupos: ['MTS'],
       horasSetup: 1, horasEnsaio: 6, horasReport: 3, amostras: 6,
       hourlyRate: 320, custoInsumos: 1500,
       descricao: 'Caracterização mecânica do inox de entrada por lote.'
@@ -612,7 +614,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-MEC-05', nome: 'Fadiga de solda por flexão', norma: 'ISO 17639 / interno', revisao: 'Rev. 03',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['MTS-4'],
+      area: 'AMBOS', equipamentoGrupos: ['MTS'],
       horasSetup: 3, horasEnsaio: 96, horasReport: 6, amostras: 4,
       hourlyRate: 320, custoInsumos: 4100,
       descricao: 'Flexão alternada no cordão de solda para levantar a curva S-N da junta.'
@@ -620,7 +622,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-ACU-01', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820', revisao: 'Rev. 02',
       clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
-      area: 'COLD', equipamentoIds: ['LMS-PTA'],
+      area: 'COLD', equipamentoGrupos: ['LMS / PTA'],
       horasSetup: 4, horasEnsaio: 16, horasReport: 8, amostras: 1,
       hourlyRate: 560, custoInsumos: 6100,
       descricao: 'Medição de atenuação do silencioso em banco, por banda de terço de oitava.'
@@ -628,7 +630,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-ACU-02', nome: 'Ruído de boca de escape e análise de ordens', norma: 'ISO 362 / interno', revisao: 'Rev. 04',
       clientes: ['CLI-STL', 'CLI-VW'],
-      area: 'COLD', equipamentoIds: ['LMS-PTA', 'DYNO'],
+      area: 'COLD', equipamentoGrupos: ['LMS / PTA', 'Dynamometer'],
       horasSetup: 6, horasEnsaio: 24, horasReport: 12, amostras: 1,
       hourlyRate: 1510, custoInsumos: 9200,
       descricao: 'Nível sonoro na saída e conteúdo de ordens do motor com o sistema montado.'
@@ -636,7 +638,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-FLW-01', nome: 'Perda de carga (backpressure)', norma: 'SAE J1544', revisao: 'Rev. 03',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['COLDFLOW'],
+      area: 'AMBOS', equipamentoGrupos: ['ColdFlow'],
       horasSetup: 2, horasEnsaio: 8, horasReport: 4, amostras: 1,
       hourlyRate: 240, custoInsumos: 1800,
       descricao: 'Levantamento da curva de contrapressão em função da vazão.'
@@ -644,7 +646,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-FLW-02', nome: 'Uniformidade de fluxo no substrato', norma: 'Procedimento interno LAB-UI', revisao: 'Rev. 02',
       clientes: ['CLI-VW', 'CLI-STL'],
-      area: 'HOT', equipamentoIds: ['COLDFLOW'],
+      area: 'HOT', equipamentoGrupos: ['ColdFlow'],
       horasSetup: 4, horasEnsaio: 12, horasReport: 6, amostras: 1,
       hourlyRate: 240, custoInsumos: 5300,
       descricao: 'Mapeamento de velocidade na face do substrato e cálculo do índice de uniformidade.'
@@ -652,7 +654,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-DYN-01', nome: 'Durabilidade em dinamômetro de motor', norma: 'Ciclo de durabilidade do cliente', revisao: 'Rev. 05',
       clientes: ['CLI-VW', 'CLI-STL', 'CLI-SCA'],
-      area: 'AMBOS', equipamentoIds: ['DYNO', 'LMS-PTA'],
+      area: 'AMBOS', equipamentoGrupos: ['Dynamometer', 'LMS / PTA'],
       horasSetup: 24, horasEnsaio: 500, horasReport: 24, amostras: 1,
       hourlyRate: 1510, custoInsumos: 28500,
       descricao: 'Sistema completo em motor, reproduzindo o ciclo de durabilidade veicular.'
@@ -660,7 +662,7 @@ tbody tr:last-child td { border-bottom: none; }
     {
       id: 'TP-DYN-02', nome: 'Contrapressão e temperatura em ciclo de motor', norma: 'Procedimento interno LAB-ENG', revisao: 'Rev. 02',
       clientes: [],
-      area: 'AMBOS', equipamentoIds: ['DYNO'],
+      area: 'AMBOS', equipamentoGrupos: ['Dynamometer'],
       horasSetup: 12, horasEnsaio: 72, horasReport: 12, amostras: 1,
       hourlyRate: 950, custoInsumos: 13400,
       descricao: 'Instrumentação do sistema em motor para levantar temperatura e contrapressão em carga.'
@@ -724,11 +726,32 @@ tbody tr:last-child td { border-bottom: none; }
     return false;
   }
 
-  /* Lista de equipamentos que o procedimento ocupa ao mesmo tempo. */
-  function idsDeEquipamento(teste) {
+  /* Grupo do equipamento: família de unidades intercambiáveis. Sem grupo definido,
+     a própria unidade é o grupo. */
+  function grupoDe(equipamento) {
+    return equipamento.grupo || equipamento.nome || equipamento.id;
+  }
+
+  /* Agrupa o parque em famílias, preservando a ordem do cadastro. */
+  function agruparEquipamentos(equipamentos) {
+    var ordem = [];
+    var mapa = {};
+    (equipamentos || []).forEach(function (eq) {
+      var id = grupoDe(eq);
+      if (!mapa[id]) {
+        mapa[id] = { id: id, nome: id, membros: [] };
+        ordem.push(mapa[id]);
+      }
+      mapa[id].membros.push(eq);
+    });
+    return ordem;
+  }
+
+  /* Grupos de bancada que o procedimento ocupa ao mesmo tempo. */
+  function gruposDoTeste(teste) {
     if (!teste) return [];
-    if (teste.equipamentoIds) return teste.equipamentoIds;
-    return teste.equipamentoId ? [teste.equipamentoId] : [];
+    if (teste.equipamentoGrupos) return teste.equipamentoGrupos;
+    return [];
   }
 
   /* Um ensaio só avança quando TODAS as bancadas que ele ocupa estão operando:
@@ -844,6 +867,62 @@ tbody tr:last-child td { border-bottom: none; }
     return null;
   }
 
+  var MAX_COMBINACOES = 400;
+
+  /* Uma unidade de cada grupo. Com poucos grupos e poucas unidades o produto é pequeno;
+     acima do teto caímos na primeira unidade de cada grupo para não travar o recálculo. */
+  function combinacoesDeUnidades(grupos) {
+    var total = grupos.reduce(function (n, g) { return n * g.membros.length; }, 1);
+    if (!total) return [];
+    if (total > MAX_COMBINACOES) {
+      return [grupos.map(function (g) { return g.membros[0]; })];
+    }
+    var combinacoes = [[]];
+    grupos.forEach(function (g) {
+      var proxima = [];
+      combinacoes.forEach(function (parcial) {
+        g.membros.forEach(function (unidade) { proxima.push(parcial.concat([unidade])); });
+      });
+      combinacoes = proxima;
+    });
+    return combinacoes;
+  }
+
+  /* Procura, entre todas as unidades possíveis, a que começa mais cedo.
+     Empate no início é desempatado por quem termina antes — uma bancada de turno
+     mais longo entrega o mesmo ensaio em menos dias. */
+  function melhorEntreGrupos(grupos, teste, reservasPorEquipamento, dataMinima, inicioFixo) {
+    var melhor = null;
+    combinacoesDeUnidades(grupos).forEach(function (unidades) {
+      var dias = diasDeOperacao(teste, unidades);
+      var achado = null;
+
+      if (inicioFixo) {
+        var janela = calcularJanela(unidades, inicioFixo, dias);
+        if (janela) {
+          var posicoes = {};
+          var livre = true;
+          unidades.forEach(function (eq) {
+            var r = posicaoLivre(reservasPorEquipamento[eq.id], janela);
+            if (r.posicao === -1) livre = false; else posicoes[eq.id] = r.posicao;
+          });
+          if (livre) achado = { janela: janela, posicoes: posicoes };
+        }
+      } else {
+        achado = buscarJanela(unidades, reservasPorEquipamento, dataMinima, dias);
+      }
+      if (!achado) return;
+
+      var candidato = { unidades: unidades, janela: achado.janela, posicoes: achado.posicoes, dias: dias };
+      if (!melhor) { melhor = candidato; return; }
+      var deltaInicio = util.diffDias(candidato.janela.inicio, melhor.janela.inicio);
+      if (deltaInicio > 0 || (deltaInicio === 0 && util.diffDias(candidato.janela.fim, melhor.janela.fim) > 0)) {
+        melhor = candidato;
+      }
+    });
+    return melhor;
+  }
+
   function pesoPrioridade(id) {
     var p = util.porId(dados.PRIORIDADES, id);
     return p ? p.peso : 9;
@@ -927,24 +1006,27 @@ tbody tr:last-child td { border-bottom: none; }
 
     var alocacoes = [];
 
+    var gruposDoParque = agruparEquipamentos(equipamentos);
+
     function montarBase(demanda) {
       var teste = util.porId(estado.testes, demanda.testeId);
       var peca = util.porId(estado.pecas, demanda.pecaId);
-      var ids = idsDeEquipamento(teste);
-      var lista = [];
+      var grupos = [];
       var faltando = [];
-      ids.forEach(function (id) {
-        var eq = util.porId(equipamentos, id);
-        if (eq) lista.push(eq); else faltando.push(id);
+      gruposDoTeste(teste).forEach(function (id) {
+        var g = util.porId(gruposDoParque, id);
+        if (g && g.membros.length) grupos.push(g); else faltando.push(id);
       });
       return {
         demandaId: demanda.id,
         demanda: demanda,
         teste: teste,
         peca: peca,
-        equipamentos: lista,
-        equipamentosFaltando: faltando,
-        custo: custoDemanda(demanda, teste, lista, peca),
+        grupos: grupos,
+        gruposFaltando: faltando,
+        /* equipamentos: as unidades efetivamente escolhidas; vazio até alocar. */
+        equipamentos: [],
+        custo: custoDemanda(demanda, teste, null, peca),
         cotacao: false,
         /* posicoes: { equipamentoId: índice da posição ocupada } */
         posicoes: null,
@@ -959,78 +1041,64 @@ tbody tr:last-child td { border-bottom: none; }
       var base = montarBase(demanda);
       base.cotacao = true;
       base.motivo = 'Cotação — não ocupa bancada.';
-      if (base.teste && base.equipamentos.length) {
-        base.diasOperacao = diasDeOperacao(base.teste, base.equipamentos);
+      if (base.teste && base.grupos.length) {
+        /* Estimativa pela primeira unidade de cada grupo, só para dar a duração. */
+        base.diasOperacao = diasDeOperacao(base.teste, base.grupos.map(function (g) { return g.membros[0]; }));
       }
       alocacoes.push(base);
     }
 
-    function nomesDe(lista) {
-      return lista.map(function (eq) { return eq.nome; }).join(' + ');
+    function nomesDosGrupos(grupos) {
+      return grupos.map(function (g) { return g.nome; }).join(' + ');
     }
 
     function processar(demanda) {
       var base = montarBase(demanda);
       var teste = base.teste;
-      var lista = base.equipamentos;
 
       if (!teste) {
         base.motivo = 'Procedimento não encontrado no catálogo.';
         alocacoes.push(base);
         return;
       }
-      if (base.equipamentosFaltando.length) {
-        base.motivo = 'Equipamento "' + base.equipamentosFaltando.join('", "') + '" não cadastrado.';
+      if (base.gruposFaltando.length) {
+        base.motivo = 'Grupo de equipamento "' + base.gruposFaltando.join('", "') + '" sem unidade cadastrada.';
         alocacoes.push(base);
         return;
       }
-      if (!lista.length) {
+      if (!base.grupos.length) {
         base.motivo = 'Procedimento sem equipamento definido.';
         alocacoes.push(base);
         return;
       }
 
-      var dias = diasDeOperacao(teste, lista);
       /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
          datas diferentes conforme o cliente e o programa. */
       var disponibilidadePeca = demanda.dataAmostras || hoje;
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
 
-      var melhor = null;
-      if (demanda.inicioFixo) {
-        var janelaFixa = calcularJanela(lista, demanda.inicioFixo, dias);
-        if (janelaFixa) {
-          var escolhidas = {};
-          var livre = true;
-          lista.forEach(function (eq) {
-            var r = posicaoLivre(reservas[eq.id], janelaFixa);
-            if (r.posicao === -1) livre = false; else escolhidas[eq.id] = r.posicao;
-          });
-          if (livre) melhor = { janela: janelaFixa, posicoes: escolhidas };
-        }
-      } else {
-        melhor = buscarJanela(lista, reservas, dataMinima, dias);
-      }
+      var melhor = melhorEntreGrupos(base.grupos, teste, reservas, dataMinima, demanda.inicioFixo);
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
           ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) +
-            ' indisponível em ' + nomesDe(lista) + '.'
-          : 'Sem janela livre em ' + nomesDe(lista) + ' dentro do horizonte de planejamento.';
-        base.diasOperacao = dias;
+            ' indisponível em ' + nomesDosGrupos(base.grupos) + '.'
+          : 'Sem janela livre em ' + nomesDosGrupos(base.grupos) + ' dentro do horizonte de planejamento.';
+        base.diasOperacao = diasDeOperacao(teste, base.grupos.map(function (g) { return g.membros[0]; }));
         alocacoes.push(base);
         return;
       }
 
-      lista.forEach(function (eq) {
+      melhor.unidades.forEach(function (eq) {
         reservas[eq.id][melhor.posicoes[eq.id]].push(melhor.janela);
       });
 
+      base.equipamentos = melhor.unidades;
       base.posicoes = melhor.posicoes;
       base.inicio = melhor.janela.inicio;
       base.fim = melhor.janela.fim;
-      base.diasOperacao = dias;
+      base.diasOperacao = melhor.dias;
       base.esperaAmostra = util.diffDias(hoje, disponibilidadePeca) > 0
         ? util.diffDias(hoje, disponibilidadePeca) : 0;
       base.esperaFila = util.diffDias(dataMinima, melhor.janela.inicio);
@@ -1069,7 +1137,9 @@ tbody tr:last-child td { border-bottom: none; }
     ehDiaUtil: ehDiaUtil,
     emManutencao: emManutencao,
     ehCotacao: ehCotacao,
-    idsDeEquipamento: idsDeEquipamento,
+    gruposDoTeste: gruposDoTeste,
+    agruparEquipamentos: agruparEquipamentos,
+    grupoDe: grupoDe,
     horasDeBancada: horasDeBancada,
     horasFaturaveis: horasFaturaveis,
     STATUS_ATIVOS: ATIVAS
@@ -1085,6 +1155,8 @@ tbody tr:last-child td { border-bottom: none; }
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util;
+  /* No navegador o scheduler já foi carregado; no Node (testes) resolvemos na hora. */
+  var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
 
   var CHAVE = 'testing-center/v1';
   var estado = null;
@@ -1118,16 +1190,28 @@ tbody tr:last-child td { border-bottom: none; }
     (estado.testes || []).forEach(function (t) {
       delete t.fases;
       if (typeof t.revisao !== 'string') t.revisao = '';
-      if (!t.equipamentoIds) {
-        t.equipamentoIds = t.equipamentoId ? [t.equipamentoId] : [];
+      /* As unidades que o procedimento apontava ainda servem para herdar o hourly rate
+         antigo, então guardamos antes de trocá-las pelo grupo. */
+      var unidadesAntigas = t.equipamentoIds || (t.equipamentoId ? [t.equipamentoId] : []);
+
+      /* O procedimento passou a pedir o grupo de bancada, não a unidade. */
+      if (!t.equipamentoGrupos) {
+        var grupos = [];
+        unidadesAntigas.forEach(function (id) {
+          var eq = util.porId(estado.equipamentos || [], id);
+          var grupo = eq ? scheduler.grupoDe(eq) : id;
+          if (grupos.indexOf(grupo) === -1) grupos.push(grupo);
+        });
+        t.equipamentoGrupos = grupos;
       }
+      delete t.equipamentoIds;
       delete t.equipamentoId;
 
       /* O custo passou a ser horas x hourly rate + insumos. Sem hourly rate gravado,
          herdamos a soma do custo-hora das bancadas do ensaio, que era o que valia antes. */
       if (typeof t.horasReport !== 'number') t.horasReport = 0;
       if (typeof t.hourlyRate !== 'number') {
-        t.hourlyRate = t.equipamentoIds.reduce(function (soma, id) {
+        t.hourlyRate = unidadesAntigas.reduce(function (soma, id) {
           var eq = util.porId(estado.equipamentos || [], id);
           return soma + (eq && eq.custoHora ? eq.custoHora : 0);
         }, 0);
@@ -1515,7 +1599,7 @@ tbody tr:last-child td { border-bottom: none; }
     return estado.testes.filter(function (t) {
       if (f.area && t.area !== f.area && t.area !== 'AMBOS') return false;
       if (!aplicaAoCliente(t, f.clienteId)) return false;
-      if (f.equipamentoId && TC.scheduler.idsDeEquipamento(t).indexOf(f.equipamentoId) === -1) return false;
+      if (f.equipamentoId && TC.scheduler.gruposDoTeste(t).indexOf(f.equipamentoId) === -1) return false;
       if (busca) {
         var alvo = (t.id + ' ' + t.nome + ' ' + (t.norma || '') + ' ' +
           (t.revisao || '') + ' ' + (t.descricao || '')).toLowerCase();
@@ -1525,20 +1609,22 @@ tbody tr:last-child td { border-bottom: none; }
     });
   }
 
-  /* Devolve os equipamentos do procedimento e os códigos que não existem mais no cadastro. */
-  function equipamentosDe(estado, teste) {
+  /* Devolve os grupos de bancada do procedimento e os que não têm unidade cadastrada. */
+  function gruposDe(estado, teste) {
+    var parque = TC.scheduler.agruparEquipamentos(estado.equipamentos);
     var lista = [], faltando = [];
-    TC.scheduler.idsDeEquipamento(teste).forEach(function (id) {
-      var eq = util.porId(estado.equipamentos, id);
-      if (eq) lista.push(eq); else faltando.push(id);
+    TC.scheduler.gruposDoTeste(teste).forEach(function (id) {
+      var g = util.porId(parque, id);
+      if (g && g.membros.length) lista.push(g); else faltando.push(id);
     });
     return { lista: lista, faltando: faltando };
   }
 
   function linha(estado, teste) {
-    var eqs = equipamentosDe(estado, teste);
+    var eqs = gruposDe(estado, teste);
     var custo = TC.scheduler.custoCatalogo(teste);
-    var dias = eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) : null;
+    var unidades = eqs.lista.map(function (g) { return g.membros[0]; });
+    var dias = unidades.length ? TC.scheduler.diasDeOperacao(teste, unidades) : null;
     var clientes = (teste.clientes || []).map(function (id) {
       var c = util.porId(estado.clientes, id);
       return c ? c.nome : id;
@@ -1557,11 +1643,15 @@ tbody tr:last-child td { border-bottom: none; }
         : '<span class="sub">sem revisão</span>') + '</td>' +
       '<td>' + ui.etiquetaArea(teste.area) + '</td>' +
       '<td>' +
-        eqs.lista.map(function (eq) { return '<div class="forte">' + e(eq.nome) + '</div>'; }).join('') +
-        eqs.faltando.map(function (id) {
-          return '<div><span class="etiqueta erro">' + e(id) + ' não cadastrado</span></div>';
+        eqs.lista.map(function (g) {
+          return '<div class="forte">' + e(g.nome) +
+            (g.membros.length > 1 ? ' <span class="sub">(' + g.membros.length + ' unidades)</span>' : '') +
+            '</div>';
         }).join('') +
-        (eqs.lista.length > 1 ? '<div class="sub">ocupa as ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
+        eqs.faltando.map(function (id) {
+          return '<div><span class="etiqueta erro">' + e(id) + ' sem unidade</span></div>';
+        }).join('') +
+        (eqs.lista.length > 1 ? '<div class="sub">ocupa os ' + eqs.lista.length + ' ao mesmo tempo</div>' : '') +
         (!eqs.lista.length && !eqs.faltando.length ? '<span class="etiqueta erro">sem equipamento</span>' : '') +
       '</td>' +
       '<td class="num">' + e(String(custo.horasBancada)) + ' h' +
@@ -1584,8 +1674,10 @@ tbody tr:last-child td { border-bottom: none; }
 
   function abrirConfirmacao(ctx, teste) {
     var estado = ctx.estado;
-    var eqs = equipamentosDe(estado, teste);
-    var nomes = eqs.lista.map(function (eq) { return eq.nome; }).join(' + ');
+    var eqs = gruposDe(estado, teste);
+    var nomes = eqs.lista.map(function (g) { return g.nome; }).join(' + ');
+    var unidadesRef = eqs.lista.map(function (g) { return g.membros[0]; });
+    var temPool = eqs.lista.some(function (g) { return g.membros.length > 1; });
 
     var clientePadrao = ctx.filtros.clienteId ||
       (teste.clientes && teste.clientes[0]) ||
@@ -1606,9 +1698,10 @@ tbody tr:last-child td { border-bottom: none; }
         e(teste.nome) + (teste.revisao ? ' · ' + e(teste.revisao) : '') +
         ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
         e(nomes || '?') + '</strong> por ' +
-        e(eqs.lista.length ? TC.scheduler.diasDeOperacao(teste, eqs.lista) + ' dia(s)' : '—') +
-        (eqs.lista.length > 1 ? ', com as ' + eqs.lista.length + ' bancadas reservadas ao mesmo tempo' : '') +
-        '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento.' +
+        e(unidadesRef.length ? TC.scheduler.diasDeOperacao(teste, unidadesRef) + ' dia(s)' : '—') +
+        (eqs.lista.length > 1 ? ', com os ' + eqs.lista.length + ' grupos reservados ao mesmo tempo' : '') +
+        '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento' +
+        (temPool ? ', escolhendo a unidade que libera mais cedo' : '') + '.' +
       '</div>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Nº da LTI (ordem de serviço)</label>' +
@@ -1697,7 +1790,7 @@ tbody tr:last-child td { border-bottom: none; }
     function atualizarPrevia() {
       var peca = util.porId(estado.pecas, selPeca.value);
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
-      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, eqs.lista, peca);
+      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, null, peca);
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
@@ -1742,8 +1835,9 @@ tbody tr:last-child td { border-bottom: none; }
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoIds: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
-    var idsAtuais = TC.scheduler.idsDeEquipamento(teste);
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoGrupos: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
+    var gruposAtuais = TC.scheduler.gruposDoTeste(teste);
+    var parque = TC.scheduler.agruparEquipamentos(estado.equipamentos);
 
     var corpo =
       '<div class="grade-campos">' +
@@ -1764,11 +1858,13 @@ tbody tr:last-child td { border-bottom: none; }
       '</div>' +
       '<div class="campo" id="previa-custo"></div>' +
       '<div class="campo"><label>Equipamentos que o ensaio ocupa ' +
-        '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo)</span></label><div>' +
-        estado.equipamentos.map(function (eq) {
+        '<span class="sub" style="font-weight:400">(marque mais de um se o ensaio prende as bancadas ao mesmo tempo; ' +
+        'em grupo com várias unidades, o planejamento escolhe a que libera mais cedo)</span></label><div>' +
+        parque.map(function (g) {
           return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
-            '<input type="checkbox" name="equipamentoIds" data-grupo="1" value="' + e(eq.id) + '" style="width:auto"' +
-            (idsAtuais.indexOf(eq.id) !== -1 ? ' checked' : '') + '>' + e(eq.nome) + '</label>';
+            '<input type="checkbox" name="equipamentoGrupos" data-grupo="1" value="' + e(g.id) + '" style="width:auto"' +
+            (gruposAtuais.indexOf(g.id) !== -1 ? ' checked' : '') + '>' + e(g.nome) +
+            (g.membros.length > 1 ? ' <span class="sub">(' + g.membros.length + ')</span>' : '') + '</label>';
         }).join('') +
       '</div></div>' +
       '<div class="campo"><label>Exigido pelos clientes (nenhum = procedimento padrão)</label><div>' +
@@ -1786,13 +1882,13 @@ tbody tr:last-child td { border-bottom: none; }
       confirmar: 'Salvar procedimento',
       aoConfirmar: function (v) {
         if (!v.nome) { ui.notificar('Informe o nome do procedimento.'); return false; }
-        if (!v.equipamentoIds || !v.equipamentoIds.length) {
+        if (!v.equipamentoGrupos || !v.equipamentoGrupos.length) {
           ui.notificar('Selecione ao menos um equipamento.');
           return false;
         }
         TC.store.salvarTeste({
           id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
-          area: v.area, equipamentoIds: v.equipamentoIds, clientes: v.clientes || [],
+          area: v.area, equipamentoGrupos: v.equipamentoGrupos, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
           horasReport: Number(v.horasReport) || 0, amostras: Number(v.amostras) || 1,
           hourlyRate: Number(v.hourlyRate) || 0, custoInsumos: Number(v.custoInsumos) || 0,
@@ -1854,7 +1950,8 @@ tbody tr:last-child td { border-bottom: none; }
           '<div class="campo busca"><label>Buscar</label><input id="f-busca" placeholder="nome, código, norma ou revisão" value="' + e(f.busca || '') + '"></div>' +
           '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
           '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-          '<div class="campo"><label>Equipamento</label><select id="f-equip">' + ui.opcoes(estado.equipamentos, f.equipamentoId, 'Todos') + '</select></div>' +
+          '<div class="campo"><label>Equipamento</label><select id="f-equip">' +
+            ui.opcoes(TC.scheduler.agruparEquipamentos(estado.equipamentos), f.equipamentoId, 'Todos') + '</select></div>' +
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Código</th><th>Procedimento</th><th>Revisão</th><th>Área</th><th>Equipamento</th>' +
@@ -2552,21 +2649,33 @@ tbody tr:last-child td { border-bottom: none; }
     return mapa;
   }
 
-  function abrirEdicao(equipamento) {
+  function abrirEdicao(equipamento, estado) {
     var novo = !equipamento;
-    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] };
+    equipamento = equipamento || { id: '', nome: '', grupo: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] };
+
+    var gruposExistentes = TC.scheduler.agruparEquipamentos(estado.equipamentos)
+      .map(function (g) { return g.id; });
 
     var corpo =
       '<div class="grade-campos">' +
         '<div class="campo"><label>Código</label><input name="id" value="' + e(equipamento.id) + '"' +
           (novo ? ' placeholder="SHK-03" required' : ' readonly') + '></div>' +
         '<div class="campo"><label>Nome</label><input name="nome" value="' + e(equipamento.nome) + '" required></div>' +
+        '<div class="campo"><label>Grupo</label>' +
+          '<input name="grupo" list="grupos-existentes" autocomplete="off" value="' + e(equipamento.grupo || '') + '" ' +
+          'placeholder="Ex.: Burner">' +
+          '<datalist id="grupos-existentes">' +
+            gruposExistentes.map(function (g) { return '<option value="' + e(g) + '"></option>'; }).join('') +
+          '</datalist></div>' +
         '<div class="campo"><label>Posições em paralelo</label><input type="number" min="1" name="posicoes" value="' + e(String(equipamento.posicoes)) + '"></div>' +
         '<div class="campo"><label>Horas por dia</label><input type="number" min="1" max="24" name="horasDia" value="' + e(String(equipamento.horasDia)) + '"></div>' +
       '</div>' +
       '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
         '<input type="checkbox" name="continuo" style="width:auto"' + (equipamento.continuo ? ' checked' : '') + '>' +
         'Ensaio corre 24 h/dia sem operador (câmaras e bancos automáticos)</label></div>' +
+      '<p class="sub" style="margin:0 0 12px">Unidades com o mesmo grupo são intercambiáveis: o ' +
+        'procedimento pede o grupo e o planejamento escolhe a que libera mais cedo. Deixe em branco ' +
+        'para a unidade formar um grupo só dela.</p>' +
       '<div class="campo"><label>Dias de operação</label><div>' +
         SEMANA.map(function (d) {
           return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
@@ -2584,7 +2693,7 @@ tbody tr:last-child td { border-bottom: none; }
         var dias = (v.diasUteis || []).map(Number);
         if (!dias.length) { ui.notificar('Selecione ao menos um dia de operação.'); return false; }
         TC.store.salvarEquipamento({
-          id: v.id, nome: v.nome, posicoes: Number(v.posicoes) || 1,
+          id: v.id, nome: v.nome, grupo: v.grupo.trim(), posicoes: Number(v.posicoes) || 1,
           continuo: !!v.continuo, horasDia: Number(v.horasDia) || 8,
           diasUteis: dias, manutencao: equipamento.manutencao || []
         });
@@ -2636,6 +2745,11 @@ tbody tr:last-child td { border-bottom: none; }
     var horizonte = 90;
     var ocupacao = ocupacaoPorEquipamento(ctx.plano, ctx.hoje, horizonte);
 
+    var irmaos = {};
+    TC.scheduler.agruparEquipamentos(estado.equipamentos).forEach(function (g) {
+      irmaos[g.id] = g.membros.length;
+    });
+
     var linhas = estado.equipamentos.map(function (eq) {
       var o = ocupacao[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
       var capacidade = eq.posicoes * horizonte;
@@ -2644,6 +2758,10 @@ tbody tr:last-child td { border-bottom: none; }
       return '<tr data-equip="' + e(eq.id) + '">' +
         '<td><div class="forte">' + e(eq.nome) + '</div>' +
           '<div class="sub mono">' + e(eq.id) + '</div></td>' +
+        '<td>' + (irmaos[TC.scheduler.grupoDe(eq)] > 1
+          ? '<span class="etiqueta marca">' + e(TC.scheduler.grupoDe(eq)) + '</span>' +
+            '<div class="sub">' + irmaos[TC.scheduler.grupoDe(eq)] + ' unidades</div>'
+          : '<span class="sub">unidade única</span>') + '</td>' +
         '<td class="num">' + eq.posicoes + '</td>' +
         '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
           '<div class="sub">' + e(dias) + '</div></td>' +
@@ -2676,24 +2794,28 @@ tbody tr:last-child td { border-bottom: none; }
         '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
           '<span class="sub">Percentual calculado sobre posições × dias disponíveis</span></div>' +
         '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th>' +
+          '<th>Equipamento</th><th>Grupo</th><th class="num">Posições</th><th>Regime</th>' +
           '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Horas alocadas</th><th>Manutenção</th><th></th>' +
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '</div>';
 
-    container.querySelector('#novo').onclick = function () { abrirEdicao(null); };
+    container.querySelector('#novo').onclick = function () { abrirEdicao(null, estado); };
     container.querySelectorAll('tr[data-equip]').forEach(function (tr) {
       var eq = util.porId(estado.equipamentos, tr.dataset.equip);
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(eq); };
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(eq, estado); };
       tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
       tr.querySelector('.excluir').onclick = function () {
-        var dependentes = estado.testes.filter(function (t) { return t.equipamentoId === eq.id; });
+        var grupo = TC.scheduler.grupoDe(eq);
+        var ultimaDoGrupo = irmaos[grupo] === 1;
+        var dependentes = ultimaDoGrupo
+          ? estado.testes.filter(function (t) { return TC.scheduler.gruposDoTeste(t).indexOf(grupo) !== -1; })
+          : [];
         ui.confirmarAcao(
           'Remover ' + eq.nome + '?' +
           (dependentes.length
-            ? ' ' + dependentes.length + ' procedimento(s) usam este equipamento e ficarão sem bancada, ' +
-              'aparecendo como demandas sem janela até você apontá-los para outro.'
-            : ''),
+            ? ' É a última unidade do grupo ' + grupo + ', e ' + dependentes.length +
+              ' procedimento(s) o usam: eles ficarão sem bancada até serem apontados para outro grupo.'
+            : ultimaDoGrupo ? '' : ' O grupo ' + grupo + ' continua com as outras unidades.'),
           function () {
             TC.store.removerEquipamento(eq.id);
             ui.notificar('Equipamento removido.');

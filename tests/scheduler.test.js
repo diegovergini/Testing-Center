@@ -10,15 +10,19 @@ const scheduler = require('../src/scheduler.js');
 const SEGUNDA = '2026-07-06';
 
 function equipamento(extra) {
-  return Object.assign({
+  const base = {
     id: 'EQ-01', nome: 'Bancada', posicoes: 1, continuo: false, horasDia: 8,
     diasUteis: [1, 2, 3, 4, 5], custoHora: 100, manutencao: []
-  }, extra);
+  };
+  const eq = Object.assign(base, extra);
+  /* sem grupo explícito, cada unidade é o próprio grupo, nomeado pelo id */
+  if (!eq.grupo) eq.grupo = eq.id;
+  return eq;
 }
 
 function teste(extra) {
   return Object.assign({
-    id: 'TP-01', nome: 'Ensaio', area: 'COLD', equipamentoIds: ['EQ-01'], revisao: 'Rev. 01',
+    id: 'TP-01', nome: 'Ensaio', area: 'COLD', equipamentoGrupos: ['EQ-01'], revisao: 'Rev. 01',
     clientes: [], horasSetup: 0, horasEnsaio: 8, horasReport: 0, amostras: 1,
     hourlyRate: 100, custoInsumos: 1000
   }, extra);
@@ -219,10 +223,10 @@ test('demandas concluídas e canceladas não ocupam bancada', () => {
 });
 
 test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
-  const s = estado({ testes: [teste({ equipamentoIds: ['INEXISTENTE'] })] });
+  const s = estado({ testes: [teste({ equipamentoGrupos: ['GRUPO-INEXISTENTE'] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
-  assert.match(plano.bloqueadas[0].motivo, /não cadastrado/);
+  assert.match(plano.bloqueadas[0].motivo, /sem unidade cadastrada/);
 });
 
 test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () => {
@@ -297,16 +301,16 @@ test('o catálogo não amarra procedimento a fase e sempre traz a revisão', () 
 
 test('todo procedimento do catálogo aponta para um equipamento existente', () => {
   const base = require('../src/data.js').seed();
-  const ids = base.equipamentos.map((eq) => eq.id);
-  
+  const grupos = scheduler.agruparEquipamentos(base.equipamentos).map((g) => g.id);
+
   assert.deepEqual(base.equipamentos.map((eq) => eq.nome), [
     'Burner 1', 'Burner 2', 'Burner 3', 'Shaker', 'MTS 1', 'MTS 2', 'MTS 3', 'MTS 4',
     'LMS / PTA', 'ColdFlow', 'Dynamometer'
   ]);
   base.testes.forEach((t) => {
-    const usados = scheduler.idsDeEquipamento(t);
+    const usados = scheduler.gruposDoTeste(t);
     assert.ok(usados.length, t.id + ' está sem equipamento');
-    usados.forEach((id) => assert.ok(ids.includes(id), t.id + ' aponta para ' + id));
+    usados.forEach((id) => assert.ok(grupos.includes(id), t.id + ' aponta para grupo ' + id));
   });
 });
 
@@ -360,7 +364,7 @@ test('ensaio em duas bancadas reserva posição nas duas ao mesmo tempo', () => 
       equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
       equipamento({ id: 'EQ-02', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
     ],
-    testes: [teste({ equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
+    testes: [teste({ equipamentoGrupos: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
   });
   const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
   assert.deepEqual(a.equipamentos.map((eq) => eq.id), ['EQ-01', 'EQ-02']);
@@ -377,8 +381,8 @@ test('bancada compartilhada empurra o outro ensaio, mesmo com a dela livre', () 
       equipamento({ id: 'EQ-02', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
     ],
     testes: [
-      teste({ id: 'TP-DUPLO', equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 72 }),
-      teste({ id: 'TP-SIMPLES', equipamentoIds: ['EQ-02'], horasEnsaio: 24 })
+      teste({ id: 'TP-DUPLO', equipamentoGrupos: ['EQ-01', 'EQ-02'], horasEnsaio: 72 }),
+      teste({ id: 'TP-SIMPLES', equipamentoGrupos: ['EQ-02'], horasEnsaio: 24 })
     ],
     demandas: [
       demanda({ id: 'DUPLO', testeId: 'TP-DUPLO', prioridade: 'ALTA' }),
@@ -401,7 +405,7 @@ test('o ritmo é ditado pela bancada de turno mais curto', () => {
       equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
       equipamento({ id: 'EQ-02', continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5] })
     ],
-    testes: [teste({ equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
+    testes: [teste({ equipamentoGrupos: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
   });
   const eqs = s.equipamentos;
   assert.equal(scheduler.diasDeOperacao(s.testes[0], eqs), 6);
@@ -421,14 +425,14 @@ test('manutenção em qualquer uma das bancadas bloqueia a janela', () => {
         manutencao: [{ id: 'MN-1', inicio: '2026-07-07', fim: '2026-07-10', motivo: 'Calibração' }]
       })
     ],
-    testes: [teste({ equipamentoIds: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
+    testes: [teste({ equipamentoGrupos: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
   });
   const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
   assert.equal(a.inicio, '2026-07-11', 'a parada da segunda bancada empurra o ensaio');
 });
 
 test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () => {
-  const s = estado({ testes: [teste({ equipamentoIds: [] })] });
+  const s = estado({ testes: [teste({ equipamentoGrupos: [] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
   assert.match(plano.bloqueadas[0].motivo, /sem equipamento/i);
@@ -451,5 +455,143 @@ test('o custo do catálogo bate com a fórmula, procedimento a procedimento', ()
     const c = scheduler.custoCatalogo(t);
     const esperado = (t.horasSetup + t.horasEnsaio + t.horasReport) * t.hourlyRate + t.custoInsumos;
     assert.equal(c.custoProcedimento, esperado, t.id);
+  });
+});
+
+/* ---- Grupos de bancada intercambiáveis ---- */
+
+function pool(qtd, extra) {
+  const lista = [];
+  for (let i = 1; i <= qtd; i++) {
+    lista.push(equipamento(Object.assign({
+      id: 'BRN-' + i, nome: 'Burner ' + i, grupo: 'Burner',
+      continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6]
+    }, extra)));
+  }
+  return lista;
+}
+
+test('agrupar reúne unidades pelo grupo e mantém a ordem do cadastro', () => {
+  const grupos = scheduler.agruparEquipamentos(pool(3).concat([
+    equipamento({ id: 'SHK', nome: 'Shaker', grupo: 'Shaker' })
+  ]));
+  assert.deepEqual(grupos.map((g) => g.id), ['Burner', 'Shaker']);
+  assert.equal(grupos[0].membros.length, 3);
+  assert.equal(grupos[1].membros.length, 1);
+});
+
+test('unidade sem grupo definido forma um grupo só dela', () => {
+  const grupos = scheduler.agruparEquipamentos([{ id: 'X1', nome: 'Bancada X' }]);
+  assert.deepEqual(grupos.map((g) => g.id), ['Bancada X']);
+});
+
+test('três demandas no mesmo grupo ocupam as três unidades em paralelo', () => {
+  const s = estado({
+    equipamentos: pool(3),
+    testes: [teste({ equipamentoGrupos: ['Burner'], horasEnsaio: 72 })],
+    demandas: [demanda({ id: 'A' }), demanda({ id: 'B' }), demanda({ id: 'C' })]
+  });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  const usadas = ['A', 'B', 'C'].map((id) => alocacaoDe(plano, id));
+
+  usadas.forEach((a) => assert.equal(a.inicio, SEGUNDA, 'todas começam no mesmo dia'));
+  const unidades = usadas.map((a) => a.equipamentos[0].id).sort();
+  assert.deepEqual(unidades, ['BRN-1', 'BRN-2', 'BRN-3'], 'uma unidade distinta para cada');
+});
+
+test('a quarta demanda cai na unidade que libera mais cedo', () => {
+  /* A e B pegam 3 dias; C pega 9. A quarta deve ir para BRN-1 ou BRN-2, não para a longa. */
+  const s = estado({
+    equipamentos: pool(3),
+    testes: [
+      teste({ id: 'TP-CURTO', equipamentoGrupos: ['Burner'], horasEnsaio: 72 }),
+      teste({ id: 'TP-LONGO', equipamentoGrupos: ['Burner'], horasEnsaio: 216 })
+    ],
+    demandas: [
+      demanda({ id: 'A', testeId: 'TP-CURTO', prioridade: 'ALTA' }),
+      demanda({ id: 'B', testeId: 'TP-CURTO', prioridade: 'ALTA' }),
+      demanda({ id: 'C', testeId: 'TP-LONGO', prioridade: 'ALTA' }),
+      demanda({ id: 'D', testeId: 'TP-CURTO', prioridade: 'BAIXA' })
+    ]
+  });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  const d = alocacaoDe(plano, 'D');
+  const longa = alocacaoDe(plano, 'C');
+
+  assert.equal(d.inicio, '2026-07-09', 'entra assim que a primeira curta desocupa');
+  assert.notEqual(d.equipamentos[0].id, longa.equipamentos[0].id,
+    'não espera a unidade presa pelo ensaio longo');
+});
+
+test('manutenção numa unidade joga a demanda para a irmã livre', () => {
+  const unidades = pool(2);
+  unidades[0].manutencao = [{ id: 'MN-1', inicio: SEGUNDA, fim: '2026-07-20', motivo: 'Calibração' }];
+  const s = estado({
+    equipamentos: unidades,
+    testes: [teste({ equipamentoGrupos: ['Burner'], horasEnsaio: 48 })]
+  });
+  const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
+  assert.equal(a.equipamentos[0].id, 'BRN-2', 'usa a que não está parada');
+  assert.equal(a.inicio, SEGUNDA, 'sem esperar o fim da manutenção da outra');
+});
+
+test('entre unidades livres no mesmo dia, ganha a que termina antes', () => {
+  /* BRN-1 roda 24 h/dia e BRN-2 só 8 h: o mesmo ensaio acaba antes na primeira. */
+  const s = estado({
+    equipamentos: [
+      equipamento({ id: 'BRN-1', nome: 'Burner 1', grupo: 'Burner', continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
+      equipamento({ id: 'BRN-2', nome: 'Burner 2', grupo: 'Burner', continuo: false, horasDia: 8, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
+    ],
+    testes: [teste({ equipamentoGrupos: ['Burner'], horasEnsaio: 48 })]
+  });
+  const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
+  assert.equal(a.equipamentos[0].id, 'BRN-1');
+  assert.equal(a.diasOperacao, 2);
+});
+
+test('dois grupos juntos escolhem a melhor combinação de unidades', () => {
+  const unidades = pool(2).concat([
+    equipamento({ id: 'MTS-1', nome: 'MTS 1', grupo: 'MTS', continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
+    equipamento({ id: 'MTS-2', nome: 'MTS 2', grupo: 'MTS', continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
+  ]);
+  /* BRN-1 e MTS-1 já estão presos por um ensaio longo de prioridade alta. */
+  const s = estado({
+    equipamentos: unidades,
+    testes: [
+      teste({ id: 'TP-B', equipamentoGrupos: ['Burner'], horasEnsaio: 240 }),
+      teste({ id: 'TP-M', equipamentoGrupos: ['MTS'], horasEnsaio: 240 }),
+      teste({ id: 'TP-DUPLO', equipamentoGrupos: ['Burner', 'MTS'], horasEnsaio: 48 })
+    ],
+    demandas: [
+      demanda({ id: 'B', testeId: 'TP-B', prioridade: 'ALTA' }),
+      demanda({ id: 'M', testeId: 'TP-M', prioridade: 'ALTA' }),
+      demanda({ id: 'DUPLO', testeId: 'TP-DUPLO', prioridade: 'BAIXA' })
+    ]
+  });
+  const duplo = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DUPLO');
+  assert.equal(duplo.inicio, SEGUNDA, 'há um par livre, então não precisa esperar');
+  assert.deepEqual(duplo.equipamentos.map((eq) => eq.id).sort(), ['BRN-2', 'MTS-2']);
+});
+
+test('grupo sem unidade cadastrada vira bloqueio com motivo claro', () => {
+  const s = estado({ testes: [teste({ equipamentoGrupos: ['Camara'] })] });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  assert.equal(plano.bloqueadas.length, 1);
+  assert.match(plano.bloqueadas[0].motivo, /Camara/);
+  assert.match(plano.bloqueadas[0].motivo, /sem unidade cadastrada/);
+});
+
+test('o catálogo de exemplo tem Burner e MTS como grupos com várias unidades', () => {
+  const base = require('../src/data.js').seed();
+  const grupos = scheduler.agruparEquipamentos(base.equipamentos);
+  const porId = (id) => grupos.find((g) => g.id === id);
+
+  assert.equal(porId('Burner').membros.length, 3);
+  assert.equal(porId('MTS').membros.length, 4);
+  assert.equal(porId('Shaker').membros.length, 1);
+  base.testes.forEach((t) => {
+    scheduler.gruposDoTeste(t).forEach((id) => {
+      assert.ok(porId(id), t.id + ' pede o grupo inexistente ' + id);
+    });
   });
 });

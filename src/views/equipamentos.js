@@ -30,21 +30,33 @@
     return mapa;
   }
 
-  function abrirEdicao(equipamento) {
+  function abrirEdicao(equipamento, estado) {
     var novo = !equipamento;
-    equipamento = equipamento || { id: '', nome: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] };
+    equipamento = equipamento || { id: '', nome: '', grupo: '', posicoes: 1, continuo: false, horasDia: 8, diasUteis: [1, 2, 3, 4, 5], manutencao: [] };
+
+    var gruposExistentes = TC.scheduler.agruparEquipamentos(estado.equipamentos)
+      .map(function (g) { return g.id; });
 
     var corpo =
       '<div class="grade-campos">' +
         '<div class="campo"><label>Código</label><input name="id" value="' + e(equipamento.id) + '"' +
           (novo ? ' placeholder="SHK-03" required' : ' readonly') + '></div>' +
         '<div class="campo"><label>Nome</label><input name="nome" value="' + e(equipamento.nome) + '" required></div>' +
+        '<div class="campo"><label>Grupo</label>' +
+          '<input name="grupo" list="grupos-existentes" autocomplete="off" value="' + e(equipamento.grupo || '') + '" ' +
+          'placeholder="Ex.: Burner">' +
+          '<datalist id="grupos-existentes">' +
+            gruposExistentes.map(function (g) { return '<option value="' + e(g) + '"></option>'; }).join('') +
+          '</datalist></div>' +
         '<div class="campo"><label>Posições em paralelo</label><input type="number" min="1" name="posicoes" value="' + e(String(equipamento.posicoes)) + '"></div>' +
         '<div class="campo"><label>Horas por dia</label><input type="number" min="1" max="24" name="horasDia" value="' + e(String(equipamento.horasDia)) + '"></div>' +
       '</div>' +
       '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
         '<input type="checkbox" name="continuo" style="width:auto"' + (equipamento.continuo ? ' checked' : '') + '>' +
         'Ensaio corre 24 h/dia sem operador (câmaras e bancos automáticos)</label></div>' +
+      '<p class="sub" style="margin:0 0 12px">Unidades com o mesmo grupo são intercambiáveis: o ' +
+        'procedimento pede o grupo e o planejamento escolhe a que libera mais cedo. Deixe em branco ' +
+        'para a unidade formar um grupo só dela.</p>' +
       '<div class="campo"><label>Dias de operação</label><div>' +
         SEMANA.map(function (d) {
           return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-weight:500;color:var(--texto)">' +
@@ -62,7 +74,7 @@
         var dias = (v.diasUteis || []).map(Number);
         if (!dias.length) { ui.notificar('Selecione ao menos um dia de operação.'); return false; }
         TC.store.salvarEquipamento({
-          id: v.id, nome: v.nome, posicoes: Number(v.posicoes) || 1,
+          id: v.id, nome: v.nome, grupo: v.grupo.trim(), posicoes: Number(v.posicoes) || 1,
           continuo: !!v.continuo, horasDia: Number(v.horasDia) || 8,
           diasUteis: dias, manutencao: equipamento.manutencao || []
         });
@@ -114,6 +126,11 @@
     var horizonte = 90;
     var ocupacao = ocupacaoPorEquipamento(ctx.plano, ctx.hoje, horizonte);
 
+    var irmaos = {};
+    TC.scheduler.agruparEquipamentos(estado.equipamentos).forEach(function (g) {
+      irmaos[g.id] = g.membros.length;
+    });
+
     var linhas = estado.equipamentos.map(function (eq) {
       var o = ocupacao[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
       var capacidade = eq.posicoes * horizonte;
@@ -122,6 +139,10 @@
       return '<tr data-equip="' + e(eq.id) + '">' +
         '<td><div class="forte">' + e(eq.nome) + '</div>' +
           '<div class="sub mono">' + e(eq.id) + '</div></td>' +
+        '<td>' + (irmaos[TC.scheduler.grupoDe(eq)] > 1
+          ? '<span class="etiqueta marca">' + e(TC.scheduler.grupoDe(eq)) + '</span>' +
+            '<div class="sub">' + irmaos[TC.scheduler.grupoDe(eq)] + ' unidades</div>'
+          : '<span class="sub">unidade única</span>') + '</td>' +
         '<td class="num">' + eq.posicoes + '</td>' +
         '<td>' + (eq.continuo ? '<span class="etiqueta ok">24 h contínuo</span>' : '<span class="etiqueta">' + eq.horasDia + ' h/dia</span>') +
           '<div class="sub">' + e(dias) + '</div></td>' +
@@ -154,24 +175,28 @@
         '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
           '<span class="sub">Percentual calculado sobre posições × dias disponíveis</span></div>' +
         '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Equipamento</th><th class="num">Posições</th><th>Regime</th>' +
+          '<th>Equipamento</th><th>Grupo</th><th class="num">Posições</th><th>Regime</th>' +
           '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Horas alocadas</th><th>Manutenção</th><th></th>' +
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '</div>';
 
-    container.querySelector('#novo').onclick = function () { abrirEdicao(null); };
+    container.querySelector('#novo').onclick = function () { abrirEdicao(null, estado); };
     container.querySelectorAll('tr[data-equip]').forEach(function (tr) {
       var eq = util.porId(estado.equipamentos, tr.dataset.equip);
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(eq); };
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(eq, estado); };
       tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
       tr.querySelector('.excluir').onclick = function () {
-        var dependentes = estado.testes.filter(function (t) { return t.equipamentoId === eq.id; });
+        var grupo = TC.scheduler.grupoDe(eq);
+        var ultimaDoGrupo = irmaos[grupo] === 1;
+        var dependentes = ultimaDoGrupo
+          ? estado.testes.filter(function (t) { return TC.scheduler.gruposDoTeste(t).indexOf(grupo) !== -1; })
+          : [];
         ui.confirmarAcao(
           'Remover ' + eq.nome + '?' +
           (dependentes.length
-            ? ' ' + dependentes.length + ' procedimento(s) usam este equipamento e ficarão sem bancada, ' +
-              'aparecendo como demandas sem janela até você apontá-los para outro.'
-            : ''),
+            ? ' É a última unidade do grupo ' + grupo + ', e ' + dependentes.length +
+              ' procedimento(s) o usam: eles ficarão sem bancada até serem apontados para outro grupo.'
+            : ultimaDoGrupo ? '' : ' O grupo ' + grupo + ' continua com as outras unidades.'),
           function () {
             TC.store.removerEquipamento(eq.id);
             ui.notificar('Equipamento removido.');
