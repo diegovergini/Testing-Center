@@ -85,6 +85,19 @@
 
     /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
     if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
+    estado.cotacoes.forEach(function (c) {
+      if (typeof c.lti !== 'string') c.lti = '';
+      if (typeof c.previsaoExecucao !== 'string') c.previsaoExecucao = '';
+      /* A peça de referência saiu; o item passou a guardar a quantidade em "amostras".
+         Os totais gravados não são recalculados: cotação arquivada tem preço congelado. */
+      delete c.pecaId;
+      (c.itens || []).forEach(function (i) {
+        if (typeof i.amostras !== 'number' || i.quantidade !== undefined) {
+          i.amostras = i.quantidade || i.amostras || 1;
+        }
+        delete i.quantidade;
+      });
+    });
     var padrao = TC.data.PERMISSOES_PADRAO;
     var permissoes = estado.permissoes || {};
     Object.keys(padrao).forEach(function (rota) {

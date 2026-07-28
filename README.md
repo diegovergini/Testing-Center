@@ -97,10 +97,19 @@ botões de ação.
 
 ## Cotações
 
-O engenheiro de produto escolhe os procedimentos que precisa orçar, informa cliente,
-projeto, part number e solicitante, e opcionalmente uma peça de referência (que traz o custo
-das amostras). A plataforma monta a tabela com o custo de cada teste — horas, hourly rate,
-insumos, amostras, custo unitário, quantidade e total — e a soma geral.
+O engenheiro de produto informa a LTI, o cliente, o projeto, o part number, o solicitante e
+a previsão de execução; escolhe os procedimentos e, para cada um, quantas amostras vai
+ensaiar. A plataforma monta a tabela com o custo de cada teste — horas, hourly rate,
+insumos, custo unitário, amostras e total — e a soma geral.
+
+**A quantidade de amostras multiplica o custo do procedimento**, porque cada amostra é uma
+execução na bancada. O campo já vem com o número padrão do procedimento no catálogo.
+
+Como a lista de procedimentos cresce, o quadro *testes a cotar* tem três filtros que se
+combinam: busca livre (nome, código, norma), **cliente** (mostra os procedimentos exigidos
+por ele mais os padrão do laboratório) e **LTI** (mostra os procedimentos já demandados sob
+aquela ordem de serviço). Eles começam neutros, e o que já foi marcado continua visível
+mesmo que o filtro mude — nada sai da conta sem você ver.
 
 Cada cotação recebe um número sequencial (`COT-2026-0001`), fica arquivada na plataforma com
 um status (em elaboração, enviada, aprovada, recusada) e sai em **Excel** (`.xlsx` de

@@ -1621,6 +1621,19 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
     if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
+    estado.cotacoes.forEach(function (c) {
+      if (typeof c.lti !== 'string') c.lti = '';
+      if (typeof c.previsaoExecucao !== 'string') c.previsaoExecucao = '';
+      /* A peça de referência saiu; o item passou a guardar a quantidade em "amostras".
+         Os totais gravados não são recalculados: cotação arquivada tem preço congelado. */
+      delete c.pecaId;
+      (c.itens || []).forEach(function (i) {
+        if (typeof i.amostras !== 'number' || i.quantidade !== undefined) {
+          i.amostras = i.quantidade || i.amostras || 1;
+        }
+        delete i.quantidade;
+      });
+    });
     var padrao = TC.data.PERMISSOES_PADRAO;
     var permissoes = estado.permissoes || {};
     Object.keys(padrao).forEach(function (rota) {
@@ -2530,11 +2543,12 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return '<span class="etiqueta ' + cor + '">' + e(nomeStatus(id)) + '</span>';
   }
 
-  /* Congela o preço de um procedimento no momento da cotação. */
-  function montarItem(teste, quantidade, peca) {
+  /* Congela o preço de um procedimento no momento da cotação.
+     O custo do procedimento é por amostra ensaiada: cada amostra é uma execução, então
+     a quantidade pedida multiplica o unitário. */
+  function montarItem(teste, amostras) {
     var custo = TC.scheduler.custoCatalogo(teste);
-    var custoAmostras = (teste.amostras || 0) * (peca ? peca.custoAmostra || 0 : 0);
-    var unitario = custo.custoProcedimento + custoAmostras;
+    var quantidade = Math.max(1, Number(amostras) || 1);
     return {
       testeId: teste.id,
       nome: teste.nome,
@@ -2546,11 +2560,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       hourlyRate: custo.hourlyRate,
       custoHoras: custo.custoHoras,
       custoInsumos: custo.custoInsumos,
-      amostras: teste.amostras || 0,
-      custoAmostras: custoAmostras,
-      custoUnitario: unitario,
-      quantidade: quantidade,
-      total: unitario * quantidade
+      custoUnitario: custo.custoProcedimento,
+      amostras: quantidade,
+      total: custo.custoProcedimento * quantidade
     };
   }
 
@@ -2560,13 +2572,22 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   /* ---- Tabela de custos, usada na visualização e no Excel ---- */
 
+  /* Cotações antigas traziam o custo das amostras vindo de uma peça de referência.
+     A coluna só aparece nelas, para o total continuar reconciliando. */
+  function temCustoDeAmostra(cotacao) {
+    return (cotacao.itens || []).some(function (i) { return i.custoAmostras > 0; });
+  }
+
   function tabelaItens(cotacao) {
     var total = totalDaCotacao(cotacao);
+    var legado = temCustoDeAmostra(cotacao);
+    var colunas = legado ? 11 : 10;
     return '<div class="tabela-rolagem"><table><thead><tr>' +
       '<th>Código</th><th>Procedimento</th><th>Revisão</th>' +
       '<th class="num">Horas</th><th class="num">R$/h</th><th class="num">Horas × rate</th>' +
-      '<th class="num">Insumos</th><th class="num">Amostras</th>' +
-      '<th class="num">Custo unitário</th><th class="num">Qtd</th><th class="num">Total</th>' +
+      '<th class="num">Insumos</th>' +
+      (legado ? '<th class="num">Amostras (R$)</th>' : '') +
+      '<th class="num">Custo unitário</th><th class="num">Amostras</th><th class="num">Total</th>' +
       '</tr></thead><tbody>' +
       cotacao.itens.map(function (i) {
         return '<tr>' +
@@ -2578,29 +2599,29 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
           '<td class="num">' + e(util.formatarMoeda(i.hourlyRate)) + '</td>' +
           '<td class="num">' + e(util.formatarMoeda(i.custoHoras)) + '</td>' +
           '<td class="num">' + e(util.formatarMoeda(i.custoInsumos)) + '</td>' +
-          '<td class="num">' + e(util.formatarMoeda(i.custoAmostras)) + '</td>' +
+          (legado ? '<td class="num">' + e(util.formatarMoeda(i.custoAmostras || 0)) + '</td>' : '') +
           '<td class="num">' + e(util.formatarMoeda(i.custoUnitario)) + '</td>' +
-          '<td class="num">' + i.quantidade + '</td>' +
+          '<td class="num">' + (i.amostras || i.quantidade || 1) + '</td>' +
           '<td class="num forte">' + e(util.formatarMoeda(i.total)) + '</td>' +
         '</tr>';
       }).join('') +
       '</tbody><tfoot><tr>' +
-        '<td colspan="10" class="num forte">Total da cotação</td>' +
+        '<td colspan="' + colunas + '" class="num forte">Total da cotação</td>' +
         '<td class="num forte" style="font-size:15px">' + e(util.formatarMoeda(total)) + '</td>' +
       '</tr></tfoot></table></div>';
   }
 
   function exportarExcel(estado, cotacao) {
     var cliente = util.porId(estado.clientes, cotacao.clienteId);
-    var peca = util.porId(estado.pecas, cotacao.pecaId);
 
     var cabecalho = [
       ['Cotação', cotacao.numero],
+      ['LTI', cotacao.lti || ''],
       ['Cliente', cliente ? cliente.nome : cotacao.clienteId],
       ['Projeto', cotacao.projeto || ''],
       ['Part Number', cotacao.partNumber || ''],
       ['Solicitante', cotacao.solicitante || ''],
-      ['Peça de referência', peca ? peca.nome : 'não informada'],
+      ['Previsão de execução', cotacao.previsaoExecucao ? util.formatarData(cotacao.previsaoExecucao, true) : ''],
       ['Data', util.formatarData(cotacao.criadoEm, true)],
       ['Status', nomeStatus(cotacao.status)],
       []
@@ -2608,21 +2629,21 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     var titulos = ['Código', 'Procedimento', 'Revisão', 'Norma', 'Horas de bancada',
       'Horas de report', 'Horas faturáveis', 'Hourly rate', 'Custo das horas', 'Insumos',
-      'Amostras', 'Custo das amostras', 'Custo unitário', 'Quantidade', 'Total'];
+      'Custo unitário', 'Amostras', 'Total'];
 
     var linhas = cotacao.itens.map(function (i) {
       return [i.testeId, i.nome, i.revisao, i.norma, i.horasBancada, i.horasReport,
-        i.horasFaturaveis, i.hourlyRate, i.custoHoras, i.custoInsumos, i.amostras,
-        i.custoAmostras, i.custoUnitario, i.quantidade, i.total];
+        i.horasFaturaveis, i.hourlyRate, i.custoHoras, i.custoInsumos,
+        i.custoUnitario, i.amostras || i.quantidade || 1, i.total];
     });
 
     linhas.push([]);
-    linhas.push(['', 'TOTAL DA COTAÇÃO', '', '', '', '', '', '', '', '', '', '', '', '',
+    linhas.push(['', 'TOTAL DA COTAÇÃO', '', '', '', '', '', '', '', '', '', '',
       totalDaCotacao(cotacao)]);
 
     TC.xlsx.baixar(cotacao.numero + '.xlsx', [{
       nome: 'Cotação',
-      larguras: [14, 42, 10, 24, 16, 16, 16, 12, 16, 12, 10, 18, 16, 10, 16],
+      larguras: [14, 42, 10, 24, 16, 16, 16, 12, 16, 12, 16, 10, 16],
       linhas: cabecalho.concat([titulos]).concat(linhas)
     }]);
     ui.notificar('Excel de ' + cotacao.numero + ' exportado.');
@@ -2633,18 +2654,21 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   function abrirDetalhe(ctx, cotacao) {
     var estado = ctx.estado;
     var cliente = util.porId(estado.clientes, cotacao.clienteId);
-    var peca = util.porId(estado.pecas, cotacao.pecaId);
     var podeEditar = TC.permissoes.podeEditar(estado, 'cotacoes');
 
     var corpo =
       '<div class="aviso">' +
-        '<strong>' + e(cotacao.numero) + '</strong> · ' + e(cliente ? cliente.nome : '—') +
+        '<strong>' + e(cotacao.numero) + '</strong>' +
+        (cotacao.lti ? ' · LTI ' + e(cotacao.lti) : '') +
+        ' · ' + e(cliente ? cliente.nome : '—') +
         (cotacao.projeto ? ' · ' + e(cotacao.projeto) : '') +
         (cotacao.partNumber ? ' · ' + e(cotacao.partNumber) : '') +
         '<div class="sub" style="margin-top:4px">' +
           'Solicitante: ' + e(cotacao.solicitante || '—') +
-          ' · ' + e(util.formatarData(cotacao.criadoEm, true)) +
-          ' · peça de referência: ' + e(peca ? peca.nome : 'não informada') +
+          ' · emitida em ' + e(util.formatarData(cotacao.criadoEm, true)) +
+          (cotacao.previsaoExecucao
+            ? ' · previsão de execução: ' + e(util.formatarData(cotacao.previsaoExecucao, true))
+            : '') +
           '. Preços congelados na data da cotação.' +
         '</div>' +
       '</div>' +
@@ -2677,17 +2701,39 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   function abrirNova(ctx) {
     var estado = ctx.estado;
 
-    var projetosConhecidos = [];
-    estado.demandas.concat(estado.cotacoes).forEach(function (d) {
-      if (d.projeto && projetosConhecidos.indexOf(d.projeto) === -1) projetosConhecidos.push(d.projeto);
+    function distintos(lista) {
+      var vistos = [];
+      lista.forEach(function (v) { if (v && vistos.indexOf(v) === -1) vistos.push(v); });
+      return vistos;
+    }
+
+    var projetosConhecidos = distintos(
+      estado.demandas.concat(estado.cotacoes).map(function (d) { return d.projeto; }));
+
+    /* LTIs já usadas em demandas e cotações viram filtro e sugestão. */
+    var ltisConhecidas = distintos(
+      estado.demandas.concat(estado.cotacoes).map(function (d) { return d.lti; })).sort();
+
+    /* Testes já demandados sob cada LTI: é o que o filtro por LTI restringe. */
+    var testesPorLti = {};
+    estado.demandas.forEach(function (d) {
+      if (!d.lti) return;
+      (testesPorLti[d.lti] = testesPorLti[d.lti] || {})[d.testeId] = true;
     });
+
+    var clientePadrao = estado.clientes[0] ? estado.clientes[0].id : '';
 
     var corpo =
       '<p class="sub" style="margin:0 0 12px">Escolha os procedimentos a orçar. O custo de cada um ' +
         'vem do catálogo e fica congelado nesta cotação.</p>' +
       '<div class="grade-campos">' +
+        '<div class="campo"><label>Nº da LTI</label>' +
+          '<input name="lti" list="ltis-conhecidas" autocomplete="off" placeholder="Ex.: LTI-2026-0142">' +
+          '<datalist id="ltis-conhecidas">' +
+            ltisConhecidas.map(function (l) { return '<option value="' + e(l) + '"></option>'; }).join('') +
+          '</datalist></div>' +
         '<div class="campo"><label>Cliente</label><select name="clienteId">' +
-          ui.opcoes(estado.clientes, '') + '</select></div>' +
+          ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
         '<div class="campo"><label>Projeto</label>' +
           '<input name="projeto" list="projetos-cotacao" autocomplete="off" placeholder="Ex.: MQB-A0 / EA211">' +
           '<datalist id="projetos-cotacao">' +
@@ -2697,13 +2743,23 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
           '<input name="partNumber" autocomplete="off" placeholder="Ex.: 04E253011AB"></div>' +
         '<div class="campo"><label>Solicitante</label>' +
           '<input name="solicitante" autocomplete="off" placeholder="Quem pediu o orçamento"></div>' +
-        '<div class="campo"><label>Peça de referência ' +
-          '<span class="sub" style="font-weight:400">(entra o custo das amostras)</span></label>' +
-          '<select name="pecaId">' + ui.opcoes(estado.pecas, '', 'Sem peça definida') + '</select></div>' +
+        '<div class="campo"><label>Previsão de execução</label>' +
+          '<input type="date" name="previsaoExecucao" value="' + e(util.somaDias(util.hoje(), 30)) + '"></div>' +
       '</div>' +
       '<div class="campo"><label>Observação</label>' +
         '<textarea name="observacao" rows="2" placeholder="Contexto do orçamento"></textarea></div>' +
       '<div class="campo"><label>Testes a cotar</label>' +
+        '<div class="filtros" style="margin-bottom:8px">' +
+          '<div class="campo busca"><input id="f-teste" placeholder="Buscar por nome, código ou norma"></div>' +
+          '<div class="campo"><select id="f-cliente-teste">' +
+            ui.opcoes(estado.clientes, '', 'Todos os clientes') + '</select></div>' +
+          '<div class="campo"><select id="f-lti-teste">' +
+            '<option value="">Todas as LTIs</option>' +
+            ltisConhecidas.map(function (l) {
+              return '<option value="' + e(l) + '">LTI ' + e(l) + '</option>';
+            }).join('') +
+          '</select></div>' +
+        '</div>' +
         '<div id="lista-testes" class="lista-selecao">' +
           estado.testes.map(function (t) {
             var custo = TC.scheduler.custoCatalogo(t);
@@ -2713,25 +2769,30 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
                 '<span><span class="mono sub">' + e(t.id) + '</span> ' + e(t.nome) +
                   (t.revisao ? ' <span class="sub">' + e(t.revisao) + '</span>' : '') + '</span>' +
               '</label>' +
-              '<span class="sub" style="white-space:nowrap">' + e(util.formatarMoeda(custo.custoProcedimento)) + '</span>' +
-              '<input type="number" class="qtd" min="1" value="1" style="width:64px" disabled>' +
+              '<span class="sub" style="white-space:nowrap">' + e(util.formatarMoeda(custo.custoProcedimento)) + ' / amostra</span>' +
+              '<input type="number" class="qtd" min="1" value="' + (t.amostras || 1) + '" ' +
+                'title="Amostras a ensaiar" style="width:64px" disabled>' +
             '</div>';
           }).join('') +
         '</div>' +
+        '<div class="sub" style="margin-top:6px">O número à direita é a quantidade de amostras ' +
+          'a ensaiar; ela multiplica o custo do procedimento.</div>' +
       '</div>' +
       '<div id="resumo-cotacao"></div>';
 
     var janela = ui.modal({
       titulo: 'Nova cotação',
       corpo: corpo,
-      largura: 'min(900px, 100%)',
+      largura: 'min(920px, 100%)',
       confirmar: 'Gerar cotação',
       aoConfirmar: function (v) {
         if (!ui.validarObrigatorios(janela, v, [
+          { nome: 'lti', rotulo: 'o nº da LTI' },
           { nome: 'clienteId', rotulo: 'o cliente' },
           { nome: 'projeto', rotulo: 'o projeto' },
           { nome: 'partNumber', rotulo: 'o part number' },
-          { nome: 'solicitante', rotulo: 'o solicitante' }
+          { nome: 'solicitante', rotulo: 'o solicitante' },
+          { nome: 'previsaoExecucao', rotulo: 'a previsão de execução' }
         ])) return false;
 
         var itens = coletarItens();
@@ -2741,11 +2802,12 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         }
 
         var cotacao = TC.store.salvarCotacao({
+          lti: v.lti.trim(),
           clienteId: v.clienteId,
           projeto: v.projeto.trim(),
           partNumber: v.partNumber.trim(),
           solicitante: v.solicitante.trim(),
-          pecaId: v.pecaId || '',
+          previsaoExecucao: v.previsaoExecucao,
           observacao: v.observacao.trim(),
           itens: itens
         });
@@ -2755,19 +2817,58 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       }
     });
 
-    var selPeca = janela.querySelector('[name=pecaId]');
     var resumo = janela.querySelector('#resumo-cotacao');
+    var campoBusca = janela.querySelector('#f-teste');
+    var filtroCliente = janela.querySelector('#f-cliente-teste');
+    var filtroLti = janela.querySelector('#f-lti-teste');
 
     function coletarItens() {
-      var peca = util.porId(estado.pecas, selPeca.value);
       var itens = [];
       janela.querySelectorAll('.linha-selecao').forEach(function (linha) {
         if (!linha.querySelector('.marcar').checked) return;
         var teste = util.porId(estado.testes, linha.dataset.teste);
-        var qtd = Number(linha.querySelector('.qtd').value) || 1;
-        if (teste) itens.push(montarItem(teste, qtd, peca));
+        if (teste) itens.push(montarItem(teste, linha.querySelector('.qtd').value));
       });
       return itens;
+    }
+
+    /* Um procedimento sem cliente marcado é padrão do laboratório: vale para todos. */
+    function atendeCliente(teste, clienteId) {
+      if (!clienteId) return true;
+      return !teste.clientes || !teste.clientes.length || teste.clientes.indexOf(clienteId) !== -1;
+    }
+
+    function aplicarFiltros() {
+      var busca = campoBusca.value.trim().toLowerCase();
+      var cliente = filtroCliente.value;
+      var lti = filtroLti.value;
+      var visiveis = 0;
+
+      janela.querySelectorAll('.linha-selecao').forEach(function (linha) {
+        var teste = util.porId(estado.testes, linha.dataset.teste);
+        var marcado = linha.querySelector('.marcar').checked;
+        var passa = !!teste;
+
+        if (passa && busca) {
+          var alvo = (teste.id + ' ' + teste.nome + ' ' + (teste.norma || '') + ' ' +
+            (teste.revisao || '')).toLowerCase();
+          passa = alvo.indexOf(busca) !== -1;
+        }
+        if (passa && cliente) passa = atendeCliente(teste, cliente);
+        if (passa && lti) passa = !!(testesPorLti[lti] && testesPorLti[lti][teste.id]);
+
+        /* O que já foi marcado continua visível, para não sumir da conta sem aviso. */
+        linha.style.display = (passa || marcado) ? '' : 'none';
+        if (passa || marcado) visiveis++;
+      });
+
+      var vazio = janela.querySelector('#lista-vazia');
+      if (vazio) vazio.remove();
+      if (!visiveis) {
+        janela.querySelector('#lista-testes').insertAdjacentHTML('afterend',
+          '<div id="lista-vazia" class="sub" style="padding:8px 2px">' +
+          'Nenhum procedimento com esses filtros.</div>');
+      }
     }
 
     function atualizarResumo() {
@@ -2777,10 +2878,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         return;
       }
       var total = itens.reduce(function (s, i) { return s + i.total; }, 0);
+      var amostras = itens.reduce(function (s, i) { return s + i.amostras; }, 0);
       resumo.innerHTML = '<div class="aviso alerta"><strong>' + itens.length +
-        ' teste(s) · ' + e(util.formatarMoeda(total)) + '</strong>' +
-        (selPeca.value ? '' : ' — sem peça de referência, o custo das amostras fica fora.') +
-        '</div>';
+        ' teste(s) · ' + amostras + ' amostra(s) · ' + e(util.formatarMoeda(total)) + '</strong></div>';
     }
 
     janela.querySelectorAll('.linha-selecao').forEach(function (linha) {
@@ -2793,7 +2893,15 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       });
       qtd.addEventListener('input', atualizarResumo);
     });
-    selPeca.addEventListener('change', atualizarResumo);
+
+    /* Os filtros começam neutros e só mudam quando o usuário mexe neles. Herdar o cliente
+       da cotação escondia procedimentos sem pedido e, combinado com o filtro de LTI,
+       chegava a esvaziar a lista sem explicação. */
+    campoBusca.addEventListener('input', aplicarFiltros);
+    filtroCliente.addEventListener('change', aplicarFiltros);
+    filtroLti.addEventListener('change', aplicarFiltros);
+
+    aplicarFiltros();
     atualizarResumo();
   }
 
@@ -2819,10 +2927,14 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       return '<tr data-cotacao="' + e(c.id) + '">' +
         '<td><span class="mono forte">' + e(c.numero) + '</span>' +
           '<div class="sub">' + e(util.formatarData(c.criadoEm, true)) + '</div></td>' +
+        '<td><span class="mono">' + e(c.lti || '—') + '</span></td>' +
         '<td><div class="forte">' + e(cliente ? cliente.nome : c.clienteId) + '</div>' +
           '<div class="sub">' + e(c.projeto || '—') + '</div></td>' +
         '<td>' + e(c.partNumber || '—') + '</td>' +
         '<td>' + e(c.solicitante || '—') + '</td>' +
+        '<td>' + (c.previsaoExecucao
+          ? e(util.formatarData(c.previsaoExecucao, true))
+          : '<span class="sub">—</span>') + '</td>' +
         '<td class="num">' + (c.itens || []).length + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(totalDaCotacao(c))) + '</td>' +
         '<td>' + etiquetaStatus(c.status) + '</td>' +
@@ -2853,8 +2965,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       '<div class="cartao">' +
         (lista.length
           ? '<div class="tabela-rolagem"><table><thead><tr>' +
-            '<th>Número</th><th>Cliente / Projeto</th><th>Part Number</th><th>Solicitante</th>' +
-            '<th class="num">Testes</th><th class="num">Total</th><th>Status</th><th></th>' +
+            '<th>Número</th><th>LTI</th><th>Cliente / Projeto</th><th>Part Number</th><th>Solicitante</th>' +
+            '<th>Previsão</th><th class="num">Testes</th><th class="num">Total</th><th>Status</th><th></th>' +
             '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
           : ui.vazio('Nenhuma cotação ainda',
               podeEditar ? 'Crie a primeira escolhendo os testes a orçar.' : 'Nenhum orçamento foi registrado.')) +

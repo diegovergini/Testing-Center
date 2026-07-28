@@ -109,22 +109,31 @@ test('numeração de cotação é sequencial por ano', () => {
 test('o item da cotação congela o preço do procedimento', () => {
   store.restaurarPadrao();
   const teste = store.get().testes[0];
-  const peca = store.get().pecas[0];
-  const item = cotacoes.montarItem(teste, 2, peca);
+  const item = cotacoes.montarItem(teste, 2);
 
   const esperadoUnitario =
     (teste.horasSetup + teste.horasEnsaio + teste.horasReport) * teste.hourlyRate +
-    teste.custoInsumos + teste.amostras * peca.custoAmostra;
+    teste.custoInsumos;
 
-  assert.equal(item.custoUnitario, esperadoUnitario);
-  assert.equal(item.total, esperadoUnitario * 2);
+  assert.equal(item.custoUnitario, esperadoUnitario, 'o unitário é o custo do procedimento');
+  assert.equal(item.amostras, 2);
+  assert.equal(item.total, esperadoUnitario * 2, 'cada amostra é uma execução');
   assert.equal(item.revisao, teste.revisao, 'a revisão vigente fica registrada');
+});
+
+test('quantidade de amostras inválida vira uma', () => {
+  store.restaurarPadrao();
+  const teste = store.get().testes[0];
+  assert.equal(cotacoes.montarItem(teste, 0).amostras, 1);
+  assert.equal(cotacoes.montarItem(teste, '').amostras, 1);
+  assert.equal(cotacoes.montarItem(teste, -3).amostras, 1);
+  assert.equal(cotacoes.montarItem(teste, '4').amostras, 4, 'texto de input vira número');
 });
 
 test('mudar o catálogo depois não reescreve cotação arquivada', () => {
   store.restaurarPadrao();
   const teste = store.get().testes[0];
-  const item = cotacoes.montarItem(teste, 1, null);
+  const item = cotacoes.montarItem(teste, 1);
   const cotacao = store.salvarCotacao({ clienteId: 'CLI-VW', itens: [item] });
   const totalOriginal = cotacoes.totalDaCotacao(cotacao);
 
@@ -135,20 +144,45 @@ test('mudar o catálogo depois não reescreve cotação arquivada', () => {
     'o orçamento entregue não muda quando o catálogo sobe de preço');
 });
 
-test('sem peça de referência, a cotação não cobra amostras', () => {
+test('o unitário é horas x rate + insumos, sem custo de amostra embutido', () => {
   store.restaurarPadrao();
-  const teste = store.get().testes[0];
-  const semPeca = cotacoes.montarItem(teste, 1, null);
-  assert.equal(semPeca.custoAmostras, 0);
-  assert.equal(semPeca.custoUnitario, semPeca.custoHoras + semPeca.custoInsumos);
+  const item = cotacoes.montarItem(store.get().testes[0], 1);
+  assert.equal(item.custoUnitario, item.custoHoras + item.custoInsumos);
+  assert.equal(item.custoAmostras, undefined, 'a peça de referência saiu do modelo');
+});
+
+test('cotação arquivada no formato antigo é migrada sem mudar o total', () => {
+  const base = dados.seed();
+  base.cotacoes = [{
+    id: 'COT-velha', numero: 'COT-2025-0001', clienteId: 'CLI-VW', pecaId: 'PC-HOT',
+    projeto: 'P1', partNumber: 'PN-1', solicitante: 'Alguém', status: 'ENVIADA',
+    criadoEm: '2025-05-10',
+    itens: [{
+      testeId: 'TP-HOT-01', nome: 'Antigo', revisao: 'Rev. 01', norma: '',
+      horasBancada: 10, horasReport: 2, horasFaturaveis: 12, hourlyRate: 100,
+      custoHoras: 1200, custoInsumos: 300, amostras: 2, custoAmostras: 500,
+      custoUnitario: 2000, quantidade: 3, total: 6000
+    }]
+  }];
+
+  store.importar(JSON.stringify(base));
+  const c = store.get().cotacoes[0];
+
+  assert.equal(c.pecaId, undefined, 'a peça de referência sai do cabeçalho');
+  assert.equal(c.lti, '');
+  assert.equal(c.previsaoExecucao, '');
+  assert.equal(c.itens[0].quantidade, undefined, 'quantidade virou amostras');
+  assert.equal(c.itens[0].amostras, 3, 'a quantidade antiga passa a ser a de amostras');
+  assert.equal(c.itens[0].custoAmostras, 500, 'o custo antigo fica, para o total reconciliar');
+  assert.equal(cotacoes.totalDaCotacao(c), 6000, 'preço congelado não é recalculado');
 });
 
 test('total da cotação soma os itens', () => {
   store.restaurarPadrao();
   const testes = store.get().testes;
   const itens = [
-    cotacoes.montarItem(testes[0], 2, null),
-    cotacoes.montarItem(testes[1], 1, null)
+    cotacoes.montarItem(testes[0], 2),
+    cotacoes.montarItem(testes[1], 1)
   ];
   const total = cotacoes.totalDaCotacao({ itens: itens });
   assert.equal(total, itens[0].total + itens[1].total);
