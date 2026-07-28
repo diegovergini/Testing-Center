@@ -136,6 +136,39 @@
     }).join('');
   }
 
+  /* Valida campos obrigatórios de um modal. Avisa e põe o foco no primeiro pendente,
+     para o usuário não ter que caçar o que faltou.
+     campos: [{ nome, rotulo, tipo: 'texto'|'numero', min }] — min padrão 0 em números. */
+  function validarObrigatorios(janela, valores, campos) {
+    for (var i = 0; i < campos.length; i++) {
+      var campo = campos[i];
+      var bruto = valores[campo.nome];
+      var texto = bruto === undefined || bruto === null ? '' : String(bruto).trim();
+      var falha = null;
+
+      if (!texto) {
+        falha = 'Preencha ' + campo.rotulo + '.';
+      } else if (campo.tipo === 'numero') {
+        var minimo = campo.min === undefined ? 0 : campo.min;
+        var numero = Number(texto);
+        if (isNaN(numero)) falha = campo.rotulo + ' precisa ser um número.';
+        else if (numero < minimo) {
+          falha = minimo > 0
+            ? campo.rotulo + ' precisa ser maior que zero.'
+            : campo.rotulo + ' não pode ser negativo.';
+        }
+      }
+
+      if (falha) {
+        notificar(falha);
+        var alvo = janela.querySelector('[name=' + campo.nome + ']');
+        if (alvo && !alvo.readOnly && !alvo.disabled) alvo.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
   function vazio(titulo, texto) {
     return '<div class="vazio"><strong>' + e(titulo) + '</strong>' + e(texto || '') + '</div>';
   }
@@ -152,6 +185,7 @@
     etiquetaTipoLti: etiquetaTipoLti,
     celulaLti: celulaLti,
     opcoes: opcoes,
+    validarObrigatorios: validarObrigatorios,
     vazio: vazio,
     STATUS: STATUS
   };

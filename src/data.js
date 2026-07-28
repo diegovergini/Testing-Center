@@ -38,8 +38,6 @@
 
   var CLIENTES = [
     { id: 'CLI-FOR', nome: 'Forvia Faurecia', segmento: 'Tier 1' },
-    { id: 'CLI-TEN', nome: 'Tenneco / Walker', segmento: 'Tier 1' },
-    { id: 'CLI-EBE', nome: 'Eberspächer', segmento: 'Tier 1' },
     { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
     { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
     { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
@@ -140,7 +138,7 @@
     },
     {
       id: 'TP-MEC-02', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX', revisao: 'Rev. 04',
-      clientes: ['CLI-FOR', 'CLI-TEN'],
+      clientes: ['CLI-FOR'],
       area: 'HOT', equipamentoGrupos: ['MTS'],
       horasSetup: 6, horasEnsaio: 180, horasReport: 8, amostras: 3,
       hourlyRate: 380, custoInsumos: 7300,
@@ -148,7 +146,7 @@
     },
     {
       id: 'TP-MEC-03', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR', revisao: 'Rev. 02',
-      clientes: ['CLI-EBE'],
+      clientes: [],
       area: 'COLD', equipamentoGrupos: ['MTS'],
       horasSetup: 3, horasEnsaio: 120, horasReport: 6, amostras: 5,
       hourlyRate: 320, custoInsumos: 3400,
@@ -172,7 +170,7 @@
     },
     {
       id: 'TP-ACU-01', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820', revisao: 'Rev. 02',
-      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
+      clientes: ['CLI-FOR'],
       area: 'COLD', equipamentoGrupos: ['LMS / PTA'],
       horasSetup: 4, horasEnsaio: 16, horasReport: 8, amostras: 1,
       hourlyRate: 560, custoInsumos: 6100,

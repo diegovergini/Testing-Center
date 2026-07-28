@@ -487,8 +487,6 @@ tbody tr:last-child td { border-bottom: none; }
 
   var CLIENTES = [
     { id: 'CLI-FOR', nome: 'Forvia Faurecia', segmento: 'Tier 1' },
-    { id: 'CLI-TEN', nome: 'Tenneco / Walker', segmento: 'Tier 1' },
-    { id: 'CLI-EBE', nome: 'Eberspächer', segmento: 'Tier 1' },
     { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
     { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
     { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
@@ -589,7 +587,7 @@ tbody tr:last-child td { border-bottom: none; }
     },
     {
       id: 'TP-MEC-02', nome: 'Durabilidade de flexível (bellows)', norma: 'Procedimento interno LAB-FLEX', revisao: 'Rev. 04',
-      clientes: ['CLI-FOR', 'CLI-TEN'],
+      clientes: ['CLI-FOR'],
       area: 'HOT', equipamentoGrupos: ['MTS'],
       horasSetup: 6, horasEnsaio: 180, horasReport: 8, amostras: 3,
       hourlyRate: 380, custoInsumos: 7300,
@@ -597,7 +595,7 @@ tbody tr:last-child td { border-bottom: none; }
     },
     {
       id: 'TP-MEC-03', nome: 'Fadiga de coxim / isolador', norma: 'Procedimento interno LAB-HGR', revisao: 'Rev. 02',
-      clientes: ['CLI-EBE'],
+      clientes: [],
       area: 'COLD', equipamentoGrupos: ['MTS'],
       horasSetup: 3, horasEnsaio: 120, horasReport: 6, amostras: 5,
       hourlyRate: 320, custoInsumos: 3400,
@@ -621,7 +619,7 @@ tbody tr:last-child td { border-bottom: none; }
     },
     {
       id: 'TP-ACU-01', nome: 'Perda de transmissão acústica (TL)', norma: 'ISO 11820', revisao: 'Rev. 02',
-      clientes: ['CLI-FOR', 'CLI-TEN', 'CLI-EBE'],
+      clientes: ['CLI-FOR'],
       area: 'COLD', equipamentoGrupos: ['LMS / PTA'],
       horasSetup: 4, horasEnsaio: 16, horasReport: 8, amostras: 1,
       hourlyRate: 560, custoInsumos: 6100,
@@ -1559,6 +1557,39 @@ tbody tr:last-child td { border-bottom: none; }
     }).join('');
   }
 
+  /* Valida campos obrigatórios de um modal. Avisa e põe o foco no primeiro pendente,
+     para o usuário não ter que caçar o que faltou.
+     campos: [{ nome, rotulo, tipo: 'texto'|'numero', min }] — min padrão 0 em números. */
+  function validarObrigatorios(janela, valores, campos) {
+    for (var i = 0; i < campos.length; i++) {
+      var campo = campos[i];
+      var bruto = valores[campo.nome];
+      var texto = bruto === undefined || bruto === null ? '' : String(bruto).trim();
+      var falha = null;
+
+      if (!texto) {
+        falha = 'Preencha ' + campo.rotulo + '.';
+      } else if (campo.tipo === 'numero') {
+        var minimo = campo.min === undefined ? 0 : campo.min;
+        var numero = Number(texto);
+        if (isNaN(numero)) falha = campo.rotulo + ' precisa ser um número.';
+        else if (numero < minimo) {
+          falha = minimo > 0
+            ? campo.rotulo + ' precisa ser maior que zero.'
+            : campo.rotulo + ' não pode ser negativo.';
+        }
+      }
+
+      if (falha) {
+        notificar(falha);
+        var alvo = janela.querySelector('[name=' + campo.nome + ']');
+        if (alvo && !alvo.readOnly && !alvo.disabled) alvo.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
   function vazio(titulo, texto) {
     return '<div class="vazio"><strong>' + e(titulo) + '</strong>' + e(texto || '') + '</div>';
   }
@@ -1575,6 +1606,7 @@ tbody tr:last-child td { border-bottom: none; }
     etiquetaTipoLti: etiquetaTipoLti,
     celulaLti: celulaLti,
     opcoes: opcoes,
+    validarObrigatorios: validarObrigatorios,
     vazio: vazio,
     STATUS: STATUS
   };
@@ -1703,6 +1735,8 @@ tbody tr:last-child td { border-bottom: none; }
         '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento' +
         (temPool ? ', escolhendo a unidade que libera mais cedo' : '') + '.' +
       '</div>' +
+      '<p class="sub" style="margin:0 0 12px">Todos os campos são obrigatórios, exceto ' +
+        '<strong>forçar início</strong>.</p>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Nº da LTI (ordem de serviço)</label>' +
           '<input name="lti" placeholder="Ex.: LTI-2026-0142" autocomplete="off"></div>' +
@@ -1727,7 +1761,8 @@ tbody tr:last-child td { border-bottom: none; }
           ui.opcoes(TC.data.PRIORIDADES, 'MEDIA') + '</select></div>' +
         '<div class="campo"><label>Amostras a consumir</label>' +
           '<input type="number" name="quantidade" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
-        '<div class="campo"><label>Forçar início em (opcional)</label><input type="date" name="inicioFixo"></div>' +
+        '<div class="campo"><label>Forçar início em <span class="sub" style="font-weight:400">(opcional)</span></label>' +
+          '<input type="date" name="inicioFixo"></div>' +
       '</div>' +
       '<div class="campo"><label>Observação</label>' +
         '<textarea name="observacao" rows="2" placeholder="Ex.: repetir com material alternativo"></textarea></div>' +
@@ -1738,25 +1773,20 @@ tbody tr:last-child td { border-bottom: none; }
       corpo: corpo,
       confirmar: 'Confirmar e planejar',
       aoConfirmar: function (v) {
-        if (!v.pecaId) {
-          ui.notificar('Escolha a peça a ensaiar.');
-          return false;
-        }
-        if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
-          ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
-          janela.querySelector('[name=lti]').focus();
-          return false;
-        }
-        if (!v.dataAmostras) {
-          ui.notificar('Informe a data de disponibilidade das amostras.');
-          janela.querySelector('[name=dataAmostras]').focus();
-          return false;
-        }
-        if (v.tipoLti !== 'COTACAO' && !v.prazo) {
-          ui.notificar('Informe o prazo para finalização.');
-          janela.querySelector('[name=prazo]').focus();
-          return false;
-        }
+        if (!ui.validarObrigatorios(janela, v, [
+          { nome: 'lti', rotulo: 'o nº da LTI' },
+          { nome: 'tipoLti', rotulo: 'a classificação da LTI' },
+          { nome: 'clienteId', rotulo: 'o cliente' },
+          { nome: 'projeto', rotulo: 'o projeto' },
+          { nome: 'partNumber', rotulo: 'o part number' },
+          { nome: 'pecaId', rotulo: 'a peça a ensaiar' },
+          { nome: 'dataAmostras', rotulo: 'a data de disponibilidade das amostras' },
+          { nome: 'prazo', rotulo: 'o prazo para finalização' },
+          { nome: 'prioridade', rotulo: 'a prioridade' },
+          { nome: 'quantidade', rotulo: 'a quantidade de amostras', tipo: 'numero', min: 1 },
+          { nome: 'observacao', rotulo: 'a observação' }
+        ])) return false;
+
         var demanda = TC.store.criarDemanda({
           testeId: teste.id, pecaId: v.pecaId, clienteId: v.clienteId,
           projeto: v.projeto, partNumber: v.partNumber,
@@ -1805,23 +1835,12 @@ tbody tr:last-child td { border-bottom: none; }
         '</div>';
     }
 
-    /* Só cotação pode ficar sem número de LTI e sem prazo; o formulário diz isso antes do envio. */
     function atualizarTipo() {
-      var cotacao = selTipo.value === 'COTACAO';
-      campoLti.placeholder = cotacao ? 'Opcional na cotação' : 'Ex.: LTI-2026-0142';
-      campoLti.required = !cotacao;
-      rotuloLti.textContent = cotacao
-        ? 'Nº da LTI (ordem de serviço) — opcional'
-        : 'Nº da LTI (ordem de serviço)';
-      rotuloPrazo.textContent = cotacao ? 'Prazo para finalização — opcional' : 'Prazo para finalização';
-      botaoConfirmar.textContent = cotacao ? 'Registrar cotação' : 'Confirmar e planejar';
+      botaoConfirmar.textContent = selTipo.value === 'COTACAO' ? 'Registrar cotação' : 'Confirmar e planejar';
       atualizarPrevia();
     }
 
     var selTipo = janela.querySelector('[name=tipoLti]');
-    var campoLti = janela.querySelector('[name=lti]');
-    var rotuloLti = campoLti.parentElement.querySelector('label');
-    var rotuloPrazo = janela.querySelector('[name=prazo]').parentElement.querySelector('label');
 
     selPeca.addEventListener('change', atualizarPrevia);
     selTipo.addEventListener('change', atualizarTipo);
@@ -1840,6 +1859,9 @@ tbody tr:last-child td { border-bottom: none; }
     var parque = TC.scheduler.agruparEquipamentos(estado.equipamentos);
 
     var corpo =
+      '<p class="sub" style="margin:0 0 12px">Todos os campos são obrigatórios. A exceção é ' +
+        '<strong>exigido pelos clientes</strong>: deixar em branco marca o procedimento como padrão ' +
+        'do laboratório, válido para todos.</p>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Código</label><input name="id" value="' + e(teste.id) + '"' +
           (novo ? ' placeholder="TP-COL-09"' : ' readonly') + '></div>' +
@@ -1881,18 +1903,37 @@ tbody tr:last-child td { border-bottom: none; }
       corpo: corpo,
       confirmar: 'Salvar procedimento',
       aoConfirmar: function (v) {
-        if (!v.nome) { ui.notificar('Informe o nome do procedimento.'); return false; }
+        if (!ui.validarObrigatorios(janela, v, [
+          { nome: 'id', rotulo: 'o código do procedimento' },
+          { nome: 'nome', rotulo: 'o nome do procedimento' },
+          { nome: 'norma', rotulo: 'a norma / referência' },
+          { nome: 'revisao', rotulo: 'a revisão do procedimento' },
+          { nome: 'area', rotulo: 'a área do sistema' },
+          { nome: 'horasSetup', rotulo: 'as horas de setup', tipo: 'numero' },
+          { nome: 'horasEnsaio', rotulo: 'as horas de ensaio', tipo: 'numero', min: 0.5 },
+          { nome: 'horasReport', rotulo: 'as horas de report', tipo: 'numero' },
+          { nome: 'hourlyRate', rotulo: 'o hourly rate', tipo: 'numero', min: 1 },
+          { nome: 'custoInsumos', rotulo: 'o custo de insumos', tipo: 'numero' },
+          { nome: 'amostras', rotulo: 'as amostras necessárias', tipo: 'numero', min: 1 },
+          { nome: 'descricao', rotulo: 'a descrição' }
+        ])) return false;
+
         if (!v.equipamentoGrupos || !v.equipamentoGrupos.length) {
           ui.notificar('Selecione ao menos um equipamento.');
           return false;
         }
+        if (novo && util.porId(estado.testes, v.id.trim())) {
+          ui.notificar('Já existe um procedimento com o código ' + v.id.trim() + '.');
+          janela.querySelector('[name=id]').focus();
+          return false;
+        }
         TC.store.salvarTeste({
-          id: v.id || undefined, nome: v.nome, norma: v.norma, revisao: v.revisao.trim(),
+          id: v.id.trim(), nome: v.nome.trim(), norma: v.norma.trim(), revisao: v.revisao.trim(),
           area: v.area, equipamentoGrupos: v.equipamentoGrupos, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
           horasReport: Number(v.horasReport) || 0, amostras: Number(v.amostras) || 1,
           hourlyRate: Number(v.hourlyRate) || 0, custoInsumos: Number(v.custoInsumos) || 0,
-          descricao: v.descricao
+          descricao: v.descricao.trim()
         });
         ui.notificar('Procedimento salvo.');
       }
@@ -2364,10 +2405,13 @@ tbody tr:last-child td { border-bottom: none; }
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
       '\n' + a.custo.horasBancada + ' h de bancada · ' + util.formatarMoeda(a.custo.total) +
       (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
+    /* O projeto entra na barra junto do procedimento: no Gantt cheio é o que diz
+       de quem é o ensaio sem precisar passar o mouse. */
+    var rotulo = a.teste.nome + (a.demanda.projeto ? ' · ' + a.demanda.projeto : '');
     return '<div class="gantt-barra ' + classe + (a.atrasado ? ' atrasado' : '') + '" ' +
       'data-demanda="' + e(a.demandaId) + '" title="' + e(titulo) + '" ' +
       'style="left:' + (offset * largura) + 'px;width:' + Math.max(largura, dias * largura - 3) + 'px">' +
-      e(a.teste.nome) + '</div>';
+      e(rotulo) + '</div>';
   }
 
   function render(container, ctx) {

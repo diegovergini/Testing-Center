@@ -94,10 +94,13 @@
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
       '\n' + a.custo.horasBancada + ' h de bancada · ' + util.formatarMoeda(a.custo.total) +
       (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
+    /* O projeto entra na barra junto do procedimento: no Gantt cheio é o que diz
+       de quem é o ensaio sem precisar passar o mouse. */
+    var rotulo = a.teste.nome + (a.demanda.projeto ? ' · ' + a.demanda.projeto : '');
     return '<div class="gantt-barra ' + classe + (a.atrasado ? ' atrasado' : '') + '" ' +
       'data-demanda="' + e(a.demandaId) + '" title="' + e(titulo) + '" ' +
       'style="left:' + (offset * largura) + 'px;width:' + Math.max(largura, dias * largura - 3) + 'px">' +
-      e(a.teste.nome) + '</div>';
+      e(rotulo) + '</div>';
   }
 
   function render(container, ctx) {

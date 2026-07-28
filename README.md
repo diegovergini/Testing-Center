@@ -106,18 +106,29 @@ Da peça vem só o custo unitário da amostra; a data de chegada é da demanda.
 Toda demanda carrega o número da LTI que a abriu e uma classificação:
 
 * **DV, PV ou VAVE** — entra no planejamento normalmente: reserva bancada, disputa fila por
-  prioridade e prazo, e aparece no Gantt. O número da LTI e o prazo são obrigatórios.
+  prioridade e prazo, e aparece no Gantt.
 * **Cotação** — é orçamento, ainda não é serviço confirmado. O custo e a duração são
   calculados do mesmo jeito, para dar o valor a cotar, mas a demanda não reserva bancada,
-  não aparece no Gantt e não conta como "sem janela" no painel. O número da LTI é opcional,
-  já que uma cotação pode não ter ordem de serviço ainda.
+  não aparece no Gantt e não conta como "sem janela" no painel.
 
 Quando uma LTI de cotação vira serviço de fato, basta editar a demanda e trocar a
 classificação para DV, PV ou VAVE — ela entra na fila e recebe uma janela no próximo
 recálculo do planejamento.
 
 Além da LTI, a demanda registra o **projeto** e o **part number** da peça ensaiada. O campo
-de projeto sugere os projetos já usados, para o mesmo programa não virar três grafias.
+de projeto sugere os projetos já usados, para o mesmo programa não virar três grafias, e o
+nome do projeto acompanha o procedimento na barra do Gantt.
+
+## Campos obrigatórios
+
+Os dois formulários exigem preenchimento completo, para não entrar demanda nem procedimento
+pela metade:
+
+* **Novo procedimento** — todos os campos. A única exceção é *exigido pelos clientes*:
+  deixar em branco é o que marca o procedimento como padrão do laboratório, válido para
+  todos os clientes. O código também é verificado contra duplicidade.
+* **Confirmar necessidade de teste** — todos os campos, exceto *forçar início*, que existe
+  justamente para o caso excepcional de fixar uma data na mão.
 
 ## Modelo de custo
 
@@ -139,7 +150,7 @@ mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é s
 ## Dados
 
 O estado fica no `localStorage` do navegador. O catálogo que vem junto (18 procedimentos,
-11 equipamentos, 5 tipos de peça, 6 clientes) é um ponto de partida para ser substituído
+11 equipamentos, 5 tipos de peça, 4 clientes) é um ponto de partida para ser substituído
 pelos dados reais do laboratório — tudo é editável pela interface.
 
 * **Exportar backup** grava um JSON com todo o estado.

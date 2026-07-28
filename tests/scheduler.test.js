@@ -595,3 +595,15 @@ test('o catálogo de exemplo tem Burner e MTS como grupos com várias unidades',
     });
   });
 });
+
+test('Tenneco e Eberspächer saíram do cadastro e das exigências do catálogo', () => {
+  const base = require('../src/data.js').seed();
+  const ids = base.clientes.map((c) => c.id);
+  assert.deepEqual(ids, ['CLI-FOR', 'CLI-VW', 'CLI-STL', 'CLI-SCA']);
+
+  base.testes.forEach((t) => {
+    (t.clientes || []).forEach((id) => {
+      assert.ok(ids.includes(id), t.id + ' exige cliente inexistente ' + id);
+    });
+  });
+});
