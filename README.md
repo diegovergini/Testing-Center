@@ -57,6 +57,7 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 
 | Tela | Para quê |
 | --- | --- |
+| **Cotações** | Orçamentos pedidos pela engenharia de produto: escolhe-se os testes, a plataforma monta a tabela de custos, arquiva e exporta em Excel. |
 | **Catálogo de testes** | Todos os procedimentos por área (Hot End / Cold End) e cliente, com revisão vigente, horas de bancada e custo estimado. É daqui que se confirma a necessidade de um teste. |
 | **Demandas** | Fila de testes confirmados com o nº da LTI, projeto, part number, a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
 | **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
@@ -64,6 +65,50 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
 | **Equipamentos** | Capacidade instalada: grupo, posições, calendário e paradas. É restrição de agenda, não de custo. |
 | **Peças e amostras** | Os tipos de peça que o laboratório ensaia, com o custo unitário da amostra e o consumo acumulado. |
+| **Perfis e permissões** | Matriz de quem vê e quem edita cada janela. |
+
+## Perfis e permissões
+
+Dois perfis usam a plataforma:
+
+* **Engenheiro de Produto** — cliente interno. Pede cotações e abre demandas de teste. Vê o
+  catálogo e o planejamento, mas não os altera; não acessa cadastros nem os KPIs.
+* **Engenheiro de Testes** — mantém o catálogo e os cadastros, opera o laboratório e
+  acompanha os KPIs. Acessa tudo.
+
+| Janela | Produto | Testes |
+| --- | --- | --- |
+| Catálogo de testes | ver | ver + editar |
+| Cotações | ver + editar | ver + editar |
+| Demandas | ver + editar | ver + editar |
+| Planejamento | ver | ver + editar |
+| Painel (KPIs) | — | ver + editar |
+| Clientes, Equipamentos, Peças | — | ver + editar |
+| Perfis e permissões | — | ver + editar |
+
+A matriz é editável em *Perfis e permissões*, e marcar **editar** liga **ver** junto.
+Quem está sem permissão de edição vê a janela com um selo de somente leitura e sem os
+botões de ação.
+
+> **Isto não é controle de acesso.** Sem servidor, o perfil é uma escolha da própria
+> interface: organiza o trabalho e evita edição acidental, mas quem abrir o console ou o
+> backup JSON alcança tudo. Autenticação de verdade exige um back-end — é a mesma troca do
+> `src/store.js` por uma API descrita em *Dados*.
+
+## Cotações
+
+O engenheiro de produto escolhe os procedimentos que precisa orçar, informa cliente,
+projeto, part number e solicitante, e opcionalmente uma peça de referência (que traz o custo
+das amostras). A plataforma monta a tabela com o custo de cada teste — horas, hourly rate,
+insumos, amostras, custo unitário, quantidade e total — e a soma geral.
+
+Cada cotação recebe um número sequencial (`COT-2026-0001`), fica arquivada na plataforma com
+um status (em elaboração, enviada, aprovada, recusada) e sai em **Excel** (`.xlsx` de
+verdade, gerado sem dependências).
+
+**Os preços ficam congelados na cotação.** Mudar o hourly rate no catálogo depois não
+reescreve um orçamento já entregue — a cotação guarda a cópia dos valores do dia em que foi
+gerada, inclusive a revisão do procedimento.
 
 ## Fases de projeto
 
@@ -169,6 +214,8 @@ assets/styles.css     tema claro/escuro
 src/util.js           datas em UTC, moeda, escape de HTML
 src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
 src/scheduler.js      motor de alocação e cálculo de custo — sem dependência de DOM
+src/permissoes.js     perfil em uso e o que ele vê/edita
+src/xlsx.js           gerador de .xlsx (ZIP + XML) sem dependências
 src/store.js          estado, persistência e CRUD
 src/ui.js             modal, notificações, etiquetas
 src/views/*.js        uma tela por arquivo

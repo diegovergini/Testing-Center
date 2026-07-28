@@ -48,7 +48,7 @@
     return texto + '<div style="margin-top:3px">' + etiqueta + '</div>';
   }
 
-  function linha(a) {
+  function linha(a, podeEditar) {
     var d = a.demanda;
     return '<tr data-demanda="' + e(d.id) + '">' +
       '<td>' +
@@ -74,8 +74,10 @@
       '<td class="num forte">' + e(util.formatarMoeda(a.custo.total)) + '</td>' +
       '<td>' + ui.etiquetaStatus(d.status) + '</td>' +
       '<td class="num" style="white-space:nowrap">' +
-        '<button class="botao pequeno editar">Editar</button> ' +
-        '<button class="botao pequeno perigo excluir" title="Remover demanda">✕</button>' +
+        (podeEditar
+          ? '<button class="botao pequeno editar">Editar</button> ' +
+            '<button class="botao pequeno perigo excluir" title="Remover demanda">✕</button>'
+          : '<span class="sub">—</span>') +
       '</td>' +
     '</tr>';
   }
@@ -159,7 +161,8 @@
         '<div><h2>Demandas de teste</h2>' +
         '<p>Cada necessidade confirmada no catálogo vira uma linha aqui e é reagendada automaticamente sempre que a prioridade, o prazo ou a disponibilidade muda.</p></div>' +
         '<div class="acoes"><button class="botao" id="csv">Exportar CSV</button>' +
-        '<button class="botao primario" id="ir-catalogo">+ Confirmar novo teste</button></div>' +
+        (ctx.podeEditar ? '<button class="botao primario" id="ir-catalogo">+ Confirmar novo teste</button>' : '') +
+        '</div>' +
       '</div>' +
       '<div class="indicadores">' +
         '<div class="indicador"><div class="rotulo">Demandas</div><div class="valor">' + lista.length + '</div>' +
@@ -184,11 +187,12 @@
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Procedimento</th><th>Projeto</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
           '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
-          '</tr></thead><tbody>' + lista.map(linha).join('') + '</tbody></table></div>'
+          '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar); }).join('') + '</tbody></table></div>'
           : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
       '</div>';
 
-    container.querySelector('#ir-catalogo').onclick = function () { ctx.ir('catalogo'); };
+    var irCatalogo = container.querySelector('#ir-catalogo');
+    if (irCatalogo) irCatalogo.onclick = function () { ctx.ir('catalogo'); };
     container.querySelector('#csv').onclick = function () { exportarCsv(lista); };
 
     var busca = container.querySelector('#f-busca');
@@ -212,7 +216,9 @@
     container.querySelectorAll('tr[data-demanda]').forEach(function (tr) {
       var alocacao = null;
       lista.forEach(function (a) { if (a.demandaId === tr.dataset.demanda) alocacao = a; });
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(ctx, alocacao.demanda, alocacao); };
+      var editar = tr.querySelector('.editar');
+      if (!editar) return;
+      editar.onclick = function () { abrirEdicao(ctx, alocacao.demanda, alocacao); };
       tr.querySelector('.excluir').onclick = function () {
         ui.confirmarAcao('Remover a demanda de "' + (alocacao.teste ? alocacao.teste.nome : '') + '"?', function () {
           TC.store.removerDemanda(tr.dataset.demanda);

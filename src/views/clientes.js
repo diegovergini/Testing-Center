@@ -34,6 +34,7 @@
 
   function render(container, ctx) {
     var estado = ctx.estado;
+    var podeEditar = ctx.podeEditar;
 
     var resumo = {};
     estado.clientes.forEach(function (c) {
@@ -66,8 +67,10 @@
         '<td class="num">' + r.demandas + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(r.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
-          '<button class="botao pequeno editar">Editar</button> ' +
-          '<button class="botao pequeno perigo excluir" title="Remover cliente">✕</button>' +
+          (podeEditar
+            ? '<button class="botao pequeno editar">Editar</button> ' +
+              '<button class="botao pequeno perigo excluir" title="Remover cliente">✕</button>'
+            : '<span class="sub">—</span>') +
         '</td>' +
       '</tr>';
     }).join('');
@@ -76,7 +79,7 @@
       '<div class="cabecalho">' +
         '<div><h2>Clientes</h2>' +
         '<p>Quem exige a validação. Um procedimento sem cliente marcado vale como padrão do laboratório e aparece para todos.</p></div>' +
-        '<div class="acoes"><button class="botao primario" id="novo">+ Novo cliente</button></div>' +
+        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="novo">+ Novo cliente</button></div>' : '') +
       '</div>' +
       '<div class="cartao">' +
         (estado.clientes.length
@@ -87,12 +90,15 @@
           : ui.vazio('Nenhum cliente cadastrado', 'Cadastre o primeiro cliente para poder registrar peças e confirmar testes.')) +
       '</div>';
 
-    container.querySelector('#novo').onclick = function () { abrirEdicao(null); };
+    var botaoNovo = container.querySelector('#novo');
+    if (botaoNovo) botaoNovo.onclick = function () { abrirEdicao(null); };
 
     container.querySelectorAll('tr[data-cliente]').forEach(function (tr) {
       var cliente = util.porId(estado.clientes, tr.dataset.cliente);
       var r = resumo[cliente.id];
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(cliente); };
+      var editar = tr.querySelector('.editar');
+      if (!editar) return;
+      editar.onclick = function () { abrirEdicao(cliente); };
       tr.querySelector('.excluir').onclick = function () {
         ui.confirmarAcao(
           'Remover "' + cliente.nome + '"?' +

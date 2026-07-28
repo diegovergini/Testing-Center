@@ -83,6 +83,22 @@
       delete d.fase;
     });
 
+    /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
+    if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
+    var padrao = TC.data.PERMISSOES_PADRAO;
+    var permissoes = estado.permissoes || {};
+    Object.keys(padrao).forEach(function (rota) {
+      var atual = permissoes[rota];
+      permissoes[rota] = {
+        ver: Array.isArray(atual && atual.ver) ? atual.ver : padrao[rota].ver.slice(),
+        editar: Array.isArray(atual && atual.editar) ? atual.editar : padrao[rota].editar.slice()
+      };
+    });
+    estado.permissoes = permissoes;
+
+    var perfisValidos = TC.data.PERFIS.map(function (p) { return p.id; });
+    if (perfisValidos.indexOf(estado.perfilAtual) === -1) estado.perfilAtual = 'TESTES';
+
     return estado;
   }
 
@@ -247,6 +263,63 @@
       commit();
     },
 
+    /* ---- Perfil e permissões ---- */
+    definirPerfil: function (perfilId) {
+      estado.perfilAtual = perfilId;
+      commit();
+    },
+    /* editar implica ver: quem edita precisa enxergar a janela. */
+    definirPermissao: function (rota, acao, perfilId, permitido) {
+      var regra = estado.permissoes[rota];
+      if (!regra) return;
+      function ligar(lista, ligado) {
+        var i = lista.indexOf(perfilId);
+        if (ligado && i === -1) lista.push(perfilId);
+        if (!ligado && i !== -1) lista.splice(i, 1);
+      }
+      ligar(regra[acao], permitido);
+      if (acao === 'editar' && permitido) ligar(regra.ver, true);
+      if (acao === 'ver' && !permitido) ligar(regra.editar, false);
+      commit();
+    },
+    restaurarPermissoes: function () {
+      estado.permissoes = JSON.parse(JSON.stringify(TC.data.PERMISSOES_PADRAO));
+      commit();
+    },
+
+    /* ---- Cotações ---- */
+    proximoNumeroCotacao: function () {
+      var ano = util.hoje().slice(0, 4);
+      var prefixo = 'COT-' + ano + '-';
+      var maior = 0;
+      estado.cotacoes.forEach(function (c) {
+        if (c.numero && c.numero.indexOf(prefixo) === 0) {
+          var n = parseInt(c.numero.slice(prefixo.length), 10);
+          if (!isNaN(n) && n > maior) maior = n;
+        }
+      });
+      return prefixo + String(maior + 1).padStart(4, '0');
+    },
+    salvarCotacao: function (cotacao) {
+      var existente = cotacao.id ? util.porId(estado.cotacoes, cotacao.id) : null;
+      if (existente) {
+        Object.keys(cotacao).forEach(function (k) { existente[k] = cotacao[k]; });
+        commit();
+        return existente;
+      }
+      cotacao.id = util.id('COT');
+      cotacao.numero = cotacao.numero || store.proximoNumeroCotacao();
+      cotacao.criadoEm = cotacao.criadoEm || util.hoje();
+      cotacao.status = cotacao.status || 'ABERTA';
+      estado.cotacoes.push(cotacao);
+      commit();
+      return cotacao;
+    },
+    removerCotacao: function (id) {
+      estado.cotacoes = estado.cotacoes.filter(function (c) { return c.id !== id; });
+      commit();
+    },
+
     /* ---- Backup ---- */
     exportar: function () {
       return JSON.stringify(estado, null, 2);
@@ -257,6 +330,7 @@
       lido.demandas = lido.demandas || [];
       lido.pecas = lido.pecas || [];
       lido.clientes = lido.clientes || [];
+      lido.cotacoes = lido.cotacoes || [];
       estado = migrar(lido);
       commit();
     },

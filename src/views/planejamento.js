@@ -219,7 +219,9 @@
         var id = elemento.dataset.demanda;
         var alvo = null;
         ctx.plano.alocacoes.forEach(function (a) { if (a.demandaId === id) alvo = a; });
-        if (alvo) TC.views.demandas.abrirDetalhe(ctx, alvo);
+        if (alvo && TC.permissoes.podeEditar(ctx.estado, 'demandas')) {
+          TC.views.demandas.abrirDetalhe(ctx, alvo);
+        }
       };
     });
 

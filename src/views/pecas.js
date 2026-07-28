@@ -40,6 +40,7 @@
 
   function render(container, ctx) {
     var estado = ctx.estado;
+    var podeEditar = ctx.podeEditar;
 
     var uso = {};
     estado.pecas.forEach(function (p) {
@@ -73,8 +74,10 @@
           : '<span class="sub">—</span>') + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(u.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
-          '<button class="botao pequeno editar">Editar</button> ' +
-          '<button class="botao pequeno perigo excluir">✕</button></td>' +
+          (podeEditar
+            ? '<button class="botao pequeno editar">Editar</button> ' +
+              '<button class="botao pequeno perigo excluir">✕</button>'
+            : '<span class="sub">—</span>') + '</td>' +
       '</tr>';
     }).join('');
 
@@ -82,7 +85,7 @@
       '<div class="cabecalho">' +
         '<div><h2>Peças e amostras</h2>' +
         '<p>Os tipos de peça que o laboratório ensaia. Valem para qualquer cliente — a data de chegada das amostras e o prazo são informados a cada demanda, porque variam por programa.</p></div>' +
-        '<div class="acoes"><button class="botao primario" id="nova">+ Novo tipo de peça</button></div>' +
+        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="nova">+ Novo tipo de peça</button></div>' : '') +
       '</div>' +
       '<div class="cartao">' +
         (estado.pecas.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
@@ -93,10 +96,13 @@
           : ui.vazio('Nenhum tipo de peça cadastrado', 'Cadastre a peça para poder confirmar testes sobre ela.')) +
       '</div>';
 
-    container.querySelector('#nova').onclick = function () { abrirEdicao(null); };
+    var botaoNova = container.querySelector('#nova');
+    if (botaoNova) botaoNova.onclick = function () { abrirEdicao(null); };
     container.querySelectorAll('tr[data-peca]').forEach(function (tr) {
       var peca = util.porId(estado.pecas, tr.dataset.peca);
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(peca); };
+      var editar = tr.querySelector('.editar');
+      if (!editar) return;
+      editar.onclick = function () { abrirEdicao(peca); };
       tr.querySelector('.excluir').onclick = function () {
         var usos = estado.demandas.filter(function (d) { return d.pecaId === peca.id; }).length;
         ui.confirmarAcao('Remover "' + peca.nome + '"?' +

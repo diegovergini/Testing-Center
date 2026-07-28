@@ -37,7 +37,7 @@
     return { lista: lista, faltando: faltando };
   }
 
-  function linha(estado, teste) {
+  function linha(estado, teste, permissoes) {
     var eqs = gruposDe(estado, teste);
     var custo = TC.scheduler.custoCatalogo(teste);
     var unidades = eqs.lista.map(function (g) { return g.membros[0]; });
@@ -80,9 +80,12 @@
         ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) + '">' +
         e(util.formatarMoeda(custo.custoProcedimento)) +
         '<div class="sub">+ amostras</div></td>' +
-      '<td class="num">' +
-        '<button class="botao primario pequeno confirmar">Confirmar necessidade</button> ' +
-        '<button class="botao pequeno editar" title="Editar procedimento">Editar</button>' +
+      '<td class="num" style="white-space:nowrap">' +
+        (permissoes.podeCriarDemanda
+          ? '<button class="botao primario pequeno confirmar">Confirmar necessidade</button> ' : '') +
+        (permissoes.podeEditarCatalogo
+          ? '<button class="botao pequeno editar" title="Editar procedimento">Editar</button>' : '') +
+        (!permissoes.podeCriarDemanda && !permissoes.podeEditarCatalogo ? '<span class="sub">—</span>' : '') +
       '</td>' +
     '</tr>';
   }
@@ -350,6 +353,10 @@
   function render(container, ctx) {
     var estado = ctx.estado, f = ctx.filtros;
     var lista = filtrar(estado, f);
+    var permissoes = {
+      podeEditarCatalogo: ctx.podeEditar,
+      podeCriarDemanda: TC.permissoes.podeEditar(estado, 'demandas')
+    };
 
     var totalHoras = 0, totalCusto = 0;
     lista.forEach(function (t) {
@@ -361,7 +368,8 @@
       '<div class="cabecalho">' +
         '<div><h2>Catálogo de testes</h2>' +
         '<p>Todos os procedimentos de validação por área do sistema e cliente, com revisão vigente, tempo de bancada e custo. Qualquer procedimento pode ser executado em qualquer fase de projeto. Confirme a necessidade de um teste e ele entra no planejamento automaticamente.</p></div>' +
-        '<div class="acoes"><button class="botao primario" id="novo">+ Novo procedimento</button></div>' +
+        (permissoes.podeEditarCatalogo
+          ? '<div class="acoes"><button class="botao primario" id="novo">+ Novo procedimento</button></div>' : '') +
       '</div>' +
       '<div class="indicadores">' +
         '<div class="indicador"><div class="rotulo">Procedimentos listados</div><div class="valor">' + lista.length +
@@ -382,12 +390,13 @@
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Código</th><th>Procedimento</th><th>Revisão</th><th>Área</th><th>Equipamento</th>' +
           '<th class="num">Duração</th><th class="num">Amostras</th><th class="num">Custo estimado</th><th></th>' +
-          '</tr></thead><tbody>' + lista.map(function (t) { return linha(estado, t); }).join('') +
+          '</tr></thead><tbody>' + lista.map(function (t) { return linha(estado, t, permissoes); }).join('') +
           '</tbody></table></div>'
           : ui.vazio('Nenhum procedimento encontrado', 'Ajuste os filtros ou cadastre um novo procedimento.')) +
       '</div>';
 
-    container.querySelector('#novo').onclick = function () { abrirEdicao(ctx, null); };
+    var botaoNovo = container.querySelector('#novo');
+    if (botaoNovo) botaoNovo.onclick = function () { abrirEdicao(ctx, null); };
 
     function liga(id, campo) {
       var alvo = container.querySelector(id);
@@ -414,8 +423,10 @@
 
     container.querySelectorAll('tr[data-teste]').forEach(function (tr) {
       var teste = util.porId(estado.testes, tr.dataset.teste);
-      tr.querySelector('.confirmar').onclick = function () { abrirConfirmacao(ctx, teste); };
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(ctx, teste); };
+      var confirmar = tr.querySelector('.confirmar');
+      var editar = tr.querySelector('.editar');
+      if (confirmar) confirmar.onclick = function () { abrirConfirmacao(ctx, teste); };
+      if (editar) editar.onclick = function () { abrirEdicao(ctx, teste); };
     });
   }
 

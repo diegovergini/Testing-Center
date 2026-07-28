@@ -123,6 +123,7 @@
 
   function render(container, ctx) {
     var estado = ctx.estado;
+    var podeEditar = ctx.podeEditar;
     var horizonte = 90;
     var ocupacao = ocupacaoPorEquipamento(ctx.plano, ctx.hoje, horizonte);
 
@@ -158,9 +159,11 @@
           ? '<span class="etiqueta alerta">' + eq.manutencao.length + ' parada(s)</span>'
           : '<span class="sub">—</span>') + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
-          '<button class="botao pequeno manutencao">Paradas</button> ' +
-          '<button class="botao pequeno editar">Editar</button> ' +
-          '<button class="botao pequeno perigo excluir" title="Remover equipamento">✕</button>' +
+          (podeEditar
+            ? '<button class="botao pequeno manutencao">Paradas</button> ' +
+              '<button class="botao pequeno editar">Editar</button> ' +
+              '<button class="botao pequeno perigo excluir" title="Remover equipamento">✕</button>'
+            : '<span class="sub">—</span>') +
         '</td>' +
       '</tr>';
     }).join('');
@@ -169,7 +172,7 @@
       '<div class="cabecalho">' +
         '<div><h2>Equipamentos</h2>' +
         '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita. O custo do ensaio não vem daqui: ele sai do hourly rate do procedimento.</p></div>' +
-        '<div class="acoes"><button class="botao primario" id="novo">+ Novo equipamento</button></div>' +
+        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="novo">+ Novo equipamento</button></div>' : '') +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
@@ -180,10 +183,13 @@
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '</div>';
 
-    container.querySelector('#novo').onclick = function () { abrirEdicao(null, estado); };
+    var botaoNovo = container.querySelector('#novo');
+    if (botaoNovo) botaoNovo.onclick = function () { abrirEdicao(null, estado); };
     container.querySelectorAll('tr[data-equip]').forEach(function (tr) {
       var eq = util.porId(estado.equipamentos, tr.dataset.equip);
-      tr.querySelector('.editar').onclick = function () { abrirEdicao(eq, estado); };
+      var editar = tr.querySelector('.editar');
+      if (!editar) return;
+      editar.onclick = function () { abrirEdicao(eq, estado); };
       tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
       tr.querySelector('.excluir').onclick = function () {
         var grupo = TC.scheduler.grupoDe(eq);

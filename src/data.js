@@ -24,6 +24,37 @@
     return { id: f.id, nome: f.nome, planeja: true, descricao: f.descricao };
   }));
 
+  /* Quem usa a plataforma. Sem servidor, o perfil é uma escolha da interface: guia o que
+     cada um vê e edita, não é controle de acesso. */
+  var PERFIS = [
+    { id: 'PRODUTO', nome: 'Engenheiro de Produto',
+      descricao: 'Cliente interno: solicita cotações e abre demandas de teste' },
+    { id: 'TESTES', nome: 'Engenheiro de Testes',
+      descricao: 'Mantém catálogo e cadastros, opera o laboratório e acompanha os KPIs' }
+  ];
+
+  var TODOS_PERFIS = PERFIS.map(function (p) { return p.id; });
+
+  /* Permissão por janela. "editar" sempre implica "ver". */
+  var PERMISSOES_PADRAO = {
+    catalogo: { ver: TODOS_PERFIS.slice(), editar: ['TESTES'] },
+    cotacoes: { ver: TODOS_PERFIS.slice(), editar: TODOS_PERFIS.slice() },
+    demandas: { ver: TODOS_PERFIS.slice(), editar: TODOS_PERFIS.slice() },
+    planejamento: { ver: TODOS_PERFIS.slice(), editar: ['TESTES'] },
+    painel: { ver: ['TESTES'], editar: ['TESTES'] },
+    clientes: { ver: ['TESTES'], editar: ['TESTES'] },
+    equipamentos: { ver: ['TESTES'], editar: ['TESTES'] },
+    pecas: { ver: ['TESTES'], editar: ['TESTES'] },
+    permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
+  };
+
+  var STATUS_COTACAO = [
+    { id: 'ABERTA', nome: 'Em elaboração' },
+    { id: 'ENVIADA', nome: 'Enviada' },
+    { id: 'APROVADA', nome: 'Aprovada' },
+    { id: 'RECUSADA', nome: 'Recusada' }
+  ];
+
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
     { id: 'COLD', nome: 'Cold End', descricao: 'Silencioso, ressonador, tubos, ponteira, coxins' },
@@ -230,6 +261,9 @@
   ];
 
   TC.data = {
+    PERFIS: PERFIS,
+    PERMISSOES_PADRAO: PERMISSOES_PADRAO,
+    STATUS_COTACAO: STATUS_COTACAO,
     FASES: FASES,
     FASES_ANTIGAS: FASES_ANTIGAS,
     TIPOS_LTI: TIPOS_LTI,
@@ -241,7 +275,10 @@
         equipamentos: JSON.parse(JSON.stringify(EQUIPAMENTOS)),
         testes: JSON.parse(JSON.stringify(TESTES)),
         pecas: JSON.parse(JSON.stringify(PECAS)),
-        demandas: []
+        demandas: [],
+        cotacoes: [],
+        permissoes: JSON.parse(JSON.stringify(PERMISSOES_PADRAO)),
+        perfilAtual: 'TESTES'
       };
     }
   };
