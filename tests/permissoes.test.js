@@ -95,6 +95,19 @@ test('perfil inválido gravado volta para o de testes', () => {
 require('../src/views/cotacoes.js');
 const cotacoes = globalThis.TC.views.cotacoes;
 
+/* O catálogo de partida chega com horas e valores zerados — quem cadastra preenche
+   depois. Cotação com preço zero não prova nada, então completamos um procedimento
+   antes de cotar. */
+function procedimentoPrecificado() {
+  store.restaurarPadrao();
+  const base = store.get().testes[0];
+  return store.salvarTeste(Object.assign({}, base, {
+    equipamentoGrupos: ['Burner'],
+    horasSetup: 8, horasEnsaio: 240, horasReport: 16,
+    hourlyRate: 610, custoInsumos: 12800
+  }));
+}
+
 test('numeração de cotação é sequencial por ano', () => {
   store.restaurarPadrao();
   const primeira = store.proximoNumeroCotacao();
@@ -107,8 +120,7 @@ test('numeração de cotação é sequencial por ano', () => {
 });
 
 test('o item da cotação congela o preço do procedimento', () => {
-  store.restaurarPadrao();
-  const teste = store.get().testes[0];
+  const teste = procedimentoPrecificado();
   const item = cotacoes.montarItem(teste, 2);
 
   const esperadoUnitario =
@@ -122,8 +134,7 @@ test('o item da cotação congela o preço do procedimento', () => {
 });
 
 test('quantidade de amostras inválida vira uma', () => {
-  store.restaurarPadrao();
-  const teste = store.get().testes[0];
+  const teste = procedimentoPrecificado();
   assert.equal(cotacoes.montarItem(teste, 0).amostras, 1);
   assert.equal(cotacoes.montarItem(teste, '').amostras, 1);
   assert.equal(cotacoes.montarItem(teste, -3).amostras, 1);
@@ -131,8 +142,7 @@ test('quantidade de amostras inválida vira uma', () => {
 });
 
 test('mudar o catálogo depois não reescreve cotação arquivada', () => {
-  store.restaurarPadrao();
-  const teste = store.get().testes[0];
+  const teste = procedimentoPrecificado();
   const item = cotacoes.montarItem(teste, 1);
   const cotacao = store.salvarCotacao({ clienteId: 'CLI-VW', itens: [item] });
   const totalOriginal = cotacoes.totalDaCotacao(cotacao);
@@ -145,8 +155,8 @@ test('mudar o catálogo depois não reescreve cotação arquivada', () => {
 });
 
 test('o unitário é horas x rate + insumos, sem custo de amostra embutido', () => {
-  store.restaurarPadrao();
-  const item = cotacoes.montarItem(store.get().testes[0], 1);
+  const item = cotacoes.montarItem(procedimentoPrecificado(), 1);
+  assert.ok(item.custoUnitario > 0, 'o teste precisa de um procedimento precificado');
   assert.equal(item.custoUnitario, item.custoHoras + item.custoInsumos);
   assert.equal(item.custoAmostras, undefined, 'a peça de referência saiu do modelo');
 });

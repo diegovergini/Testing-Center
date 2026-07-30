@@ -113,16 +113,29 @@
       if (d.projeto && projetosConhecidos.indexOf(d.projeto) === -1) projetosConhecidos.push(d.projeto);
     });
 
+    /* Procedimento recém-cadastrado pode ainda não ter bancada nem horas. A demanda é
+       registrada de todo modo — a necessidade existe —, mas sem isso o planejamento não
+       tem o que agendar, então o aviso diz onde completar. */
+    var identificacao = e(teste.nome) + (teste.revisao ? ' · ' + e(teste.revisao) : '') +
+      ' · ' + e(teste.norma || 'sem norma');
+    var incompleto = !eqs.lista.length || !TC.scheduler.horasDeBancada(teste);
+
     var corpo =
-      '<div class="aviso">' +
-        e(teste.nome) + (teste.revisao ? ' · ' + e(teste.revisao) : '') +
-        ' · ' + e(teste.norma || 'sem norma') + ' · ocupa <strong>' +
-        e(nomes || '?') + '</strong> por ' +
-        e(unidadesRef.length ? TC.scheduler.diasDeOperacao(teste, unidadesRef) + ' dia(s)' : '—') +
-        (eqs.lista.length > 1 ? ', com os ' + eqs.lista.length + ' grupos reservados ao mesmo tempo' : '') +
-        '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento' +
-        (temPool ? ', escolhendo a unidade que libera mais cedo' : '') + '.' +
-      '</div>' +
+      (incompleto
+        ? '<div class="aviso alerta">' + identificacao +
+            ' — este procedimento ainda está <strong>sem ' +
+            (!eqs.lista.length ? 'equipamento' : '') +
+            (!eqs.lista.length && !TC.scheduler.horasDeBancada(teste) ? ' e sem ' : '') +
+            (!TC.scheduler.horasDeBancada(teste) ? 'horas de bancada' : '') +
+            '</strong> no catálogo. A demanda fica registrada, mas só entra na agenda ' +
+            'depois que o cadastro do procedimento for completado.</div>'
+        : '<div class="aviso">' + identificacao + ' · ocupa <strong>' +
+            e(nomes) + '</strong> por ' +
+            e(TC.scheduler.diasDeOperacao(teste, unidadesRef) + ' dia(s)') +
+            (eqs.lista.length > 1 ? ', com os ' + eqs.lista.length + ' grupos reservados ao mesmo tempo' : '') +
+            '. A data de início é calculada automaticamente pela chegada das amostras e pela agenda do equipamento' +
+            (temPool ? ', escolhendo a unidade que libera mais cedo' : '') + '.' +
+          '</div>') +
       '<p class="sub" style="margin:0 0 12px">Todos os campos são obrigatórios, exceto ' +
         '<strong>forçar início</strong>.</p>' +
       '<div class="grade-campos">' +
@@ -252,7 +265,7 @@
         'do laboratório, válido para todos.</p>' +
       '<div class="grade-campos">' +
         '<div class="campo"><label>Código</label><input name="id" value="' + e(teste.id) + '"' +
-          (novo ? ' placeholder="TP-COL-09"' : ' readonly') + '></div>' +
+          (novo ? ' placeholder="TP-GM-12"' : ' readonly') + '></div>' +
         '<div class="campo"><label>Nome do procedimento</label><input name="nome" value="' + e(teste.nome) + '" required></div>' +
         '<div class="campo"><label>Norma / referência</label><input name="norma" value="' + e(teste.norma || '') + '"></div>' +
         '<div class="campo"><label>Revisão do procedimento</label>' +

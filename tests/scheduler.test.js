@@ -265,8 +265,24 @@ test('custo de catálogo usa a quantidade padrão do procedimento e ignora amost
   assert.equal(c.total, 500 + 10 * 200);
 });
 
+/* O catálogo de partida chega sem bancada e sem horas — quem cadastra preenche depois.
+   Para exercitar o planejamento de ponta a ponta, completamos aqui o que o engenheiro
+   de testes preencheria, distribuindo os procedimentos pelos grupos do parque. */
+function catalogoCompletado(base) {
+  const grupos = scheduler.agruparEquipamentos(base.equipamentos).map((g) => g.id);
+  base.testes.forEach((t, i) => {
+    t.equipamentoGrupos = [grupos[i % grupos.length]];
+    t.horasSetup = 4;
+    t.horasEnsaio = 24 + i * 8;
+    t.horasReport = 6;
+    t.hourlyRate = 400;
+    t.custoInsumos = 1000;
+  });
+  return base;
+}
+
 test('o catálogo de exemplo é planejável de ponta a ponta', () => {
-  const base = require('../src/data.js').seed();
+  const base = catalogoCompletado(require('../src/data.js').seed());
   /* Qualquer peça serve para qualquer procedimento: não há mais amarração por área. */
   base.demandas = base.testes.map((t, i) => demanda({
     id: 'D' + i,
@@ -299,7 +315,7 @@ test('o catálogo não amarra procedimento a fase e sempre traz a revisão', () 
   });
 });
 
-test('todo procedimento do catálogo aponta para um equipamento existente', () => {
+test('o parque está cadastrado e nenhum procedimento aponta para grupo inexistente', () => {
   const base = require('../src/data.js').seed();
   const grupos = scheduler.agruparEquipamentos(base.equipamentos).map((g) => g.id);
 
@@ -307,10 +323,33 @@ test('todo procedimento do catálogo aponta para um equipamento existente', () =
     'Burner 1', 'Burner 2', 'Burner 3', 'Shaker', 'MTS 1', 'MTS 2', 'MTS 3', 'MTS 4',
     'LMS / PTA', 'ColdFlow', 'Dynamometer'
   ]);
+  /* O catálogo de partida vem sem bancada definida: o equipamento é preenchido no
+     cadastro de cada procedimento. O que não pode acontecer é apontar para um grupo
+     que não existe no parque. */
   base.testes.forEach((t) => {
-    const usados = scheduler.gruposDoTeste(t);
-    assert.ok(usados.length, t.id + ' está sem equipamento');
-    usados.forEach((id) => assert.ok(grupos.includes(id), t.id + ' aponta para grupo ' + id));
+    scheduler.gruposDoTeste(t).forEach(function (id) {
+      assert.ok(grupos.includes(id), t.id + ' aponta para grupo ' + id);
+    });
+  });
+});
+
+test('o catálogo de partida traz os 11 procedimentos GM com norma e revisão 1', () => {
+  const base = require('../src/data.js').seed();
+  assert.deepEqual(base.testes.map((t) => t.nome), [
+    'Resonance Durability', 'Physical Durability Aging Cycle',
+    'Substrate Retention Cold Vibration Aging', 'Container Thermal Shock Ageing Cycle',
+    'Substrate Thermal Shock', 'Exhaust backpressure', 'Joint Leakage',
+    'Hanger Dynamic Stifness', 'Muffler Thermal Shock', 'Hanger Durability',
+    'Pipe Durability'
+  ]);
+  assert.deepEqual(base.testes.map((t) => t.norma), [
+    'Appx C', 'Appx C', 'Appx C', 'Appx C', 'Appx C', 'GMW16372', 'GMW15261',
+    'GMW14182', 'GMW14380', 'GMW14381 / GMW16941', 'GMW14390 / GMW18104'
+  ]);
+  base.testes.forEach((t) => {
+    assert.equal(t.revisao, 'Rev. 01', t.id + ' não está na revisão 1');
+    assert.deepEqual(t.clientes, ['CLI-GM'], t.id + ' não está exigido pela GM');
+    assert.ok(util.porId(base.clientes, 'CLI-GM'), 'a GM precisa estar no cadastro de clientes');
   });
 });
 
@@ -438,23 +477,26 @@ test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () =
   assert.match(plano.bloqueadas[0].motivo, /sem equipamento/i);
 });
 
-test('todo procedimento do catálogo tem hourly rate e horas de report definidos', () => {
+test('o catálogo de partida traz os campos de custo zerados, prontos para preencher', () => {
   const base = require('../src/data.js').seed();
   base.testes.forEach((t) => {
-    assert.equal(typeof t.hourlyRate, 'number', t.id + ' sem hourly rate');
-    assert.ok(t.hourlyRate > 0, t.id + ' com hourly rate zerado');
-    assert.equal(typeof t.horasReport, 'number', t.id + ' sem horas de report');
-    assert.equal(typeof t.custoInsumos, 'number', t.id + ' sem custo de insumos');
+    ['horasSetup', 'horasEnsaio', 'horasReport', 'hourlyRate', 'custoInsumos'].forEach((campo) => {
+      assert.equal(typeof t[campo], 'number', t.id + ' sem o campo ' + campo);
+      assert.equal(t[campo], 0, t.id + ' deveria chegar com ' + campo + ' zerado');
+    });
     assert.equal(t.custoBase, undefined, t.id + ' ainda usa custoBase');
+    /* Sem horas nem rate o custo é zero: o catálogo mostra R$ 0 até ser completado. */
+    assert.equal(scheduler.custoCatalogo(t).custoProcedimento, 0, t.id);
   });
 });
 
 test('o custo do catálogo bate com a fórmula, procedimento a procedimento', () => {
-  const base = require('../src/data.js').seed();
+  const base = catalogoCompletado(require('../src/data.js').seed());
   base.testes.forEach((t) => {
     const c = scheduler.custoCatalogo(t);
     const esperado = (t.horasSetup + t.horasEnsaio + t.horasReport) * t.hourlyRate + t.custoInsumos;
     assert.equal(c.custoProcedimento, esperado, t.id);
+    assert.ok(c.custoProcedimento > 0, t.id + ' completado deveria ter custo');
   });
 });
 
@@ -581,7 +623,7 @@ test('grupo sem unidade cadastrada vira bloqueio com motivo claro', () => {
   assert.match(plano.bloqueadas[0].motivo, /sem unidade cadastrada/);
 });
 
-test('o catálogo de exemplo tem Burner e MTS como grupos com várias unidades', () => {
+test('o parque tem Burner e MTS como grupos com várias unidades', () => {
   const base = require('../src/data.js').seed();
   const grupos = scheduler.agruparEquipamentos(base.equipamentos);
   const porId = (id) => grupos.find((g) => g.id === id);
@@ -596,10 +638,10 @@ test('o catálogo de exemplo tem Burner e MTS como grupos com várias unidades',
   });
 });
 
-test('Tenneco e Eberspächer saíram do cadastro e das exigências do catálogo', () => {
+test('o cadastro de clientes tem a GM e não tem Tenneco nem Eberspächer', () => {
   const base = require('../src/data.js').seed();
   const ids = base.clientes.map((c) => c.id);
-  assert.deepEqual(ids, ['CLI-FOR', 'CLI-VW', 'CLI-STL', 'CLI-SCA']);
+  assert.deepEqual(ids, ['CLI-GM', 'CLI-FOR', 'CLI-VW', 'CLI-STL', 'CLI-SCA']);
 
   base.testes.forEach((t) => {
     (t.clientes || []).forEach((id) => {

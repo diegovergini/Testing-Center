@@ -132,7 +132,16 @@ carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
 
 ## Catálogo, equipamentos e peças
 
-O **catálogo** guarda o procedimento com sua **revisão vigente** (`Rev. 04`), a norma, a área
+O catálogo de partida traz os **11 procedimentos GM** (Resonance Durability, Physical
+Durability Aging Cycle, Substrate Retention Cold Vibration Aging, Container Thermal Shock
+Ageing Cycle, Substrate Thermal Shock, Exhaust backpressure, Joint Leakage, Hanger Dynamic
+Stifness, Muffler Thermal Shock, Hanger Durability e Pipe Durability), com nome, norma e
+revisão 1. Os demais campos — equipamento, horas, hourly rate, insumos, área e amostras —
+chegam em branco para o engenheiro de testes preencher: até isso acontecer o procedimento
+aparece marcado como *sem equipamento* e com custo R$ 0, e uma demanda sobre ele fica
+bloqueada no planejamento com o motivo *procedimento sem equipamento definido*.
+
+O **catálogo** guarda o procedimento com sua **revisão vigente** (`Rev. 01`), a norma, a área
 do sistema, os equipamentos que ele ocupa, as horas (setup, ensaio e report), o hourly rate e
 o custo de insumos. A revisão acompanha o
 procedimento em toda a aplicação — tabela, demanda, Gantt e CSV — para não restar dúvida sobre
@@ -203,13 +212,21 @@ mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é s
 
 ## Dados
 
-O estado fica no `localStorage` do navegador. O catálogo que vem junto (18 procedimentos,
-11 equipamentos, 5 tipos de peça, 4 clientes) é um ponto de partida para ser substituído
-pelos dados reais do laboratório — tudo é editável pela interface.
+O estado fica no `localStorage` do navegador. O catálogo que vem junto (11 procedimentos GM,
+11 equipamentos, 5 tipos de peça, 5 clientes) é um ponto de partida — tudo é editável pela
+interface.
+
+**Substituição de catálogo.** `TC.data.CATALOGO_VERSAO` marca a versão do catálogo de partida.
+Quando esse número sobe, quem já tinha dados salvos no navegador recebe o catálogo novo no
+lugar do antigo na próxima carga (`migrar()` em `src/store.js`), e as demandas de
+procedimentos que deixaram de existir são descartadas — sem procedimento elas não teriam
+custo nem bancada. Cotações arquivadas ficam intactas: têm preço congelado. Cadastros de
+equipamento, peça, cliente e as permissões não são tocados; o cliente exigido pelo novo
+catálogo é acrescentado se ainda não estiver na lista.
 
 * **Exportar backup** grava um JSON com todo o estado.
 * **Importar backup** restaura esse JSON, inclusive em outra máquina.
-* **Restaurar padrão** volta ao catálogo de exemplo e apaga as demandas.
+* **Restaurar padrão** volta ao catálogo de partida e apaga as demandas.
 
 Como não há servidor, o backup é o mecanismo de compartilhamento entre pessoas. Se mais de
 um usuário precisar enxergar o mesmo planejamento ao mesmo tempo, o passo natural é trocar

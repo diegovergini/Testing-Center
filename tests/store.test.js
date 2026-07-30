@@ -69,7 +69,7 @@ test('demanda antiga sem data de amostras recebe uma data utilizável', () => {
 
 test('remover cliente também o tira da exigência dos procedimentos', () => {
   store.restaurarPadrao();
-  const alvo = 'CLI-VW';
+  const alvo = 'CLI-GM';
   const antes = store.get().testes.filter((t) => (t.clientes || []).includes(alvo));
   assert.ok(antes.length > 0, 'o catálogo de exemplo precisa ter procedimentos deste cliente');
 
@@ -97,6 +97,10 @@ test('salvar cliente novo gera código e editar preserva o existente', () => {
 
 test('remover uma unidade não desmonta o grupo dos procedimentos', () => {
   store.restaurarPadrao();
+  /* O catálogo de partida chega sem bancada definida, então apontamos o grupo aqui. */
+  const primeiro = store.get().testes[0];
+  store.salvarTeste(Object.assign({}, primeiro, { equipamentoGrupos: ['Burner'] }));
+
   const usaBurner = (t) => (t.equipamentoGrupos || []).includes('Burner');
   const dependentes = store.get().testes.filter(usaBurner).length;
   assert.ok(dependentes > 0);
@@ -141,6 +145,61 @@ test('demanda antiga ganha os campos de projeto e part number vazios', () => {
   const d = store.get().demandas[0];
   assert.equal(d.projeto, '');
   assert.equal(d.partNumber, '');
+});
+
+/* ---- Substituição do catálogo ---- */
+
+/* Dados sem a marca de versão do catálogo são de antes da troca: o catálogo antigo sai
+   inteiro e entra o do cliente. */
+function comCatalogoAntigo() {
+  const base = dados.seed();
+  delete base.catalogoVersao;
+  base.clientes = [{ id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' }];
+  base.testes = [{
+    id: 'TP-VELHO', nome: 'Ensaio que saiu do catálogo', norma: 'X', revisao: 'Rev. 09',
+    clientes: [], area: 'HOT', equipamentoGrupos: ['Burner'],
+    horasSetup: 2, horasEnsaio: 10, horasReport: 1, amostras: 1,
+    hourlyRate: 500, custoInsumos: 100, descricao: ''
+  }];
+  base.demandas = [{
+    id: 'D-VELHA', testeId: 'TP-VELHO', pecaId: 'PC-HOT', clienteId: 'CLI-VW',
+    tipoLti: 'DV', lti: 'LTI-1', prioridade: 'MEDIA', quantidade: 1,
+    status: 'PENDENTE', dataAmostras: '2026-08-01'
+  }];
+  return JSON.stringify(base);
+}
+
+test('dados salvos antes da troca recebem o catálogo novo no lugar do antigo', () => {
+  store.importar(comCatalogoAntigo());
+  const estado = store.get();
+
+  assert.equal(estado.testes.filter((t) => t.id === 'TP-VELHO').length, 0,
+    'o procedimento do catálogo antigo não fica para trás');
+  assert.deepEqual(estado.testes.map((t) => t.id), dados.seed().testes.map((t) => t.id));
+  assert.equal(estado.catalogoVersao, dados.CATALOGO_VERSAO);
+});
+
+test('a troca de catálogo traz o cliente que os novos procedimentos exigem', () => {
+  store.importar(comCatalogoAntigo());
+  const estado = store.get();
+  assert.ok(globalThis.TC.util.porId(estado.clientes, 'CLI-GM'), 'a GM entra no cadastro');
+  assert.ok(globalThis.TC.util.porId(estado.clientes, 'CLI-VW'), 'os clientes já cadastrados ficam');
+});
+
+test('demanda de procedimento que saiu do catálogo é descartada na troca', () => {
+  store.importar(comCatalogoAntigo());
+  assert.equal(store.get().demandas.length, 0,
+    'sem procedimento a demanda não teria custo nem bancada');
+});
+
+test('catálogo já na versão nova não é substituído na carga', () => {
+  const base = dados.seed();
+  base.testes[0] = Object.assign({}, base.testes[0], { hourlyRate: 777, horasEnsaio: 40 });
+  store.importar(JSON.stringify(base));
+
+  const t = store.get().testes[0];
+  assert.equal(t.hourlyRate, 777, 'o que o usuário preencheu no catálogo continua lá');
+  assert.equal(t.horasEnsaio, 40);
 });
 
 test('importar converte custoBase em custo de insumos e herda o hourly rate da bancada', () => {

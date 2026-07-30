@@ -21,6 +21,34 @@
       return antigas[fase] || null;
     }
 
+    estado.clientes = estado.clientes || [];
+
+    /* Substituição de catálogo: o catálogo antigo saiu inteiro e entrou o do cliente.
+       Quem já tinha dados no navegador carrega o catálogo velho, então a troca acontece
+       aqui, na carga. Como o procedimento é a referência da demanda, demandas de
+       procedimentos que deixaram de existir saem junto — sem procedimento elas não
+       teriam custo nem bancada. Cotações arquivadas ficam: têm preço congelado. */
+    if (estado.catalogoVersao !== TC.data.CATALOGO_VERSAO) {
+      var padraoNovo = TC.data.seed();
+      estado.testes = padraoNovo.testes;
+
+      /* Os clientes que o novo catálogo exige precisam existir no cadastro salvo,
+         senão o catálogo aponta para um cliente que não está na lista. */
+      var exigidos = {};
+      estado.testes.forEach(function (t) {
+        (t.clientes || []).forEach(function (id) { exigidos[id] = true; });
+      });
+      padraoNovo.clientes.forEach(function (c) {
+        if (exigidos[c.id] && !util.porId(estado.clientes, c.id)) estado.clientes.push(c);
+      });
+
+      var idsDoCatalogo = estado.testes.map(function (t) { return t.id; });
+      estado.demandas = (estado.demandas || []).filter(function (d) {
+        return idsDoCatalogo.indexOf(d.testeId) !== -1;
+      });
+      estado.catalogoVersao = TC.data.CATALOGO_VERSAO;
+    }
+
     /* A data de chegada das amostras saiu da peça e foi para a demanda; guardamos a
        data antiga de cada peça para não perder o que já estava planejado. */
     var dataAntigaDaPeca = {};
