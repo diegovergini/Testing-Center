@@ -415,6 +415,13 @@ const CATALOGO_HYUNDAI = [
   ['TP-HYU-09', 'Condensate Water Noise', 'ES 28600-09 - 6.11']
 ];
 
+const CATALOGO_RSA = [
+  ['TP-RSA-01', 'Cold Flow Backpresure', '34-05-803/--J'],
+  ['TP-RSA-02', 'Thermal Shock', '34-05-803/--J'],
+  ['TP-RSA-03', 'Hot Shaker', '34-05-803/--J'],
+  ['TP-RSA-04', 'Condensate Evacuation', '34-05-803/--J']
+];
+
 function conferirCatalogo(base, clienteId, esperado) {
   assert.ok(util.porId(base.clientes, clienteId), clienteId + ' precisa estar no cadastro');
   const doCliente = base.testes.filter((t) => (t.clientes || []).indexOf(clienteId) !== -1);
@@ -445,6 +452,10 @@ test('o catálogo de partida traz os procedimentos Hyundai com norma e revisão 
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-HYU', CATALOGO_HYUNDAI);
 });
 
+test('o catálogo de partida traz os procedimentos RSA com norma e revisão 1', () => {
+  conferirCatalogo(require('../src/data.js').seed(), 'CLI-RSA', CATALOGO_RSA);
+});
+
 test('Ford e Forvia Faurecia são clientes distintos', () => {
   const base = require('../src/data.js').seed();
   assert.equal(util.porId(base.clientes, 'CLI-FRD').nome, 'Ford');
@@ -456,7 +467,8 @@ test('Ford e Forvia Faurecia são clientes distintos', () => {
 test('o catálogo de partida tem só os clientes esperados, sem código repetido', () => {
   const base = require('../src/data.js').seed();
   assert.equal(base.testes.length, CATALOGO_GM.length + CATALOGO_STELLANTIS.length +
-    CATALOGO_FORD.length + CATALOGO_VW.length + CATALOGO_HYUNDAI.length);
+    CATALOGO_FORD.length + CATALOGO_VW.length + CATALOGO_HYUNDAI.length +
+    CATALOGO_RSA.length);
   assert.equal(new Set(base.testes.map((t) => t.id)).size, base.testes.length,
     'código de procedimento repetido');
 });
@@ -750,7 +762,7 @@ test('o cadastro de clientes tem a GM e não tem Tenneco nem Eberspächer', () =
   const base = require('../src/data.js').seed();
   const ids = base.clientes.map((c) => c.id);
   assert.deepEqual(ids,
-    ['CLI-GM', 'CLI-FRD', 'CLI-FOR', 'CLI-VW', 'CLI-HYU', 'CLI-STL', 'CLI-SCA']);
+    ['CLI-GM', 'CLI-FRD', 'CLI-FOR', 'CLI-VW', 'CLI-HYU', 'CLI-RSA', 'CLI-STL', 'CLI-SCA']);
 
   base.testes.forEach((t) => {
     (t.clientes || []).forEach((id) => {
