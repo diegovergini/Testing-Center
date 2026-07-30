@@ -75,6 +75,7 @@
     { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
     { id: 'CLI-HYU', nome: 'Hyundai', segmento: 'OEM' },
     { id: 'CLI-RSA', nome: 'RSA', segmento: 'OEM' },
+    { id: 'CLI-NIS', nome: 'Nissan', segmento: 'OEM' },
     { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
     { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
   ];
@@ -205,6 +206,13 @@
     ['Condensate Evacuation', '34-05-803/--J']
   ];
 
+  var PROCEDIMENTOS_NISSAN = [
+    ['Thermal Cycle Durability', '20000NDS01'],
+    ['Bypass rate', '20080NDS01'],
+    ['Catalyst Retaining Performance Test', '20080NDS01'],
+    ['Mount Bracket Durability', '20000NDS01']
+  ];
+
   /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
      (TP-STL-07), então acrescentar um cliente não renumera os que já existem. */
   function procedimentosDe(clienteId, prefixo, linhas) {
@@ -226,7 +234,8 @@
     .concat(procedimentosDe('CLI-FRD', 'TP-FRD', PROCEDIMENTOS_FORD))
     .concat(procedimentosDe('CLI-VW', 'TP-VW', PROCEDIMENTOS_VW))
     .concat(procedimentosDe('CLI-HYU', 'TP-HYU', PROCEDIMENTOS_HYUNDAI))
-    .concat(procedimentosDe('CLI-RSA', 'TP-RSA', PROCEDIMENTOS_RSA));
+    .concat(procedimentosDe('CLI-RSA', 'TP-RSA', PROCEDIMENTOS_RSA))
+    .concat(procedimentosDe('CLI-NIS', 'TP-NIS', PROCEDIMENTOS_NISSAN));
 
   /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
      qualquer cliente pode ter uma amostra de qualquer um destes tipos.
@@ -244,7 +253,7 @@
      mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
      até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
      aditiva e preserva o que já foi preenchido. */
-  var CATALOGO_VERSAO = 7;
+  var CATALOGO_VERSAO = 8;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
