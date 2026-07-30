@@ -564,6 +564,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     { id: 'CLI-FRD', nome: 'Ford', segmento: 'OEM' },
     { id: 'CLI-FOR', nome: 'Forvia Faurecia', segmento: 'Tier 1' },
     { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
+    { id: 'CLI-HYU', nome: 'Hyundai', segmento: 'OEM' },
     { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
     { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
   ];
@@ -674,6 +675,18 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     ['Fatigue Test', 'TL 82391']
   ];
 
+  var PROCEDIMENTOS_HYUNDAI = [
+    ['NVH Test', 'ES 28600-09 6.3'],
+    ['Hanger / Pipe Durability', 'ES 28600-22'],
+    ['Backpressure', 'ES 28600-09 - 6.1'],
+    ['Hot & Cold Vibration', 'ES28530-01'],
+    ['Radiation Noise Test', 'ES 28600-09 - 6.4'],
+    ['Ressonance Frequency Test', 'ES 28600-09 - 6.5'],
+    ['Thermal Shock Test', 'ES 28600-09 - 6.7'],
+    ['Shell Stifness Test', 'ES 28600-09 - 6.9'],
+    ['Condensate Water Noise', 'ES 28600-09 - 6.11']
+  ];
+
   /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
      (TP-STL-07), então acrescentar um cliente não renumera os que já existem. */
   function procedimentosDe(clienteId, prefixo, linhas) {
@@ -693,7 +706,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var TESTES = procedimentosDe('CLI-GM', 'TP-GM', PROCEDIMENTOS_GM)
     .concat(procedimentosDe('CLI-STL', 'TP-STL', PROCEDIMENTOS_STELLANTIS))
     .concat(procedimentosDe('CLI-FRD', 'TP-FRD', PROCEDIMENTOS_FORD))
-    .concat(procedimentosDe('CLI-VW', 'TP-VW', PROCEDIMENTOS_VW));
+    .concat(procedimentosDe('CLI-VW', 'TP-VW', PROCEDIMENTOS_VW))
+    .concat(procedimentosDe('CLI-HYU', 'TP-HYU', PROCEDIMENTOS_HYUNDAI));
 
   /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
      qualquer cliente pode ter uma amostra de qualquer um destes tipos.
@@ -711,7 +725,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
      até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
      aditiva e preserva o que já foi preenchido. */
-  var CATALOGO_VERSAO = 5;
+  var CATALOGO_VERSAO = 6;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,

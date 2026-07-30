@@ -403,6 +403,18 @@ const CATALOGO_VW = [
   ['TP-VW-04', 'Fatigue Test', 'TL 82391']
 ];
 
+const CATALOGO_HYUNDAI = [
+  ['TP-HYU-01', 'NVH Test', 'ES 28600-09 6.3'],
+  ['TP-HYU-02', 'Hanger / Pipe Durability', 'ES 28600-22'],
+  ['TP-HYU-03', 'Backpressure', 'ES 28600-09 - 6.1'],
+  ['TP-HYU-04', 'Hot & Cold Vibration', 'ES28530-01'],
+  ['TP-HYU-05', 'Radiation Noise Test', 'ES 28600-09 - 6.4'],
+  ['TP-HYU-06', 'Ressonance Frequency Test', 'ES 28600-09 - 6.5'],
+  ['TP-HYU-07', 'Thermal Shock Test', 'ES 28600-09 - 6.7'],
+  ['TP-HYU-08', 'Shell Stifness Test', 'ES 28600-09 - 6.9'],
+  ['TP-HYU-09', 'Condensate Water Noise', 'ES 28600-09 - 6.11']
+];
+
 function conferirCatalogo(base, clienteId, esperado) {
   assert.ok(util.porId(base.clientes, clienteId), clienteId + ' precisa estar no cadastro');
   const doCliente = base.testes.filter((t) => (t.clientes || []).indexOf(clienteId) !== -1);
@@ -429,6 +441,10 @@ test('o catálogo de partida traz os procedimentos VW com norma e revisão 1', (
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-VW', CATALOGO_VW);
 });
 
+test('o catálogo de partida traz os procedimentos Hyundai com norma e revisão 1', () => {
+  conferirCatalogo(require('../src/data.js').seed(), 'CLI-HYU', CATALOGO_HYUNDAI);
+});
+
 test('Ford e Forvia Faurecia são clientes distintos', () => {
   const base = require('../src/data.js').seed();
   assert.equal(util.porId(base.clientes, 'CLI-FRD').nome, 'Ford');
@@ -440,7 +456,7 @@ test('Ford e Forvia Faurecia são clientes distintos', () => {
 test('o catálogo de partida tem só os clientes esperados, sem código repetido', () => {
   const base = require('../src/data.js').seed();
   assert.equal(base.testes.length, CATALOGO_GM.length + CATALOGO_STELLANTIS.length +
-    CATALOGO_FORD.length + CATALOGO_VW.length);
+    CATALOGO_FORD.length + CATALOGO_VW.length + CATALOGO_HYUNDAI.length);
   assert.equal(new Set(base.testes.map((t) => t.id)).size, base.testes.length,
     'código de procedimento repetido');
 });
@@ -733,7 +749,8 @@ test('o parque tem Burner e MTS como grupos com várias unidades', () => {
 test('o cadastro de clientes tem a GM e não tem Tenneco nem Eberspächer', () => {
   const base = require('../src/data.js').seed();
   const ids = base.clientes.map((c) => c.id);
-  assert.deepEqual(ids, ['CLI-GM', 'CLI-FRD', 'CLI-FOR', 'CLI-VW', 'CLI-STL', 'CLI-SCA']);
+  assert.deepEqual(ids,
+    ['CLI-GM', 'CLI-FRD', 'CLI-FOR', 'CLI-VW', 'CLI-HYU', 'CLI-STL', 'CLI-SCA']);
 
   base.testes.forEach((t) => {
     (t.clientes || []).forEach((id) => {
