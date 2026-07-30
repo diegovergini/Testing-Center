@@ -94,11 +94,11 @@
     { id: 'DYNO', nome: 'Dynamometer', grupo: 'Dynamometer', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] }
   ];
 
-  /* Catálogo de procedimentos GM.
-     Cada linha é [código, nome do procedimento, norma]. Nome e norma vêm da
-     especificação do cliente; os demais campos ficam em branco para o engenheiro de
-     testes preencher no cadastro — no catálogo o procedimento aparece marcado como
-     "sem equipamento" e com custo zero até ser completado.
+  /* Catálogo de procedimentos por cliente.
+     Cada linha é [nome do procedimento, norma], na ordem da especificação do cliente.
+     Nome, norma e revisão vêm de lá; os demais campos ficam em branco para o engenheiro
+     de testes preencher no cadastro — até isso o procedimento aparece no catálogo
+     marcado como "sem equipamento" e com custo zero.
 
      Sobre os campos preenchidos depois:
      revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
@@ -109,30 +109,73 @@
      planejamento escolhe, dentro de cada grupo, a unidade que libera mais cedo.
      clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos.
      O procedimento não é amarrado a fase de projeto: qualquer teste pode rodar em DV, PV ou VAVE. */
-  var PROCEDIMENTOS = [
-    ['TP-GM-01', 'Resonance Durability', 'Appx C'],
-    ['TP-GM-02', 'Physical Durability Aging Cycle', 'Appx C'],
-    ['TP-GM-03', 'Substrate Retention Cold Vibration Aging', 'Appx C'],
-    ['TP-GM-04', 'Container Thermal Shock Ageing Cycle', 'Appx C'],
-    ['TP-GM-05', 'Substrate Thermal Shock', 'Appx C'],
-    ['TP-GM-06', 'Exhaust backpressure', 'GMW16372'],
-    ['TP-GM-07', 'Joint Leakage', 'GMW15261'],
-    ['TP-GM-08', 'Hanger Dynamic Stifness', 'GMW14182'],
-    ['TP-GM-09', 'Muffler Thermal Shock', 'GMW14380'],
-    ['TP-GM-10', 'Hanger Durability', 'GMW14381 / GMW16941'],
-    ['TP-GM-11', 'Pipe Durability', 'GMW14390 / GMW18104']
+  var PROCEDIMENTOS_GM = [
+    ['Resonance Durability', 'Appx C'],
+    ['Physical Durability Aging Cycle', 'Appx C'],
+    ['Substrate Retention Cold Vibration Aging', 'Appx C'],
+    ['Container Thermal Shock Ageing Cycle', 'Appx C'],
+    ['Substrate Thermal Shock', 'Appx C'],
+    ['Exhaust backpressure', 'GMW16372'],
+    ['Joint Leakage', 'GMW15261'],
+    ['Hanger Dynamic Stifness', 'GMW14182'],
+    ['Muffler Thermal Shock', 'GMW14380'],
+    ['Hanger Durability', 'GMW14381 / GMW16941'],
+    ['Pipe Durability', 'GMW14390 / GMW18104']
   ];
 
-  var TESTES = PROCEDIMENTOS.map(function (linha) {
-    return {
-      id: linha[0], nome: linha[1], norma: linha[2], revisao: 'Rev. 01',
-      clientes: ['CLI-GM'],
-      area: 'AMBOS', equipamentoGrupos: [],
-      horasSetup: 0, horasEnsaio: 0, horasReport: 0, amostras: 1,
-      hourlyRate: 0, custoInsumos: 0,
-      descricao: ''
-    };
-  });
+  /* Stellantis: a lista de origem trazia "Resonance Durability 90.160 - 9.7" duas vezes,
+     com nome e norma idênticos — aqui ela entra uma vez. */
+  var PROCEDIMENTOS_STELLANTIS = [
+    ['Vibrational Analysis', '90.160 - 9.4'],
+    ['Modal Analysis', '90.160 - 9.5 and 7-A7515'],
+    ['Thermal Shock on Engine Bench', '90.160 - 9.6'],
+    ['Resonance Durability', '90.160 - 9.7'],
+    ['Converter thermal shock', '90.160 - 9.8'],
+    ['Hot vibration test', '90.160 - 9.9'],
+    ['Cold vibration test', '90.160 - 9.10'],
+    ['Hot fatigue test', '90.160 - 9.11'],
+    ['Hot Vibration Manifold Joint Durability', '90.160 - 9.12'],
+    ['Joint Integrity', '90238 – 9.14 and 90160 – 9.13'],
+    ['Burner Thermal Shock Test', '90160 - 9.21'],
+    ['Time to Dry', '90238 - 5.3.1 and 7.T4193'],
+    ['NVH', '90238 - 7.3'],
+    ['Modal Analysis', '90238 - 7.3.8 and 7-A7515'],
+    ['Flow Restriction (Backpressure)', '90238 - 7.4 and 7.A3758'],
+    ['Internal Condensate Evacuation', '90238 - 7.6'],
+    ['Load Data Acquisition', '90238 - 9.4'],
+    ['Cold Fatigue', '90238 - 9.8'],
+    ['Muffler Thermal Shock', '90238 - 9.10'],
+    ['Decomposition Tube Internal Shock', '90.301 - 9.1.1'],
+    ['Mixer resonance test', '90.301 - 9.5'],
+    ['Tail Pipe Noise', 'B32 3140'],
+    ['Subjective Noise', 'B32 3140'],
+    ['Backpressure', 'B32 3110'],
+    ['Modal test', 'B22 3120 - 5.1.3.2.3'],
+    ['Fatigue test for joint', 'B32 0730'],
+    ['Condensate evacuation', 'B32 3200'],
+    ['Hot shake for canning', 'B22 3210'],
+    ['Thermal shock', 'Acc. ST Project'],
+    ['Ressonance Test', 'Acc. ST Project']
+  ];
+
+  /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
+     (TP-STL-07), então acrescentar um cliente não renumera os que já existem. */
+  function procedimentosDe(clienteId, prefixo, linhas) {
+    return linhas.map(function (linha, i) {
+      return {
+        id: prefixo + '-' + String(i + 1).padStart(2, '0'),
+        nome: linha[0], norma: linha[1], revisao: 'Rev. 01',
+        clientes: [clienteId],
+        area: 'AMBOS', equipamentoGrupos: [],
+        horasSetup: 0, horasEnsaio: 0, horasReport: 0, amostras: 1,
+        hourlyRate: 0, custoInsumos: 0,
+        descricao: ''
+      };
+    });
+  }
+
+  var TESTES = procedimentosDe('CLI-GM', 'TP-GM', PROCEDIMENTOS_GM)
+    .concat(procedimentosDe('CLI-STL', 'TP-STL', PROCEDIMENTOS_STELLANTIS));
 
   /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
      qualquer cliente pode ter uma amostra de qualquer um destes tipos.
@@ -145,10 +188,12 @@
     { id: 'PC-CMP', nome: 'Component', custoAmostra: 420, descricao: 'Coxim, suporte, flange, corpo de prova' }
   ];
 
-  /* Versão do catálogo de partida. Subir este número troca o catálogo dos dados já
-     salvos no navegador pelo catálogo daqui — é como uma substituição de catálogo
-     chega a quem já usava a plataforma. */
-  var CATALOGO_VERSAO = 2;
+  /* Versão do catálogo de partida. Subir este número faz os dados já salvos no
+     navegador receberem os procedimentos novos daqui na próxima carga — é como uma
+     mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
+     até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
+     aditiva e preserva o que já foi preenchido. */
+  var CATALOGO_VERSAO = 3;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,

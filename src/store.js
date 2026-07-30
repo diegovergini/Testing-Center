@@ -23,14 +23,19 @@
 
     estado.clientes = estado.clientes || [];
 
-    /* Substituição de catálogo: o catálogo antigo saiu inteiro e entrou o do cliente.
-       Quem já tinha dados no navegador carrega o catálogo velho, então a troca acontece
-       aqui, na carga. Como o procedimento é a referência da demanda, demandas de
-       procedimentos que deixaram de existir saem junto — sem procedimento elas não
-       teriam custo nem bancada. Cotações arquivadas ficam: têm preço congelado. */
-    if (estado.catalogoVersao !== TC.data.CATALOGO_VERSAO) {
+    /* Mudança de catálogo em dados já salvos no navegador.
+       Até a versão 2 o catálogo era o de exemplo, de vários clientes: ele sai inteiro.
+       Daí para frente a atualização é aditiva — procedimentos novos entram e os que já
+       existem ficam como estão, com as horas, o rate e a bancada que já foram
+       preenchidos. Cotações arquivadas nunca são tocadas: têm preço congelado. */
+    var versaoSalva = Number(estado.catalogoVersao) || 0;
+    if (versaoSalva < TC.data.CATALOGO_VERSAO) {
       var padraoNovo = TC.data.seed();
-      estado.testes = padraoNovo.testes;
+      estado.testes = estado.testes || [];
+      if (versaoSalva < 2) estado.testes = [];
+      padraoNovo.testes.forEach(function (t) {
+        if (!util.porId(estado.testes, t.id)) estado.testes.push(t);
+      });
 
       /* Os clientes que o novo catálogo exige precisam existir no cadastro salvo,
          senão o catálogo aponta para um cliente que não está na lista. */
@@ -42,6 +47,8 @@
         if (exigidos[c.id] && !util.porId(estado.clientes, c.id)) estado.clientes.push(c);
       });
 
+      /* O procedimento é a referência da demanda: sem ele a demanda não tem custo nem
+         bancada. Só descarta algo quando o catálogo perdeu procedimentos. */
       var idsDoCatalogo = estado.testes.map(function (t) { return t.id; });
       estado.demandas = (estado.demandas || []).filter(function (d) {
         return idsDoCatalogo.indexOf(d.testeId) !== -1;

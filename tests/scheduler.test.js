@@ -333,24 +333,78 @@ test('o parque está cadastrado e nenhum procedimento aponta para grupo inexiste
   });
 });
 
-test('o catálogo de partida traz os 11 procedimentos GM com norma e revisão 1', () => {
-  const base = require('../src/data.js').seed();
-  assert.deepEqual(base.testes.map((t) => t.nome), [
-    'Resonance Durability', 'Physical Durability Aging Cycle',
-    'Substrate Retention Cold Vibration Aging', 'Container Thermal Shock Ageing Cycle',
-    'Substrate Thermal Shock', 'Exhaust backpressure', 'Joint Leakage',
-    'Hanger Dynamic Stifness', 'Muffler Thermal Shock', 'Hanger Durability',
-    'Pipe Durability'
-  ]);
-  assert.deepEqual(base.testes.map((t) => t.norma), [
-    'Appx C', 'Appx C', 'Appx C', 'Appx C', 'Appx C', 'GMW16372', 'GMW15261',
-    'GMW14182', 'GMW14380', 'GMW14381 / GMW16941', 'GMW14390 / GMW18104'
-  ]);
-  base.testes.forEach((t) => {
+/* O catálogo de partida é a especificação de cada cliente transcrita: o que os testes
+   abaixo guardam é o par nome/norma e o vínculo com o cliente certo. */
+const CATALOGO_GM = [
+  ['TP-GM-01', 'Resonance Durability', 'Appx C'],
+  ['TP-GM-02', 'Physical Durability Aging Cycle', 'Appx C'],
+  ['TP-GM-03', 'Substrate Retention Cold Vibration Aging', 'Appx C'],
+  ['TP-GM-04', 'Container Thermal Shock Ageing Cycle', 'Appx C'],
+  ['TP-GM-05', 'Substrate Thermal Shock', 'Appx C'],
+  ['TP-GM-06', 'Exhaust backpressure', 'GMW16372'],
+  ['TP-GM-07', 'Joint Leakage', 'GMW15261'],
+  ['TP-GM-08', 'Hanger Dynamic Stifness', 'GMW14182'],
+  ['TP-GM-09', 'Muffler Thermal Shock', 'GMW14380'],
+  ['TP-GM-10', 'Hanger Durability', 'GMW14381 / GMW16941'],
+  ['TP-GM-11', 'Pipe Durability', 'GMW14390 / GMW18104']
+];
+
+const CATALOGO_STELLANTIS = [
+  ['TP-STL-01', 'Vibrational Analysis', '90.160 - 9.4'],
+  ['TP-STL-02', 'Modal Analysis', '90.160 - 9.5 and 7-A7515'],
+  ['TP-STL-03', 'Thermal Shock on Engine Bench', '90.160 - 9.6'],
+  ['TP-STL-04', 'Resonance Durability', '90.160 - 9.7'],
+  ['TP-STL-05', 'Converter thermal shock', '90.160 - 9.8'],
+  ['TP-STL-06', 'Hot vibration test', '90.160 - 9.9'],
+  ['TP-STL-07', 'Cold vibration test', '90.160 - 9.10'],
+  ['TP-STL-08', 'Hot fatigue test', '90.160 - 9.11'],
+  ['TP-STL-09', 'Hot Vibration Manifold Joint Durability', '90.160 - 9.12'],
+  ['TP-STL-10', 'Joint Integrity', '90238 – 9.14 and 90160 – 9.13'],
+  ['TP-STL-11', 'Burner Thermal Shock Test', '90160 - 9.21'],
+  ['TP-STL-12', 'Time to Dry', '90238 - 5.3.1 and 7.T4193'],
+  ['TP-STL-13', 'NVH', '90238 - 7.3'],
+  ['TP-STL-14', 'Modal Analysis', '90238 - 7.3.8 and 7-A7515'],
+  ['TP-STL-15', 'Flow Restriction (Backpressure)', '90238 - 7.4 and 7.A3758'],
+  ['TP-STL-16', 'Internal Condensate Evacuation', '90238 - 7.6'],
+  ['TP-STL-17', 'Load Data Acquisition', '90238 - 9.4'],
+  ['TP-STL-18', 'Cold Fatigue', '90238 - 9.8'],
+  ['TP-STL-19', 'Muffler Thermal Shock', '90238 - 9.10'],
+  ['TP-STL-20', 'Decomposition Tube Internal Shock', '90.301 - 9.1.1'],
+  ['TP-STL-21', 'Mixer resonance test', '90.301 - 9.5'],
+  ['TP-STL-22', 'Tail Pipe Noise', 'B32 3140'],
+  ['TP-STL-23', 'Subjective Noise', 'B32 3140'],
+  ['TP-STL-24', 'Backpressure', 'B32 3110'],
+  ['TP-STL-25', 'Modal test', 'B22 3120 - 5.1.3.2.3'],
+  ['TP-STL-26', 'Fatigue test for joint', 'B32 0730'],
+  ['TP-STL-27', 'Condensate evacuation', 'B32 3200'],
+  ['TP-STL-28', 'Hot shake for canning', 'B22 3210'],
+  ['TP-STL-29', 'Thermal shock', 'Acc. ST Project'],
+  ['TP-STL-30', 'Ressonance Test', 'Acc. ST Project']
+];
+
+function conferirCatalogo(base, clienteId, esperado) {
+  assert.ok(util.porId(base.clientes, clienteId), clienteId + ' precisa estar no cadastro');
+  const doCliente = base.testes.filter((t) => (t.clientes || []).indexOf(clienteId) !== -1);
+  assert.deepEqual(doCliente.map((t) => [t.id, t.nome, t.norma]), esperado);
+  doCliente.forEach((t) => {
     assert.equal(t.revisao, 'Rev. 01', t.id + ' não está na revisão 1');
-    assert.deepEqual(t.clientes, ['CLI-GM'], t.id + ' não está exigido pela GM');
-    assert.ok(util.porId(base.clientes, 'CLI-GM'), 'a GM precisa estar no cadastro de clientes');
+    assert.deepEqual(t.clientes, [clienteId], t.id + ' está exigido por mais de um cliente');
   });
+}
+
+test('o catálogo de partida traz os procedimentos GM com norma e revisão 1', () => {
+  conferirCatalogo(require('../src/data.js').seed(), 'CLI-GM', CATALOGO_GM);
+});
+
+test('o catálogo de partida traz os procedimentos Stellantis com norma e revisão 1', () => {
+  conferirCatalogo(require('../src/data.js').seed(), 'CLI-STL', CATALOGO_STELLANTIS);
+});
+
+test('o catálogo de partida é só GM e Stellantis, sem código repetido', () => {
+  const base = require('../src/data.js').seed();
+  assert.equal(base.testes.length, CATALOGO_GM.length + CATALOGO_STELLANTIS.length);
+  assert.equal(new Set(base.testes.map((t) => t.id)).size, base.testes.length,
+    'código de procedimento repetido');
 });
 
 test('as peças são tipos genéricos, sem cliente nem área', () => {

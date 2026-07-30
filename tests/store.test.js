@@ -192,6 +192,37 @@ test('demanda de procedimento que saiu do catálogo é descartada na troca', () 
     'sem procedimento a demanda não teria custo nem bancada');
 });
 
+test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
+  /* Estado de quem já usava a plataforma na versão 2: só os procedimentos GM, e um
+     deles com horas, bancada e rate já cadastrados. */
+  const base = dados.seed();
+  base.catalogoVersao = 2;
+  base.testes = base.testes
+    .filter((t) => t.id.indexOf('TP-GM-') === 0)
+    .map((t) => (t.id === 'TP-GM-06'
+      ? Object.assign({}, t, {
+        equipamentoGrupos: ['ColdFlow'], horasSetup: 2, horasEnsaio: 8,
+        horasReport: 4, hourlyRate: 240, custoInsumos: 1800, area: 'AMBOS'
+      })
+      : t));
+  base.demandas = [
+    { id: 'D-GM', testeId: 'TP-GM-06', pecaId: base.pecas[0].id, clienteId: 'CLI-GM',
+      projeto: 'Onix', partNumber: 'PN', lti: 'LTI-1', tipoLti: 'PV', prioridade: 'ALTA',
+      quantidade: 1, status: 'PENDENTE', dataAmostras: '2026-08-01', prazo: '2026-10-01' }
+  ];
+
+  store.importar(JSON.stringify(base));
+  const estado = store.get();
+
+  const completado = globalThis.TC.util.porId(estado.testes, 'TP-GM-06');
+  assert.equal(completado.hourlyRate, 240, 'o cadastro já preenchido não pode ser sobrescrito');
+  assert.deepEqual(completado.equipamentoGrupos, ['ColdFlow']);
+  assert.equal(estado.testes.filter((t) => t.id.indexOf('TP-STL-') === 0).length, 30,
+    'os procedimentos Stellantis entram no catálogo');
+  assert.equal(estado.demandas.length, 1, 'a demanda existente continua válida');
+  assert.equal(estado.catalogoVersao, dados.CATALOGO_VERSAO);
+});
+
 test('catálogo já na versão nova não é substituído na carga', () => {
   const base = dados.seed();
   base.testes[0] = Object.assign({}, base.testes[0], { hourlyRate: 777, horasEnsaio: 40 });

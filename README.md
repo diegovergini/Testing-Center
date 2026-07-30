@@ -132,11 +132,9 @@ carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
 
 ## Catálogo, equipamentos e peças
 
-O catálogo de partida traz os **11 procedimentos GM** (Resonance Durability, Physical
-Durability Aging Cycle, Substrate Retention Cold Vibration Aging, Container Thermal Shock
-Ageing Cycle, Substrate Thermal Shock, Exhaust backpressure, Joint Leakage, Hanger Dynamic
-Stifness, Muffler Thermal Shock, Hanger Durability e Pipe Durability), com nome, norma e
-revisão 1. Os demais campos — equipamento, horas, hourly rate, insumos, área e amostras —
+O catálogo de partida traz os procedimentos por cliente, transcritos da especificação de
+cada um com nome, norma e revisão 1: **11 da GM** (`TP-GM-01` a `TP-GM-11`) e **30 da
+Stellantis** (`TP-STL-01` a `TP-STL-30`). Os demais campos — equipamento, horas, hourly rate, insumos, área e amostras —
 chegam em branco para o engenheiro de testes preencher: até isso acontecer o procedimento
 aparece marcado como *sem equipamento* e com custo R$ 0, e uma demanda sobre ele fica
 bloqueada no planejamento com o motivo *procedimento sem equipamento definido*.
@@ -212,17 +210,24 @@ mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é s
 
 ## Dados
 
-O estado fica no `localStorage` do navegador. O catálogo que vem junto (11 procedimentos GM,
+O estado fica no `localStorage` do navegador. O catálogo que vem junto (41 procedimentos,
 11 equipamentos, 5 tipos de peça, 5 clientes) é um ponto de partida — tudo é editável pela
 interface.
 
-**Substituição de catálogo.** `TC.data.CATALOGO_VERSAO` marca a versão do catálogo de partida.
-Quando esse número sobe, quem já tinha dados salvos no navegador recebe o catálogo novo no
-lugar do antigo na próxima carga (`migrar()` em `src/store.js`), e as demandas de
-procedimentos que deixaram de existir são descartadas — sem procedimento elas não teriam
-custo nem bancada. Cotações arquivadas ficam intactas: têm preço congelado. Cadastros de
-equipamento, peça, cliente e as permissões não são tocados; o cliente exigido pelo novo
-catálogo é acrescentado se ainda não estiver na lista.
+**Mudança de catálogo.** `TC.data.CATALOGO_VERSAO` marca a versão do catálogo de partida.
+Quando esse número sobe, quem já tinha dados salvos no navegador recebe os procedimentos
+novos na próxima carga (`migrar()` em `src/store.js`):
+
+* **Aditivo, da versão 2 em diante.** Procedimentos que ainda não existem entram; os que já
+  estão no catálogo ficam como estão, com as horas, o hourly rate e a bancada que já foram
+  preenchidos. Nada que o usuário cadastrou é sobrescrito.
+* **Substituição, apenas até a versão 2.** Dados anteriores a ela carregam o catálogo de
+  exemplo, de vários clientes, que sai inteiro; as demandas dos procedimentos que deixaram
+  de existir são descartadas, porque sem procedimento não têm custo nem bancada.
+
+Em qualquer caso, cotações arquivadas ficam intactas (têm preço congelado) e os cadastros de
+equipamento, peça, cliente e as permissões não são tocados — só o cliente exigido por um
+procedimento novo é acrescentado, se ainda não estiver na lista.
 
 * **Exportar backup** grava um JSON com todo o estado.
 * **Importar backup** restaura esse JSON, inclusive em outra máquina.
