@@ -396,6 +396,13 @@ const CATALOGO_FORD = [
   ['TP-FRD-11', 'Hot Vibration Manifold Joint Durability', 'TM-09.03-E-300']
 ];
 
+const CATALOGO_VW = [
+  ['TP-VW-01', 'Hot Shaker Test', 'EP 18310.55'],
+  ['TP-VW-02', 'Thermal Fatigue Test', 'EP 18310.55'],
+  ['TP-VW-03', 'Crack Test Under Overrun Conditions', 'EP EP18100.20'],
+  ['TP-VW-04', 'Fatigue Test', 'TL 82391']
+];
+
 function conferirCatalogo(base, clienteId, esperado) {
   assert.ok(util.porId(base.clientes, clienteId), clienteId + ' precisa estar no cadastro');
   const doCliente = base.testes.filter((t) => (t.clientes || []).indexOf(clienteId) !== -1);
@@ -418,6 +425,10 @@ test('o catálogo de partida traz os procedimentos Ford com norma e revisão 1',
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-FRD', CATALOGO_FORD);
 });
 
+test('o catálogo de partida traz os procedimentos VW com norma e revisão 1', () => {
+  conferirCatalogo(require('../src/data.js').seed(), 'CLI-VW', CATALOGO_VW);
+});
+
 test('Ford e Forvia Faurecia são clientes distintos', () => {
   const base = require('../src/data.js').seed();
   assert.equal(util.porId(base.clientes, 'CLI-FRD').nome, 'Ford');
@@ -428,8 +439,8 @@ test('Ford e Forvia Faurecia são clientes distintos', () => {
 
 test('o catálogo de partida tem só os clientes esperados, sem código repetido', () => {
   const base = require('../src/data.js').seed();
-  assert.equal(base.testes.length,
-    CATALOGO_GM.length + CATALOGO_STELLANTIS.length + CATALOGO_FORD.length);
+  assert.equal(base.testes.length, CATALOGO_GM.length + CATALOGO_STELLANTIS.length +
+    CATALOGO_FORD.length + CATALOGO_VW.length);
   assert.equal(new Set(base.testes.map((t) => t.id)).size, base.testes.length,
     'código de procedimento repetido');
 });

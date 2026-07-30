@@ -176,6 +176,13 @@
     ['Hot Vibration Manifold Joint Durability', 'TM-09.03-E-300']
   ];
 
+  var PROCEDIMENTOS_VW = [
+    ['Hot Shaker Test', 'EP 18310.55'],
+    ['Thermal Fatigue Test', 'EP 18310.55'],
+    ['Crack Test Under Overrun Conditions', 'EP EP18100.20'],
+    ['Fatigue Test', 'TL 82391']
+  ];
+
   /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
      (TP-STL-07), então acrescentar um cliente não renumera os que já existem. */
   function procedimentosDe(clienteId, prefixo, linhas) {
@@ -194,7 +201,8 @@
 
   var TESTES = procedimentosDe('CLI-GM', 'TP-GM', PROCEDIMENTOS_GM)
     .concat(procedimentosDe('CLI-STL', 'TP-STL', PROCEDIMENTOS_STELLANTIS))
-    .concat(procedimentosDe('CLI-FRD', 'TP-FRD', PROCEDIMENTOS_FORD));
+    .concat(procedimentosDe('CLI-FRD', 'TP-FRD', PROCEDIMENTOS_FORD))
+    .concat(procedimentosDe('CLI-VW', 'TP-VW', PROCEDIMENTOS_VW));
 
   /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
      qualquer cliente pode ter uma amostra de qualquer um destes tipos.
@@ -212,7 +220,7 @@
      mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
      até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
      aditiva e preserva o que já foi preenchido. */
-  var CATALOGO_VERSAO = 4;
+  var CATALOGO_VERSAO = 5;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
