@@ -133,8 +133,10 @@ carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
 ## Catálogo, equipamentos e peças
 
 O catálogo de partida traz os procedimentos por cliente, transcritos da especificação de
-cada um com nome, norma e revisão 1: **11 da GM** (`TP-GM-01` a `TP-GM-11`) e **30 da
-Stellantis** (`TP-STL-01` a `TP-STL-30`). Os demais campos — equipamento, horas, hourly rate, insumos, área e amostras —
+cada um com nome, norma e revisão 1: **11 da GM** (`TP-GM-01` a `TP-GM-11`), **30 da
+Stellantis** (`TP-STL-01` a `TP-STL-30`) e **11 da Ford** (`TP-FRD-01` a `TP-FRD-11`).
+No cadastro de clientes, `CLI-FRD` é a Ford e `CLI-FOR` é a Forvia Faurecia — empresas
+diferentes. Os demais campos — equipamento, horas, hourly rate, insumos, área e amostras —
 chegam em branco para o engenheiro de testes preencher: até isso acontecer o procedimento
 aparece marcado como *sem equipamento* e com custo R$ 0, e uma demanda sobre ele fica
 bloqueada no planejamento com o motivo *procedimento sem equipamento definido*.
@@ -210,8 +212,8 @@ mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é s
 
 ## Dados
 
-O estado fica no `localStorage` do navegador. O catálogo que vem junto (41 procedimentos,
-11 equipamentos, 5 tipos de peça, 5 clientes) é um ponto de partida — tudo é editável pela
+O estado fica no `localStorage` do navegador. O catálogo que vem junto (52 procedimentos,
+11 equipamentos, 5 tipos de peça, 6 clientes) é um ponto de partida — tudo é editável pela
 interface.
 
 **Mudança de catálogo.** `TC.data.CATALOGO_VERSAO` marca a versão do catálogo de partida.

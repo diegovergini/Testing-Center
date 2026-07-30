@@ -382,6 +382,20 @@ const CATALOGO_STELLANTIS = [
   ['TP-STL-30', 'Ressonance Test', 'Acc. ST Project']
 ];
 
+const CATALOGO_FORD = [
+  ['TP-FRD-01', 'Thermal fatigue rig test', 'CETP 09.00-E-306'],
+  ['TP-FRD-02', 'Catalytic Converter & Pipe HeatShield Structural Durability Screening Test', 'CETP 09.00-L-306'],
+  ['TP-FRD-03', 'Global Catalytic Converter Water Quench', 'CETP 09.02-E-303'],
+  ['TP-FRD-04', 'Global Emission Assembly Mechanical Step Stres', 'CETP 09.02-E-308'],
+  ['TP-FRD-05', 'Manifold Crack test', 'CETP 03.01-L-312'],
+  ['TP-FRD-06', 'High Speed Dyno', 'CETP09.00-E-308'],
+  ['TP-FRD-07', 'Cold Flow Back-pressure', 'CETP 09.00-L-403'],
+  ['TP-FRD-08', 'Tail Pipe Noise', 'CETP 09.00-L-901'],
+  ['TP-FRD-09', 'Condensate Evacuatione', 'CETP 09.00-E-400'],
+  ['TP-FRD-10', 'Life Fatigue Curves (S-N Curve)', 'CETP 09.00-E-309'],
+  ['TP-FRD-11', 'Hot Vibration Manifold Joint Durability', 'TM-09.03-E-300']
+];
+
 function conferirCatalogo(base, clienteId, esperado) {
   assert.ok(util.porId(base.clientes, clienteId), clienteId + ' precisa estar no cadastro');
   const doCliente = base.testes.filter((t) => (t.clientes || []).indexOf(clienteId) !== -1);
@@ -400,9 +414,22 @@ test('o catálogo de partida traz os procedimentos Stellantis com norma e revis�
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-STL', CATALOGO_STELLANTIS);
 });
 
-test('o catálogo de partida é só GM e Stellantis, sem código repetido', () => {
+test('o catálogo de partida traz os procedimentos Ford com norma e revisão 1', () => {
+  conferirCatalogo(require('../src/data.js').seed(), 'CLI-FRD', CATALOGO_FORD);
+});
+
+test('Ford e Forvia Faurecia são clientes distintos', () => {
   const base = require('../src/data.js').seed();
-  assert.equal(base.testes.length, CATALOGO_GM.length + CATALOGO_STELLANTIS.length);
+  assert.equal(util.porId(base.clientes, 'CLI-FRD').nome, 'Ford');
+  assert.equal(util.porId(base.clientes, 'CLI-FOR').nome, 'Forvia Faurecia');
+  assert.equal(base.testes.filter((t) => (t.clientes || []).indexOf('CLI-FOR') !== -1).length, 0,
+    'nenhum procedimento do catálogo de partida é da Forvia');
+});
+
+test('o catálogo de partida tem só os clientes esperados, sem código repetido', () => {
+  const base = require('../src/data.js').seed();
+  assert.equal(base.testes.length,
+    CATALOGO_GM.length + CATALOGO_STELLANTIS.length + CATALOGO_FORD.length);
   assert.equal(new Set(base.testes.map((t) => t.id)).size, base.testes.length,
     'código de procedimento repetido');
 });
@@ -695,7 +722,7 @@ test('o parque tem Burner e MTS como grupos com várias unidades', () => {
 test('o cadastro de clientes tem a GM e não tem Tenneco nem Eberspächer', () => {
   const base = require('../src/data.js').seed();
   const ids = base.clientes.map((c) => c.id);
-  assert.deepEqual(ids, ['CLI-GM', 'CLI-FOR', 'CLI-VW', 'CLI-STL', 'CLI-SCA']);
+  assert.deepEqual(ids, ['CLI-GM', 'CLI-FRD', 'CLI-FOR', 'CLI-VW', 'CLI-STL', 'CLI-SCA']);
 
   base.testes.forEach((t) => {
     (t.clientes || []).forEach((id) => {

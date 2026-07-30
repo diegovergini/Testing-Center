@@ -560,6 +560,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   var CLIENTES = [
     { id: 'CLI-GM', nome: 'GM — General Motors', segmento: 'OEM' },
+    /* CLI-FRD é a Ford; CLI-FOR, abaixo, é a Forvia Faurecia — empresas diferentes. */
+    { id: 'CLI-FRD', nome: 'Ford', segmento: 'OEM' },
     { id: 'CLI-FOR', nome: 'Forvia Faurecia', segmento: 'Tier 1' },
     { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
     { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
@@ -649,6 +651,22 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     ['Ressonance Test', 'Acc. ST Project']
   ];
 
+  /* Ford: a lista de origem trazia "Thermal fatigue rig test CETP 09.00-E-306" duas vezes,
+     com nome e norma idênticos — aqui ela entra uma vez. */
+  var PROCEDIMENTOS_FORD = [
+    ['Thermal fatigue rig test', 'CETP 09.00-E-306'],
+    ['Catalytic Converter & Pipe HeatShield Structural Durability Screening Test', 'CETP 09.00-L-306'],
+    ['Global Catalytic Converter Water Quench', 'CETP 09.02-E-303'],
+    ['Global Emission Assembly Mechanical Step Stres', 'CETP 09.02-E-308'],
+    ['Manifold Crack test', 'CETP 03.01-L-312'],
+    ['High Speed Dyno', 'CETP09.00-E-308'],
+    ['Cold Flow Back-pressure', 'CETP 09.00-L-403'],
+    ['Tail Pipe Noise', 'CETP 09.00-L-901'],
+    ['Condensate Evacuatione', 'CETP 09.00-E-400'],
+    ['Life Fatigue Curves (S-N Curve)', 'CETP 09.00-E-309'],
+    ['Hot Vibration Manifold Joint Durability', 'TM-09.03-E-300']
+  ];
+
   /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
      (TP-STL-07), então acrescentar um cliente não renumera os que já existem. */
   function procedimentosDe(clienteId, prefixo, linhas) {
@@ -666,7 +684,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   }
 
   var TESTES = procedimentosDe('CLI-GM', 'TP-GM', PROCEDIMENTOS_GM)
-    .concat(procedimentosDe('CLI-STL', 'TP-STL', PROCEDIMENTOS_STELLANTIS));
+    .concat(procedimentosDe('CLI-STL', 'TP-STL', PROCEDIMENTOS_STELLANTIS))
+    .concat(procedimentosDe('CLI-FRD', 'TP-FRD', PROCEDIMENTOS_FORD));
 
   /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
      qualquer cliente pode ter uma amostra de qualquer um destes tipos.
@@ -684,7 +703,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
      até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
      aditiva e preserva o que já foi preenchido. */
-  var CATALOGO_VERSAO = 3;
+  var CATALOGO_VERSAO = 4;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
