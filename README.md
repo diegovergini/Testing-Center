@@ -62,7 +62,14 @@ Decida conscientemente se ele deve ser versionado junto com o código ou ficar f
 repositório.
 
 Isto é uma etapa, não o destino: um editor e muitos leitores. Vários usuários editando ao
-mesmo tempo exige servidor, banco e autenticação — ver [docs/hospedagem.md](docs/hospedagem.md).
+mesmo tempo exige dados compartilhados, login e permissão de verdade. Dois caminhos avaliados:
+
+* [docs/power-platform.md](docs/power-platform.md) — **o caminho escolhido**: SharePoint Lists
+  como banco, Power App como interface, Office Script com o motor de planejamento atual. Só
+  ferramentas oficiais da empresa, com a área de testes como dona da ferramenta.
+  `node ferramentas/exportar-listas.js` já gera os CSVs de carga das listas.
+* [docs/hospedagem.md](docs/hospedagem.md) — Azure App Service + Entra ID + PostgreSQL.
+  Tecnicamente melhor, mas depende de provisionamento e de a TI assumir suporte de código.
 
 ## As três restrições do planejamento
 

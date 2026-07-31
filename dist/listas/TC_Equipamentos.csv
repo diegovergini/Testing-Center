@@ -1,0 +1,12 @@
+﻿Title,Nome,Grupo,Posicoes,Continuo,HorasDia,DiasUteis
+BURNER-1,Burner 1,Burner,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+BURNER-2,Burner 2,Burner,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+BURNER-3,Burner 3,Burner,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+SHAKER,Shaker,Shaker,1,Não,16,1; 2; 3; 4; 5
+MTS-1,MTS 1,MTS,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+MTS-2,MTS 2,MTS,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+MTS-3,MTS 3,MTS,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+MTS-4,MTS 4,MTS,1,Sim,24,0; 1; 2; 3; 4; 5; 6
+LMS-PTA,LMS / PTA,LMS / PTA,1,Não,8,1; 2; 3; 4; 5
+COLDFLOW,ColdFlow,ColdFlow,1,Não,8,1; 2; 3; 4; 5
+DYNO,Dynamometer,Dynamometer,1,Sim,24,0; 1; 2; 3; 4; 5; 6

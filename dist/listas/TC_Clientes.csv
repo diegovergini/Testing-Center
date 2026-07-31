@@ -1,0 +1,10 @@
+﻿Title,Nome,Segmento
+CLI-GM,GM — General Motors,OEM
+CLI-FRD,Ford,OEM
+CLI-FOR,Forvia Faurecia,Tier 1
+CLI-VW,Volkswagen,OEM
+CLI-HYU,Hyundai,OEM
+CLI-RSA,RSA,OEM
+CLI-NIS,Nissan,OEM
+CLI-STL,Stellantis,OEM
+CLI-SCA,Scania,OEM — Comerciais
