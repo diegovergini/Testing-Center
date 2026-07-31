@@ -150,7 +150,17 @@
     return estado;
   }
 
+  /* Cópia publicada para a equipe: o build embute um instantâneo dos dados em
+     TC.PUBLICACAO e a aplicação passa a ler dele, sem gravar nada. Todo mundo que abrir
+     o arquivo vê exatamente os mesmos dados — é o compartilhamento possível enquanto não
+     existe servidor. Ver publicada() em permissoes.js: nesta cópia ninguém edita. */
+  function publicacao() {
+    return TC.PUBLICACAO && TC.PUBLICACAO.dados ? TC.PUBLICACAO : null;
+  }
+
   function carregar() {
+    var pub = publicacao();
+    if (pub) return migrar(JSON.parse(JSON.stringify(pub.dados)));
     try {
       var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
       if (bruto) {
@@ -164,6 +174,9 @@
   }
 
   function salvar() {
+    /* Na cópia publicada não há onde gravar: o dado de origem está na máquina de quem
+       mantém o centro de testes, e gravar aqui só criaria uma divergência silenciosa. */
+    if (publicacao()) return;
     try {
       if (global.localStorage) global.localStorage.setItem(CHAVE, JSON.stringify(estado));
     } catch (e) {

@@ -56,11 +56,21 @@
       '<select id="seletor-perfil">' + ui.opcoes(TC.data.PERFIS, TC.permissoes.perfilAtual(estado)) + '</select>' +
       '<div class="descricao">' + e(perfil ? perfil.descricao : '') + '</div></div>';
 
-    html += '<div class="nav-titulo">Dados</div>' +
-      '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Exportar backup</button>' +
-      '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Importar backup</button>' +
-      '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restaurar padrão</button>' +
-      '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Dados gravados neste navegador. Exporte um backup antes de trocar de máquina.</div>';
+    /* Na cópia publicada não há backup a exportar nem padrão a restaurar: o dado vive
+       na máquina de quem mantém o centro de testes. Fica só a data do instantâneo, para
+       ninguém tomar decisão em cima de um planejamento vencido sem perceber. */
+    if (TC.permissoes.publicada()) {
+      html += '<div style="margin-top:auto;padding:14px 10px 0" class="sub">' +
+        '<strong>Cópia da equipe — somente leitura.</strong><br>' +
+        'Dados de ' + e(util.formatarData(TC.PUBLICACAO.atualizadoEm, true)) + '. ' +
+        'Para alterar catálogo, demandas ou cotações, fale com o centro de testes.</div>';
+    } else {
+      html += '<div class="nav-titulo">Dados</div>' +
+        '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Exportar backup</button>' +
+        '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Importar backup</button>' +
+        '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restaurar padrão</button>' +
+        '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Dados gravados neste navegador. Exporte um backup antes de trocar de máquina.</div>';
+    }
 
     lateral.querySelector('#menu').innerHTML = html;
 
@@ -73,6 +83,7 @@
       /* Trocar de perfil pode tirar a janela atual de vista. */
       if (!TC.permissoes.podeVer(TC.store.get(), rotaAtual)) ir(primeiraRotaVisivel());
     };
+    if (TC.permissoes.publicada()) return;
     lateral.querySelector('#exportar').onclick = exportarBackup;
     lateral.querySelector('#importar').onclick = importarBackup;
     lateral.querySelector('#restaurar').onclick = function () {

@@ -30,6 +30,40 @@ Testes do motor de planejamento:
 npm test
 ```
 
+Gerar os arquivos de distribuição:
+
+```bash
+node build.js
+```
+
+## Publicar para a equipe
+
+Os dados vivem no `localStorage` **do navegador de cada pessoa**. Hospedar o arquivo, por si
+só, não compartilha nada: dez pessoas abrindo o mesmo endereço veriam dez planejamentos
+independentes. Enquanto não existir servidor, o compartilhamento é feito por instantâneo.
+
+1. Quem mantém o centro de testes clica em **Exportar backup** e salva o JSON como
+   `dados/instantaneo.json`.
+2. `node build.js` gera **`dist/testing-center-equipe.html`** com esses dados embutidos.
+3. Esse arquivo vai para onde a equipe alcança — biblioteca do SharePoint, pasta de rede,
+   servidor web interno. É um HTML único, sem instalação e sem dependência externa.
+
+Na cópia da equipe a aplicação lê do instantâneo embutido, **ignora o `localStorage` e não
+grava nada**: todo mundo vê exatamente os mesmos dados, e a barra lateral mostra a data
+daquele instantâneo para ninguém decidir em cima de um planejamento vencido sem perceber.
+Nenhuma janela é editável — os botões de criar, editar e confirmar necessidade não aparecem,
+e o seletor de perfil continua servindo para escolher o recorte de telas que se quer ver.
+
+Atualizar é repetir os três passos. Sem `dados/instantaneo.json` o build sai com o catálogo
+de partida, o que serve para demonstrar a plataforma.
+
+O instantâneo carrega dados reais — hora-homem, custo de insumos, demandas e cotações.
+Decida conscientemente se ele deve ser versionado junto com o código ou ficar fora do
+repositório.
+
+Isto é uma etapa, não o destino: um editor e muitos leitores. Vários usuários editando ao
+mesmo tempo exige servidor, banco e autenticação — ver [docs/hospedagem.md](docs/hospedagem.md).
+
 ## As três restrições do planejamento
 
 Quando você confirma a necessidade de um teste, o motor procura a primeira janela livre
@@ -248,6 +282,7 @@ o `src/store.js` por uma API — o restante do código não depende de onde os d
 index.html            carrega os scripts na ordem; sem bundler
 assets/styles.css     tema claro/escuro
 src/util.js           datas em UTC, moeda, escape de HTML
+docs/hospedagem.md    onde hospedar e como controlar acesso (documento para a TI)
 src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
 src/scheduler.js      motor de alocação e cálculo de custo — sem dependência de DOM
 src/permissoes.js     perfil em uso e o que ele vê/edita

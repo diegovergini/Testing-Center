@@ -197,3 +197,51 @@ test('total da cotação soma os itens', () => {
   const total = cotacoes.totalDaCotacao({ itens: itens });
   assert.equal(total, itens[0].total + itens[1].total);
 });
+
+/* ---- Cópia publicada para a equipe ---- */
+
+/* O build embute um instantâneo em TC.PUBLICACAO. A aplicação passa a ler dele, não
+   grava nada e ninguém edita — é o compartilhamento possível sem servidor. */
+function comPublicacao(dados, fn) {
+  globalThis.TC.PUBLICACAO = { atualizadoEm: '2026-07-31', dados: dados };
+  try { return fn(); } finally { delete globalThis.TC.PUBLICACAO; }
+}
+
+test('a cópia publicada lê os dados embutidos, ignorando o navegador', () => {
+  store.restaurarPadrao();
+  const outro = dados.seed();
+  outro.testes = outro.testes.slice(0, 3);
+
+  comPublicacao(outro, () => {
+    store.init();
+    assert.equal(store.get().testes.length, 3, 'os dados vêm do instantâneo embutido');
+  });
+});
+
+test('a cópia publicada não grava alterações', () => {
+  const embutido = dados.seed();
+  comPublicacao(embutido, () => {
+    store.init();
+    store.salvarCliente({ nome: 'Só nesta sessão', segmento: 'Teste' });
+  });
+
+  /* Fora da publicação, o estado do navegador continua o que era. */
+  store.init();
+  assert.equal(store.get().clientes.filter((c) => c.nome === 'Só nesta sessão').length, 0,
+    'a cópia da equipe não pode escrever no navegador de quem abre');
+});
+
+test('na cópia publicada ninguém edita, mas todos consultam', () => {
+  comPublicacao(dados.seed(), () => {
+    store.init();
+    const estado = store.get();
+    assert.equal(permissoes.publicada(), true);
+    ['catalogo', 'demandas', 'cotacoes', 'planejamento', 'equipamentos', 'permissoes']
+      .forEach((rota) => {
+        assert.equal(permissoes.podeEditar(estado, rota), false, rota + ' ficou editável');
+      });
+    assert.equal(permissoes.podeVer(estado, 'catalogo'), true, 'consulta continua liberada');
+  });
+
+  assert.equal(permissoes.publicada(), false, 'fora da publicação nada muda');
+});

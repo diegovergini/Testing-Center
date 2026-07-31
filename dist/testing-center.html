@@ -1244,8 +1244,15 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return regra(estado, rota).ver.indexOf(perfilAtual(estado)) !== -1;
   }
 
+  /* Cópia publicada para a equipe: dados embutidos no arquivo, iguais para todos e sem
+     onde gravar. Consulta-se tudo, não se edita nada. */
+  function publicada() {
+    return !!(TC.PUBLICACAO && TC.PUBLICACAO.dados);
+  }
+
   /* Editar exige também poder ver: uma janela invisível não é editável. */
   function podeEditar(estado, rota) {
+    if (publicada()) return false;
     return podeVer(estado, rota) && regra(estado, rota).editar.indexOf(perfilAtual(estado)) !== -1;
   }
 
@@ -1259,6 +1266,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     regra: regra,
     podeVer: podeVer,
     podeEditar: podeEditar,
+    publicada: publicada,
     nomeDoPerfil: nomeDoPerfil
   };
 
@@ -1683,7 +1691,17 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return estado;
   }
 
+  /* Cópia publicada para a equipe: o build embute um instantâneo dos dados em
+     TC.PUBLICACAO e a aplicação passa a ler dele, sem gravar nada. Todo mundo que abrir
+     o arquivo vê exatamente os mesmos dados — é o compartilhamento possível enquanto não
+     existe servidor. Ver publicada() em permissoes.js: nesta cópia ninguém edita. */
+  function publicacao() {
+    return TC.PUBLICACAO && TC.PUBLICACAO.dados ? TC.PUBLICACAO : null;
+  }
+
   function carregar() {
+    var pub = publicacao();
+    if (pub) return migrar(JSON.parse(JSON.stringify(pub.dados)));
     try {
       var bruto = global.localStorage && global.localStorage.getItem(CHAVE);
       if (bruto) {
@@ -1697,6 +1715,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   }
 
   function salvar() {
+    /* Na cópia publicada não há onde gravar: o dado de origem está na máquina de quem
+       mantém o centro de testes, e gravar aqui só criaria uma divergência silenciosa. */
+    if (publicacao()) return;
     try {
       if (global.localStorage) global.localStorage.setItem(CHAVE, JSON.stringify(estado));
     } catch (e) {
@@ -4303,11 +4324,21 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       '<select id="seletor-perfil">' + ui.opcoes(TC.data.PERFIS, TC.permissoes.perfilAtual(estado)) + '</select>' +
       '<div class="descricao">' + e(perfil ? perfil.descricao : '') + '</div></div>';
 
-    html += '<div class="nav-titulo">Dados</div>' +
-      '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Exportar backup</button>' +
-      '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Importar backup</button>' +
-      '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restaurar padrão</button>' +
-      '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Dados gravados neste navegador. Exporte um backup antes de trocar de máquina.</div>';
+    /* Na cópia publicada não há backup a exportar nem padrão a restaurar: o dado vive
+       na máquina de quem mantém o centro de testes. Fica só a data do instantâneo, para
+       ninguém tomar decisão em cima de um planejamento vencido sem perceber. */
+    if (TC.permissoes.publicada()) {
+      html += '<div style="margin-top:auto;padding:14px 10px 0" class="sub">' +
+        '<strong>Cópia da equipe — somente leitura.</strong><br>' +
+        'Dados de ' + e(util.formatarData(TC.PUBLICACAO.atualizadoEm, true)) + '. ' +
+        'Para alterar catálogo, demandas ou cotações, fale com o centro de testes.</div>';
+    } else {
+      html += '<div class="nav-titulo">Dados</div>' +
+        '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Exportar backup</button>' +
+        '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Importar backup</button>' +
+        '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restaurar padrão</button>' +
+        '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Dados gravados neste navegador. Exporte um backup antes de trocar de máquina.</div>';
+    }
 
     lateral.querySelector('#menu').innerHTML = html;
 
@@ -4320,6 +4351,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       /* Trocar de perfil pode tirar a janela atual de vista. */
       if (!TC.permissoes.podeVer(TC.store.get(), rotaAtual)) ir(primeiraRotaVisivel());
     };
+    if (TC.permissoes.publicada()) return;
     lateral.querySelector('#exportar').onclick = exportarBackup;
     lateral.querySelector('#importar').onclick = importarBackup;
     lateral.querySelector('#restaurar').onclick = function () {

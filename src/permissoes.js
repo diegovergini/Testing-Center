@@ -19,8 +19,15 @@
     return regra(estado, rota).ver.indexOf(perfilAtual(estado)) !== -1;
   }
 
+  /* Cópia publicada para a equipe: dados embutidos no arquivo, iguais para todos e sem
+     onde gravar. Consulta-se tudo, não se edita nada. */
+  function publicada() {
+    return !!(TC.PUBLICACAO && TC.PUBLICACAO.dados);
+  }
+
   /* Editar exige também poder ver: uma janela invisível não é editável. */
   function podeEditar(estado, rota) {
+    if (publicada()) return false;
     return podeVer(estado, rota) && regra(estado, rota).editar.indexOf(perfilAtual(estado)) !== -1;
   }
 
@@ -34,6 +41,7 @@
     regra: regra,
     podeVer: podeVer,
     podeEditar: podeEditar,
+    publicada: publicada,
     nomeDoPerfil: nomeDoPerfil
   };
 
