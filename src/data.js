@@ -67,6 +67,12 @@
     { id: 'BAIXA', nome: 'Baixa', peso: 2 }
   ];
 
+  /* Hourly rate do centro de testes: um único valor para todos os procedimentos,
+     atualizado uma vez por ano. Não varia por ensaio nem por bancada. Cotações já
+     arquivadas guardam o rate do dia em que foram feitas e não mudam quando este sobe. */
+  var HOURLY_RATE = 368.75;
+  var HOURLY_RATE_VIGENCIA = '2026';
+
   var CLIENTES = [
     { id: 'CLI-GM', nome: 'GM — General Motors', segmento: 'OEM' },
     /* CLI-FRD é a Ford; CLI-FOR, abaixo, é a Forvia Faurecia — empresas diferentes. */
@@ -108,7 +114,9 @@
 
      Sobre os campos preenchidos depois:
      revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
-     Custo do procedimento = (horasSetup + horasEnsaio + horasReport) x hourlyRate + custoInsumos.
+     Custo do procedimento = (horasSetup + horasEnsaio + horasReport) x hourly rate do
+     centro de testes + custoInsumos. O rate não é do procedimento: é um valor só,
+     no estado da aplicação.
      Só horasSetup + horasEnsaio ocupam bancada; horasReport é trabalho de escritório e
      entra no custo, não na agenda do equipamento.
      equipamentoGrupos = famílias de bancada que o ensaio ocupa ao mesmo tempo. O
@@ -232,7 +240,7 @@
         horasEnsaio: horas.ensaio || 0,
         horasReport: horas.report || 0,
         amostras: 1,
-        hourlyRate: 0, custoInsumos: 0,
+        custoInsumos: 0,
         descricao: ''
       };
     });
@@ -266,6 +274,8 @@
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
+    HOURLY_RATE: HOURLY_RATE,
+    HOURLY_RATE_VIGENCIA: HOURLY_RATE_VIGENCIA,
     PERFIS: PERFIS,
     PERMISSOES_PADRAO: PERMISSOES_PADRAO,
     STATUS_COTACAO: STATUS_COTACAO,
@@ -277,6 +287,8 @@
     seed: function () {
       return {
         catalogoVersao: CATALOGO_VERSAO,
+        hourlyRate: HOURLY_RATE,
+        hourlyRateVigencia: HOURLY_RATE_VIGENCIA,
         clientes: JSON.parse(JSON.stringify(CLIENTES)),
         equipamentos: JSON.parse(JSON.stringify(EQUIPAMENTOS)),
         testes: JSON.parse(JSON.stringify(TESTES)),

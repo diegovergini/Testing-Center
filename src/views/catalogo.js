@@ -39,7 +39,7 @@
 
   function linha(estado, teste, permissoes) {
     var eqs = gruposDe(estado, teste);
-    var custo = TC.scheduler.custoCatalogo(teste);
+    var custo = TC.scheduler.custoCatalogo(teste, estado.hourlyRate);
     var unidades = eqs.lista.map(function (g) { return g.membros[0]; });
     var dias = unidades.length ? TC.scheduler.diasDeOperacao(teste, unidades) : null;
     var clientes = (teste.clientes || []).map(function (id) {
@@ -76,7 +76,7 @@
         (custo.horasReport ? ' · +' + custo.horasReport + ' h report' : '') + '</div></td>' +
       '<td class="num">' + e(String(teste.amostras)) + '</td>' +
       '<td class="num forte" title="' + e(String(custo.horasFaturaveis)) + ' h x ' +
-        e(util.formatarMoeda(custo.hourlyRate)) + '/h = ' + e(util.formatarMoeda(custo.custoHoras)) +
+        e(util.formatarTaxa(custo.hourlyRate)) + '/h = ' + e(util.formatarMoeda(custo.custoHoras)) +
         ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) + '">' +
         e(util.formatarMoeda(custo.custoProcedimento)) +
         '<div class="sub">+ amostras</div></td>' +
@@ -221,12 +221,12 @@
     function atualizarPrevia() {
       var peca = util.porId(estado.pecas, selPeca.value);
       var qtd = Number(janela.querySelector('[name=quantidade]').value) || teste.amostras;
-      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, null, peca);
+      var custo = TC.scheduler.custoDemanda({ quantidade: qtd }, teste, null, peca, estado.hourlyRate);
       var cotacao = selTipo.value === 'COTACAO';
       previa.innerHTML =
         '<div class="aviso alerta"><strong>Custo estimado ' + e(util.formatarMoeda(custo.total)) + '</strong> — ' +
         e(String(custo.horasFaturaveis)) + ' h (' + e(String(custo.horasBancada)) + ' de bancada + ' +
-        e(String(custo.horasReport)) + ' de report) x ' + e(util.formatarMoeda(custo.hourlyRate)) + '/h = ' +
+        e(String(custo.horasReport)) + ' de report) x ' + e(util.formatarTaxa(custo.hourlyRate)) + '/h = ' +
         e(util.formatarMoeda(custo.custoHoras)) +
         ' + insumos ' + e(util.formatarMoeda(custo.custoInsumos)) +
         ' + ' + e(String(qtd)) + ' amostra(s) ' + e(util.formatarMoeda(custo.custoAmostras)) +
@@ -255,7 +255,7 @@
   function abrirEdicao(ctx, teste) {
     var estado = ctx.estado;
     var novo = !teste;
-    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoGrupos: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, hourlyRate: 0, custoInsumos: 0, descricao: '' };
+    teste = teste || { id: '', nome: '', norma: '', revisao: 'Rev. 01', area: 'COLD', clientes: [], equipamentoGrupos: [], horasSetup: 2, horasEnsaio: 24, horasReport: 4, amostras: 2, custoInsumos: 0, descricao: '' };
     var gruposAtuais = TC.scheduler.gruposDoTeste(teste);
     var parque = TC.scheduler.agruparEquipamentos(estado.equipamentos);
 
@@ -275,7 +275,6 @@
         '<div class="campo"><label>Horas de setup</label><input type="number" name="horasSetup" min="0" step="0.5" value="' + e(String(teste.horasSetup)) + '"></div>' +
         '<div class="campo"><label>Horas de ensaio</label><input type="number" name="horasEnsaio" min="0" step="0.5" value="' + e(String(teste.horasEnsaio)) + '"></div>' +
         '<div class="campo"><label>Horas de report</label><input type="number" name="horasReport" min="0" step="0.5" value="' + e(String(teste.horasReport || 0)) + '"></div>' +
-        '<div class="campo"><label>Hourly Rate (R$/h)</label><input type="number" name="hourlyRate" min="0" step="10" value="' + e(String(teste.hourlyRate || 0)) + '"></div>' +
         '<div class="campo"><label>Custo de insumos (R$)</label><input type="number" name="custoInsumos" min="0" step="100" value="' + e(String(teste.custoInsumos || 0)) + '"></div>' +
         '<div class="campo"><label>Amostras necessárias</label><input type="number" name="amostras" min="1" value="' + e(String(teste.amostras)) + '"></div>' +
       '</div>' +
@@ -313,7 +312,6 @@
           { nome: 'horasSetup', rotulo: 'as horas de setup', tipo: 'numero' },
           { nome: 'horasEnsaio', rotulo: 'as horas de ensaio', tipo: 'numero', min: 0.5 },
           { nome: 'horasReport', rotulo: 'as horas de report', tipo: 'numero' },
-          { nome: 'hourlyRate', rotulo: 'o hourly rate', tipo: 'numero', min: 1 },
           { nome: 'custoInsumos', rotulo: 'o custo de insumos', tipo: 'numero' },
           { nome: 'amostras', rotulo: 'as amostras necessárias', tipo: 'numero', min: 1 },
           { nome: 'descricao', rotulo: 'a descrição' }
@@ -333,7 +331,7 @@
           area: v.area, equipamentoGrupos: v.equipamentoGrupos, clientes: v.clientes || [],
           horasSetup: Number(v.horasSetup) || 0, horasEnsaio: Number(v.horasEnsaio) || 0,
           horasReport: Number(v.horasReport) || 0, amostras: Number(v.amostras) || 1,
-          hourlyRate: Number(v.hourlyRate) || 0, custoInsumos: Number(v.custoInsumos) || 0,
+          custoInsumos: Number(v.custoInsumos) || 0,
           descricao: v.descricao.trim()
         });
         ui.notificar('Procedimento salvo.');
@@ -347,20 +345,73 @@
       var horasBancada = num('horasSetup') + num('horasEnsaio');
       var horasReport = num('horasReport');
       var horas = horasBancada + horasReport;
-      var rate = num('hourlyRate');
+      var rate = TC.scheduler.taxaHoraria(estado);
       var insumos = num('custoInsumos');
       previaCusto.innerHTML =
         '<div class="aviso"><strong>Custo do procedimento ' +
         e(util.formatarMoeda(horas * rate + insumos)) + '</strong> — (' +
         e(String(horasBancada)) + ' h de bancada + ' + e(String(horasReport)) + ' h de report) × ' +
-        e(util.formatarMoeda(rate)) + '/h = ' + e(util.formatarMoeda(horas * rate)) +
+        e(util.formatarTaxa(rate)) + '/h = ' + e(util.formatarMoeda(horas * rate)) +
         ' + insumos ' + e(util.formatarMoeda(insumos)) +
-        '. As amostras entram depois, na demanda.</div>';
+        '. O hourly rate é do centro de testes, igual para todo o catálogo. ' +
+        'As amostras entram depois, na demanda.</div>';
     }
-    ['horasSetup', 'horasEnsaio', 'horasReport', 'hourlyRate', 'custoInsumos'].forEach(function (campo) {
+    ['horasSetup', 'horasEnsaio', 'horasReport', 'custoInsumos'].forEach(function (campo) {
       janela.querySelector('[name=' + campo + ']').addEventListener('input', atualizarCusto);
     });
     atualizarCusto();
+  }
+
+  /* ---- Hourly rate do centro de testes ---- */
+
+  /* Um valor só para todo o catálogo, atualizado uma vez por ano. Antes ele era campo de
+     cada procedimento, o que obrigava a editar dezenas de cadastros a cada reajuste. */
+  function abrirHourlyRate(ctx) {
+    var estado = ctx.estado;
+    var comHoras = estado.testes.filter(function (t) {
+      return TC.scheduler.horasFaturaveis(t) > 0;
+    }).length;
+
+    var janela = ui.modal({
+      titulo: 'Hourly rate do centro de testes',
+      corpo:
+        '<div class="aviso">Vale para os <strong>' + estado.testes.length +
+          ' procedimentos</strong> do catálogo (' + comHoras + ' já com horas levantadas). ' +
+          'Cotações já arquivadas guardam o rate do dia em que foram feitas e ' +
+          '<strong>não mudam</strong> com este reajuste.</div>' +
+        '<div class="grade-campos">' +
+          '<div class="campo"><label>Hourly rate (R$/h)</label>' +
+            '<input type="number" name="hourlyRate" min="0" step="0.01" value="' +
+            e(String(estado.hourlyRate)) + '"></div>' +
+          '<div class="campo"><label>Vigência</label>' +
+            '<input name="vigencia" placeholder="Ex.: 2026" value="' +
+            e(estado.hourlyRateVigencia || '') + '"></div>' +
+        '</div>' +
+        '<div class="campo" id="previa-rate"></div>',
+      confirmar: 'Salvar hourly rate',
+      aoConfirmar: function (v) {
+        if (!ui.validarObrigatorios(janela, v, [
+          { nome: 'hourlyRate', rotulo: 'o hourly rate', tipo: 'numero', min: 0.01 },
+          { nome: 'vigencia', rotulo: 'a vigência' }
+        ])) return false;
+        TC.store.definirHourlyRate(v.hourlyRate, v.vigencia);
+        ui.notificar('Hourly rate atualizado para todo o catálogo.');
+      }
+    });
+
+    /* Mostra de imediato o efeito sobre o pacote inteiro: é a conta que justifica o valor. */
+    var previa = janela.querySelector('#previa-rate');
+    var campo = janela.querySelector('[name=hourlyRate]');
+    function atualizar() {
+      var rate = Number(campo.value) || 0;
+      var total = estado.testes.reduce(function (soma, t) {
+        return soma + TC.scheduler.custoCatalogo(t, rate).custoProcedimento;
+      }, 0);
+      previa.innerHTML = '<div class="aviso alerta">Com este rate, o catálogo inteiro ' +
+        'executado uma vez custa <strong>' + e(util.formatarMoeda(total)) + '</strong>.</div>';
+    }
+    campo.addEventListener('input', atualizar);
+    atualizar();
   }
 
   function render(container, ctx) {
@@ -373,7 +424,7 @@
 
     var totalHoras = 0, totalCusto = 0;
     lista.forEach(function (t) {
-      var c = TC.scheduler.custoCatalogo(t);
+      var c = TC.scheduler.custoCatalogo(t, estado.hourlyRate);
       totalHoras += c.horasBancada; totalCusto += c.total;
     });
 
@@ -391,6 +442,14 @@
           Math.round(totalHoras) + ' h</div><div class="nota">se todos forem executados uma vez</div></div>' +
         '<div class="indicador"><div class="rotulo">Custo do pacote</div><div class="valor">' +
           util.formatarMoeda(totalCusto) + '</div><div class="nota">sem o custo das amostras</div></div>' +
+        /* O hourly rate é do centro de testes, não do procedimento: um campo só, que vale
+           para os ' + estado.testes.length + ' procedimentos e muda uma vez por ano. */
+        '<div class="indicador"><div class="rotulo">Hourly rate</div><div class="valor">' +
+          util.formatarTaxa(estado.hourlyRate) + '<span class="sub" style="font-size:13px">/h</span></div>' +
+          '<div class="nota">vigência ' + e(estado.hourlyRateVigencia || '—') + ' · vale para todo o catálogo' +
+          (permissoes.podeEditarCatalogo
+            ? ' · <button class="botao pequeno" id="editar-rate" style="margin-top:6px">Alterar</button>'
+            : '') + '</div></div>' +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
@@ -410,6 +469,9 @@
 
     var botaoNovo = container.querySelector('#novo');
     if (botaoNovo) botaoNovo.onclick = function () { abrirEdicao(ctx, null); };
+
+    var botaoRate = container.querySelector('#editar-rate');
+    if (botaoRate) botaoRate.onclick = function () { abrirHourlyRate(ctx); };
 
     function liga(id, campo) {
       var alvo = container.querySelector(id);

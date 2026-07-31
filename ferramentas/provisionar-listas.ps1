@@ -27,6 +27,11 @@ Connect-PnPOnline -Url $Site -Interactive
 
 # Cada coluna é: nome interno, tipo, e (para Choice) as opções.
 $listas = [ordered]@{
+  # Parâmetros do centro de testes. Title = nome do parâmetro (HourlyRate).
+  'TC_Parametros' = @(
+    @{ Nome = 'Valor';    Tipo = 'Currency' },
+    @{ Nome = 'Vigencia'; Tipo = 'Text' }
+  )
   'TC_Clientes' = @(
     @{ Nome = 'Nome';     Tipo = 'Text' },
     @{ Nome = 'Segmento'; Tipo = 'Text' }
@@ -64,7 +69,7 @@ $listas = [ordered]@{
     @{ Nome = 'HorasEnsaio';       Tipo = 'Number' },
     @{ Nome = 'HorasReport';       Tipo = 'Number' },
     @{ Nome = 'Amostras';          Tipo = 'Number' },
-    @{ Nome = 'HourlyRate';        Tipo = 'Currency' },
+    # O hourly rate não é do procedimento: está em TC_Parametros.
     @{ Nome = 'CustoInsumos';      Tipo = 'Currency' },
     @{ Nome = 'Descricao';         Tipo = 'Note' }
   )

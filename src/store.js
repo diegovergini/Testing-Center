@@ -23,11 +23,18 @@
 
     estado.clientes = estado.clientes || [];
 
+    /* Hourly rate do centro de testes: um valor só, para todo o catálogo. Dados salvos
+       antes desta mudança traziam o rate em cada procedimento; adotamos o valor vigente
+       do centro de testes, que é o que passa a valer para todos. */
+    if (typeof estado.hourlyRate !== 'number') estado.hourlyRate = TC.data.HOURLY_RATE;
+    if (typeof estado.hourlyRateVigencia !== 'string') {
+      estado.hourlyRateVigencia = TC.data.HOURLY_RATE_VIGENCIA;
+    }
+
     /* Mudança de catálogo em dados já salvos no navegador.
        Até a versão 2 o catálogo era o de exemplo, de vários clientes: ele sai inteiro.
        Daí para frente a atualização é aditiva — procedimentos novos entram e os que já
-       existem ficam como estão, com as horas, o rate e a bancada que já foram
-       preenchidos. Cotações arquivadas nunca são tocadas: têm preço congelado. */
+       existem ficam como estão, com as horas e a bancada que já foram preenchidas. Cotações arquivadas nunca são tocadas: têm preço congelado. */
     var versaoSalva = Number(estado.catalogoVersao) || 0;
     if (versaoSalva < TC.data.CATALOGO_VERSAO) {
       var padraoNovo = TC.data.seed();
@@ -86,8 +93,6 @@
     (estado.testes || []).forEach(function (t) {
       delete t.fases;
       if (typeof t.revisao !== 'string') t.revisao = '';
-      /* As unidades que o procedimento apontava ainda servem para herdar o hourly rate
-         antigo, então guardamos antes de trocá-las pelo grupo. */
       var unidadesAntigas = t.equipamentoIds || (t.equipamentoId ? [t.equipamentoId] : []);
 
       /* O procedimento passou a pedir o grupo de bancada, não a unidade. */
@@ -103,15 +108,10 @@
       delete t.equipamentoIds;
       delete t.equipamentoId;
 
-      /* O custo passou a ser horas x hourly rate + insumos. Sem hourly rate gravado,
-         herdamos a soma do custo-hora das bancadas do ensaio, que era o que valia antes. */
+      /* O hourly rate deixou de ser campo do procedimento: virou um valor único do
+         centro de testes, guardado no estado e atualizado uma vez por ano. */
       if (typeof t.horasReport !== 'number') t.horasReport = 0;
-      if (typeof t.hourlyRate !== 'number') {
-        t.hourlyRate = unidadesAntigas.reduce(function (soma, id) {
-          var eq = util.porId(estado.equipamentos || [], id);
-          return soma + (eq && eq.custoHora ? eq.custoHora : 0);
-        }, 0);
-      }
+      delete t.hourlyRate;
       if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
       delete t.custoBase;
     });
@@ -337,6 +337,14 @@
     },
 
     /* ---- Perfil e permissões ---- */
+    /* Hourly rate do centro de testes: um campo só, aplicado a todo o catálogo.
+       Cotações já arquivadas guardam o rate do dia e não são afetadas. */
+    definirHourlyRate: function (valor, vigencia) {
+      estado.hourlyRate = Number(valor) || 0;
+      if (typeof vigencia === 'string') estado.hourlyRateVigencia = vigencia.trim();
+      commit();
+      return estado.hourlyRate;
+    },
     definirPerfil: function (perfilId) {
       estado.perfilAtual = perfilId;
       commit();

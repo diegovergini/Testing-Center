@@ -104,8 +104,13 @@ function procedimentoPrecificado() {
   return store.salvarTeste(Object.assign({}, base, {
     equipamentoGrupos: ['Burner'],
     horasSetup: 8, horasEnsaio: 240, horasReport: 16,
-    hourlyRate: 610, custoInsumos: 12800
+    custoInsumos: 12800
   }));
+}
+
+/* O hourly rate é do centro de testes: quem cota passa o rate vigente. */
+function rateVigente() {
+  return store.get().hourlyRate;
 }
 
 test('numeração de cotação é sequencial por ano', () => {
@@ -121,10 +126,10 @@ test('numeração de cotação é sequencial por ano', () => {
 
 test('o item da cotação congela o preço do procedimento', () => {
   const teste = procedimentoPrecificado();
-  const item = cotacoes.montarItem(teste, 2);
+  const item = cotacoes.montarItem(teste, 2, rateVigente());
 
   const esperadoUnitario =
-    (teste.horasSetup + teste.horasEnsaio + teste.horasReport) * teste.hourlyRate +
+    (teste.horasSetup + teste.horasEnsaio + teste.horasReport) * rateVigente() +
     teste.custoInsumos;
 
   assert.equal(item.custoUnitario, esperadoUnitario, 'o unitário é o custo do procedimento');
@@ -135,23 +140,59 @@ test('o item da cotação congela o preço do procedimento', () => {
 
 test('quantidade de amostras inválida vira uma', () => {
   const teste = procedimentoPrecificado();
-  assert.equal(cotacoes.montarItem(teste, 0).amostras, 1);
-  assert.equal(cotacoes.montarItem(teste, '').amostras, 1);
-  assert.equal(cotacoes.montarItem(teste, -3).amostras, 1);
-  assert.equal(cotacoes.montarItem(teste, '4').amostras, 4, 'texto de input vira número');
+  const rate = rateVigente();
+  assert.equal(cotacoes.montarItem(teste, 0, rate).amostras, 1);
+  assert.equal(cotacoes.montarItem(teste, '', rate).amostras, 1);
+  assert.equal(cotacoes.montarItem(teste, -3, rate).amostras, 1);
+  assert.equal(cotacoes.montarItem(teste, '4', rate).amostras, 4, 'texto de input vira número');
 });
 
 test('mudar o catálogo depois não reescreve cotação arquivada', () => {
   const teste = procedimentoPrecificado();
-  const item = cotacoes.montarItem(teste, 1);
+  const item = cotacoes.montarItem(teste, 1, rateVigente());
   const cotacao = store.salvarCotacao({ clienteId: 'CLI-VW', itens: [item] });
   const totalOriginal = cotacoes.totalDaCotacao(cotacao);
 
-  store.salvarTeste(Object.assign({}, teste, { hourlyRate: teste.hourlyRate * 3 }));
+  store.salvarTeste(Object.assign({}, teste, { horasEnsaio: teste.horasEnsaio * 3 }));
 
   const arquivada = globalThis.TC.util.porId(store.get().cotacoes, cotacao.id);
   assert.equal(cotacoes.totalDaCotacao(arquivada), totalOriginal,
     'o orçamento entregue não muda quando o catálogo sobe de preço');
+});
+
+test('o reajuste anual do hourly rate não reescreve cotação arquivada', () => {
+  const teste = procedimentoPrecificado();
+  const cotacao = store.salvarCotacao({
+    clienteId: 'CLI-VW', itens: [cotacoes.montarItem(teste, 2, rateVigente())]
+  });
+  const totalOriginal = cotacoes.totalDaCotacao(cotacao);
+  const rateAntigo = cotacao.itens[0].hourlyRate;
+
+  store.definirHourlyRate(500, '2027');
+
+  const arquivada = globalThis.TC.util.porId(store.get().cotacoes, cotacao.id);
+  assert.equal(cotacoes.totalDaCotacao(arquivada), totalOriginal);
+  assert.equal(arquivada.itens[0].hourlyRate, rateAntigo,
+    'o item guarda o rate do dia em que foi cotado');
+  assert.equal(store.get().hourlyRate, 500, 'o rate novo vale para o catálogo daqui em diante');
+});
+
+test('o hourly rate é um campo só, aplicado a todos os procedimentos', () => {
+  store.restaurarPadrao();
+  store.definirHourlyRate(400, '2027');
+  const estado = store.get();
+
+  assert.equal(estado.hourlyRate, 400);
+  assert.equal(estado.hourlyRateVigencia, '2027');
+  estado.testes.forEach((t) => {
+    assert.equal(t.hourlyRate, undefined, t.id + ' não pode ter rate próprio');
+  });
+  const comHoras = estado.testes.filter((t) => globalThis.TC.scheduler.horasFaturaveis(t) > 0);
+  assert.ok(comHoras.length > 0);
+  comHoras.forEach((t) => {
+    const c = globalThis.TC.scheduler.custoCatalogo(t, estado.hourlyRate);
+    assert.equal(c.hourlyRate, 400, t.id + ' não usou o rate do centro de testes');
+  });
 });
 
 test('o unitário é horas x rate + insumos, sem custo de amostra embutido', () => {

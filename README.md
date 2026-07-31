@@ -247,9 +247,17 @@ custo da demanda      = custo do procedimento
                       + amostras × custo unitário da peça
 ```
 
-Hourly rate, horas e custo de insumos ficam no procedimento (catálogo); o custo unitário da
-amostra fica no tipo de peça. O hourly rate é a taxa cheia do laboratório — por isso o
-equipamento não tem mais custo-hora próprio, para a mesma hora não ser cobrada duas vezes.
+**O hourly rate é um valor só, do centro de testes**, não um campo de cada procedimento: ele
+não varia por ensaio, só é reajustado uma vez por ano. Fica no estado da aplicação
+(`hourlyRate` e `hourlyRateVigencia`) e se altera num campo único, no indicador *Hourly rate*
+do catálogo — o reajuste reprecifica os 73 procedimentos de uma vez. É a taxa cheia do
+laboratório, e por isso o equipamento não tem custo-hora próprio: a mesma hora não pode ser
+cobrada duas vezes.
+
+Horas e custo de insumos ficam no procedimento; o custo unitário da amostra, no tipo de peça.
+
+**Cotação arquivada não é reprecificada.** Cada item guarda o hourly rate do dia em que foi
+cotado, então o reajuste do ano seguinte não reescreve orçamento já entregue.
 
 **Horas de report contam no custo, mas não na agenda.** Elaborar o relatório é trabalho de
 mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é setup + ensaio.

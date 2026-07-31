@@ -225,10 +225,18 @@
     return p ? p.peso : 9;
   }
 
+  /* Hourly rate do estado, com a constante do centro de testes como último recurso.
+     O rate é um valor só para todo o catálogo, atualizado uma vez por ano. */
+  function taxaHoraria(estado) {
+    if (estado && typeof estado.hourlyRate === 'number') return estado.hourlyRate;
+    return dados.HOURLY_RATE;
+  }
+
   /* Custo do procedimento:
        (horas de setup + ensaio + report) x hourly rate + insumos
+     O hourly rate vem de fora porque não pertence ao procedimento: é do centro de testes.
      A demanda soma ainda as amostras consumidas, que dependem da peça escolhida. */
-  function custoDemanda(demanda, teste, equipamentos, peca) {
+  function custoDemanda(demanda, teste, equipamentos, peca, hourlyRate) {
     if (!teste) {
       return {
         horasBancada: 0, horasReport: 0, horasFaturaveis: 0, hourlyRate: 0,
@@ -237,7 +245,7 @@
     }
     var quantidade = demanda && demanda.quantidade ? demanda.quantidade : teste.amostras;
     var horas = horasFaturaveis(teste);
-    var rate = teste.hourlyRate || 0;
+    var rate = typeof hourlyRate === 'number' ? hourlyRate : taxaHoraria(null);
     var custoHoras = horas * rate;
     var custoInsumos = teste.custoInsumos || 0;
     var custoProcedimento = custoHoras + custoInsumos;
@@ -257,8 +265,8 @@
   }
 
   /* Custo de referência do catálogo, sem peça associada. */
-  function custoCatalogo(teste) {
-    return custoDemanda(null, teste, null, null);
+  function custoCatalogo(teste, hourlyRate) {
+    return custoDemanda(null, teste, null, null, hourlyRate);
   }
 
   var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
@@ -323,7 +331,7 @@
         gruposFaltando: faltando,
         /* equipamentos: as unidades efetivamente escolhidas; vazio até alocar. */
         equipamentos: [],
-        custo: custoDemanda(demanda, teste, null, peca),
+        custo: custoDemanda(demanda, teste, null, peca, taxaHoraria(estado)),
         cotacao: false,
         /* posicoes: { equipamentoId: índice da posição ocupada } */
         posicoes: null,
@@ -428,6 +436,7 @@
     planejar: planejar,
     custoDemanda: custoDemanda,
     custoCatalogo: custoCatalogo,
+    taxaHoraria: taxaHoraria,
     diasDeOperacao: diasDeOperacao,
     calcularJanela: calcularJanela,
     buscarJanela: buscarJanela,

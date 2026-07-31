@@ -17,11 +17,12 @@
     return '<span class="etiqueta ' + cor + '">' + e(nomeStatus(id)) + '</span>';
   }
 
-  /* Congela o preço de um procedimento no momento da cotação.
+  /* Congela o preço de um procedimento no momento da cotação, inclusive o hourly rate
+     vigente: o reajuste do ano seguinte não reescreve um orçamento já entregue.
      O custo do procedimento é por amostra ensaiada: cada amostra é uma execução, então
      a quantidade pedida multiplica o unitário. */
-  function montarItem(teste, amostras) {
-    var custo = TC.scheduler.custoCatalogo(teste);
+  function montarItem(teste, amostras, hourlyRate) {
+    var custo = TC.scheduler.custoCatalogo(teste, hourlyRate);
     var quantidade = Math.max(1, Number(amostras) || 1);
     return {
       testeId: teste.id,
@@ -70,7 +71,7 @@
           '<td>' + e(i.revisao || '—') + '</td>' +
           '<td class="num">' + i.horasFaturaveis + ' h' +
             '<div class="sub">' + i.horasBancada + ' + ' + i.horasReport + '</div></td>' +
-          '<td class="num">' + e(util.formatarMoeda(i.hourlyRate)) + '</td>' +
+          '<td class="num">' + e(util.formatarTaxa(i.hourlyRate)) + '</td>' +
           '<td class="num">' + e(util.formatarMoeda(i.custoHoras)) + '</td>' +
           '<td class="num">' + e(util.formatarMoeda(i.custoInsumos)) + '</td>' +
           (legado ? '<td class="num">' + e(util.formatarMoeda(i.custoAmostras || 0)) + '</td>' : '') +
@@ -236,7 +237,7 @@
         '</div>' +
         '<div id="lista-testes" class="lista-selecao">' +
           estado.testes.map(function (t) {
-            var custo = TC.scheduler.custoCatalogo(t);
+            var custo = TC.scheduler.custoCatalogo(t, estado.hourlyRate);
             return '<div class="linha-selecao" data-teste="' + e(t.id) + '">' +
               '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:500;color:var(--texto);flex:1">' +
                 '<input type="checkbox" class="marcar" value="' + e(t.id) + '" style="width:auto">' +
@@ -301,7 +302,9 @@
       janela.querySelectorAll('.linha-selecao').forEach(function (linha) {
         if (!linha.querySelector('.marcar').checked) return;
         var teste = util.porId(estado.testes, linha.dataset.teste);
-        if (teste) itens.push(montarItem(teste, linha.querySelector('.qtd').value));
+        if (teste) {
+          itens.push(montarItem(teste, linha.querySelector('.qtd').value, estado.hourlyRate));
+        }
       });
       return itens;
     }

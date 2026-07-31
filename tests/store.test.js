@@ -202,7 +202,7 @@ test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
     .map((t) => (t.id === 'TP-GM-06'
       ? Object.assign({}, t, {
         equipamentoGrupos: ['ColdFlow'], horasSetup: 2, horasEnsaio: 8,
-        horasReport: 4, hourlyRate: 240, custoInsumos: 1800, area: 'AMBOS'
+        horasReport: 4, custoInsumos: 1800, area: 'AMBOS'
       })
       : t));
   base.demandas = [
@@ -215,7 +215,7 @@ test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
   const estado = store.get();
 
   const completado = globalThis.TC.util.porId(estado.testes, 'TP-GM-06');
-  assert.equal(completado.hourlyRate, 240, 'o cadastro já preenchido não pode ser sobrescrito');
+  assert.equal(completado.custoInsumos, 1800, 'o cadastro já preenchido não pode ser sobrescrito');
   assert.deepEqual(completado.equipamentoGrupos, ['ColdFlow']);
   assert.equal(estado.testes.filter((t) => t.id.indexOf('TP-STL-') === 0).length, 30,
     'os procedimentos Stellantis entram no catálogo');
@@ -225,19 +225,19 @@ test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
 
 test('catálogo já na versão nova não é substituído na carga', () => {
   const base = dados.seed();
-  base.testes[0] = Object.assign({}, base.testes[0], { hourlyRate: 777, horasEnsaio: 40 });
+  base.testes[0] = Object.assign({}, base.testes[0], { custoInsumos: 777, horasEnsaio: 40 });
   store.importar(JSON.stringify(base));
 
   const t = store.get().testes[0];
-  assert.equal(t.hourlyRate, 777, 'o que o usuário preencheu no catálogo continua lá');
+  assert.equal(t.custoInsumos, 777, 'o que o usuário preencheu no catálogo continua lá');
   assert.equal(t.horasEnsaio, 40);
 });
 
-test('importar converte custoBase em custo de insumos e herda o hourly rate da bancada', () => {
+test('importar converte custoBase em custo de insumos e tira o rate do procedimento', () => {
   const base = dados.seed();
   base.testes[0] = {
     id: 'TP-ANTIGO', nome: 'Ensaio antigo', norma: '', revisao: 'Rev. 01', clientes: [],
-    area: 'HOT', equipamentoId: 'BURNER-1',
+    area: 'HOT', equipamentoId: 'BURNER-1', hourlyRate: 610,
     horasSetup: 2, horasEnsaio: 10, amostras: 1, custoBase: 5000, descricao: ''
   };
   /* o custo-hora saiu do cadastro de equipamento, mas backups antigos ainda o trazem */
@@ -245,12 +245,15 @@ test('importar converte custoBase em custo de insumos e herda o hourly rate da b
     eq.id === 'BURNER-1' ? Object.assign({}, eq, { custoHora: 610 }) : eq);
 
   store.importar(JSON.stringify(base));
-  const t = store.get().testes[0];
+  const estado = store.get();
+  const t = estado.testes[0];
 
   assert.equal(t.custoInsumos, 5000, 'o custo antigo vira custo de insumos');
   assert.equal(t.custoBase, undefined);
   assert.equal(t.horasReport, 0);
-  assert.equal(t.hourlyRate, 610, 'sem rate gravado, herda o custo-hora da bancada que usava');
+  assert.equal(t.hourlyRate, undefined, 'o rate deixou de ser campo do procedimento');
+  assert.equal(estado.hourlyRate, dados.HOURLY_RATE,
+    'o backup antigo adota o rate vigente do centro de testes');
 });
 
 /* ---- Levantamento de horas ---- */

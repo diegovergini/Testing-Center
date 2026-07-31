@@ -24,7 +24,7 @@ function teste(extra) {
   return Object.assign({
     id: 'TP-01', nome: 'Ensaio', area: 'COLD', equipamentoGrupos: ['EQ-01'], revisao: 'Rev. 01',
     clientes: [], horasSetup: 0, horasEnsaio: 8, horasReport: 0, amostras: 1,
-    hourlyRate: 100, custoInsumos: 1000
+    custoInsumos: 1000
   }, extra);
 }
 
@@ -45,6 +45,8 @@ function demanda(extra) {
 
 function estado(extra) {
   return Object.assign({
+    /* O hourly rate é do centro de testes, um valor só para todo o catálogo. */
+    hourlyRate: 100,
     clientes: [{ id: 'CLI-01', nome: 'Cliente' }],
     equipamentos: [equipamento()],
     testes: [teste()],
@@ -230,8 +232,8 @@ test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
 });
 
 test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () => {
-  const t = teste({ horasSetup: 2, horasEnsaio: 8, horasReport: 5, hourlyRate: 200, custoInsumos: 1000 });
-  const c = scheduler.custoDemanda({ quantidade: 3 }, t, null, peca({ custoAmostra: 500 }));
+  const t = teste({ horasSetup: 2, horasEnsaio: 8, horasReport: 5, custoInsumos: 1000 });
+  const c = scheduler.custoDemanda({ quantidade: 3 }, t, null, peca({ custoAmostra: 500 }), 200);
 
   assert.equal(c.horasBancada, 10, 'setup + ensaio');
   assert.equal(c.horasFaturaveis, 15, 'setup + ensaio + report');
@@ -243,23 +245,23 @@ test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () =
 });
 
 test('a hora do equipamento não entra mais no custo', () => {
-  const t = teste({ horasSetup: 0, horasEnsaio: 10, horasReport: 0, hourlyRate: 100, custoInsumos: 0 });
-  const semBancada = scheduler.custoDemanda({ quantidade: 1 }, t, null, null);
+  const t = teste({ horasSetup: 0, horasEnsaio: 10, horasReport: 0, custoInsumos: 0 });
+  const semBancada = scheduler.custoDemanda({ quantidade: 1 }, t, null, null, 100);
   const comDuas = scheduler.custoDemanda({ quantidade: 1 }, t,
-    [equipamento({ custoHora: 900 }), equipamento({ custoHora: 900 })], null);
+    [equipamento({ custoHora: 900 }), equipamento({ custoHora: 900 })], null, 100);
   assert.equal(semBancada.total, comDuas.total, 'o custo sai do hourly rate, não da bancada');
   assert.equal(comDuas.total, 1000);
 });
 
 test('horas de report entram no custo, mas não ocupam bancada', () => {
-  const t = teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 40, hourlyRate: 100, custoInsumos: 0 });
+  const t = teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 40, custoInsumos: 0 });
   const eq = equipamento({ horasDia: 8 });
   assert.equal(scheduler.diasDeOperacao(t, [eq]), 1, 'só as 8 h de ensaio prendem a bancada');
-  assert.equal(scheduler.custoDemanda(null, t, [eq], null).custoHoras, 48 * 100);
+  assert.equal(scheduler.custoDemanda(null, t, [eq], null, 100).custoHoras, 48 * 100);
 });
 
 test('custo de catálogo usa a quantidade padrão do procedimento e ignora amostras', () => {
-  const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, horasReport: 2, hourlyRate: 200, custoInsumos: 500 }));
+  const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, horasReport: 2, custoInsumos: 500 }), 200);
   assert.equal(c.quantidade, 4);
   assert.equal(c.custoAmostras, 0);
   assert.equal(c.total, 500 + 10 * 200);
@@ -275,7 +277,6 @@ function catalogoCompletado(base) {
     t.horasSetup = 4;
     t.horasEnsaio = 24 + i * 8;
     t.horasReport = 6;
-    t.hourlyRate = 400;
     t.custoInsumos = 1000;
   });
   return base;
@@ -648,18 +649,15 @@ test('as horas levantadas estão no catálogo, procedimento a procedimento', () 
   });
 });
 
-test('o que ainda não foi medido continua zerado, e o rate não veio na tabela', () => {
+test('o que ainda não foi medido continua zerado', () => {
   const base = require('../src/data.js').seed();
   base.testes.forEach((t) => {
-    ['horasSetup', 'horasEnsaio', 'horasReport', 'hourlyRate', 'custoInsumos'].forEach((campo) => {
+    ['horasSetup', 'horasEnsaio', 'horasReport', 'custoInsumos'].forEach((campo) => {
       assert.equal(typeof t[campo], 'number', t.id + ' sem o campo ' + campo);
     });
     assert.equal(t.custoBase, undefined, t.id + ' ainda usa custoBase');
-    /* Hourly rate e insumos ainda não foram informados para nenhum procedimento. */
-    assert.equal(t.hourlyRate, 0, t.id + ' com hourly rate inesperado');
+    /* O custo de insumos ainda não foi informado para nenhum procedimento. */
     assert.equal(t.custoInsumos, 0, t.id + ' com custo de insumos inesperado');
-    /* Sem rate, o custo é zero mesmo com as horas preenchidas. */
-    assert.equal(scheduler.custoCatalogo(t).custoProcedimento, 0, t.id);
 
     if (!HORAS_LEVANTADAS[t.id]) {
       assert.equal(t.horasSetup + t.horasEnsaio + t.horasReport, 0,
@@ -671,11 +669,42 @@ test('o que ainda não foi medido continua zerado, e o rate não veio na tabela'
 test('o custo do catálogo bate com a fórmula, procedimento a procedimento', () => {
   const base = catalogoCompletado(require('../src/data.js').seed());
   base.testes.forEach((t) => {
-    const c = scheduler.custoCatalogo(t);
-    const esperado = (t.horasSetup + t.horasEnsaio + t.horasReport) * t.hourlyRate + t.custoInsumos;
+    const c = scheduler.custoCatalogo(t, base.hourlyRate);
+    const esperado = (t.horasSetup + t.horasEnsaio + t.horasReport) * base.hourlyRate + t.custoInsumos;
     assert.equal(c.custoProcedimento, esperado, t.id);
     assert.ok(c.custoProcedimento > 0, t.id + ' completado deveria ter custo');
   });
+});
+
+/* ---- Hourly rate do centro de testes ---- */
+
+test('o hourly rate é um valor só do estado, não campo do procedimento', () => {
+  const base = require('../src/data.js').seed();
+  assert.equal(base.hourlyRate, 368.75);
+  assert.equal(base.hourlyRateVigencia, '2026');
+  base.testes.forEach((t) => {
+    assert.equal(t.hourlyRate, undefined, t.id + ' ainda carrega hourly rate próprio');
+  });
+  assert.equal(scheduler.taxaHoraria(base), 368.75);
+});
+
+test('mudar o rate reprecifica todo o catálogo de uma vez', () => {
+  const base = catalogoCompletado(require('../src/data.js').seed());
+  const soma = (rate) => base.testes.reduce(
+    (t, p) => t + scheduler.custoCatalogo(p, rate).custoHoras, 0);
+
+  assert.equal(soma(368.75) * 2, soma(737.5),
+    'dobrar o rate dobra o custo de horas de todos os procedimentos');
+});
+
+test('o custo usa o rate do estado planejado, não uma constante', () => {
+  const s = estado({
+    hourlyRate: 368.75,
+    testes: [teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 0, custoInsumos: 0 })]
+  });
+  const plano = scheduler.planejar(s, SEGUNDA);
+  assert.equal(alocacaoDe(plano, 'DM-01').custo.hourlyRate, 368.75);
+  assert.equal(alocacaoDe(plano, 'DM-01').custo.custoHoras, 8 * 368.75);
 });
 
 /* ---- Grupos de bancada intercambiáveis ---- */

@@ -57,6 +57,12 @@ arquivos['TC_Clientes'] = csv(
   estado.clientes.map((c) => ({ Title: c.id, Nome: c.nome, Segmento: c.segmento || '' }))
 );
 
+/* Parâmetros do centro de testes: hoje só o hourly rate, atualizado uma vez por ano. */
+arquivos['TC_Parametros'] = csv(
+  ['Title', 'Valor', 'Vigencia'],
+  [{ Title: 'HourlyRate', Valor: estado.hourlyRate, Vigencia: estado.hourlyRateVigencia || '' }]
+);
+
 arquivos['TC_Equipamentos'] = csv(
   ['Title', 'Nome', 'Grupo', 'Posicoes', 'Continuo', 'HorasDia', 'DiasUteis'],
   estado.equipamentos.map((eq) => ({
@@ -87,14 +93,16 @@ arquivos['TC_Pecas'] = csv(
   }))
 );
 
+/* O hourly rate não é coluna do procedimento: é um parâmetro único do centro de testes,
+   na lista TC_Parametros. */
 arquivos['TC_Procedimentos'] = csv(
   ['Title', 'Nome', 'Norma', 'Revisao', 'Area', 'EquipamentoGrupos', 'Clientes',
-    'HorasSetup', 'HorasEnsaio', 'HorasReport', 'Amostras', 'HourlyRate', 'CustoInsumos', 'Descricao'],
+    'HorasSetup', 'HorasEnsaio', 'HorasReport', 'Amostras', 'CustoInsumos', 'Descricao'],
   estado.testes.map((t) => ({
     Title: t.id, Nome: t.nome, Norma: t.norma || '', Revisao: t.revisao || '',
     Area: t.area, EquipamentoGrupos: lista(t.equipamentoGrupos), Clientes: lista(t.clientes),
     HorasSetup: t.horasSetup || 0, HorasEnsaio: t.horasEnsaio || 0, HorasReport: t.horasReport || 0,
-    Amostras: t.amostras || 1, HourlyRate: t.hourlyRate || 0, CustoInsumos: t.custoInsumos || 0,
+    Amostras: t.amostras || 1, CustoInsumos: t.custoInsumos || 0,
     Descricao: t.descricao || ''
   }))
 );

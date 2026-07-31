@@ -83,11 +83,12 @@ Dois jeitos de criar as listas:
 
 | Lista | Guarda | Registros hoje |
 |---|---|---|
+| `TC_Parametros` | Hourly rate do centro de testes e sua vigência | 1 |
 | `TC_Clientes` | Código, nome e segmento | 9 |
 | `TC_Equipamentos` | Bancadas, grupo, posições, regime e calendário | 11 |
 | `TC_Manutencoes` | Paradas programadas por equipamento | 0 |
 | `TC_Pecas` | Tipos de peça e custo por amostra | 5 |
-| `TC_Procedimentos` | O catálogo: norma, revisão, horas, rate, insumos, bancada | 73 |
+| `TC_Procedimentos` | O catálogo: norma, revisão, horas, insumos, bancada | 73 |
 | `TC_Demandas` | A necessidade confirmada e o resultado do planejamento | 0 |
 | `TC_Cotacoes` | Cabeçalho do orçamento | 0 |
 | `TC_CotacaoItens` | Itens com o preço congelado na data da cotação | 0 |

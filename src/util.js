@@ -49,11 +49,19 @@
     return String(d.getUTCDate()).padStart(2, '0') + '/' + NOMES_MES[d.getUTCMonth()];
   }
 
-  function formatarMoeda(valor) {
+  /* Valores de catálogo e totais são lidos em milhares: centavos só poluem. A exceção é
+     o hourly rate, que é negociado com centavos — daí o parâmetro. */
+  function formatarMoeda(valor, casas) {
+    var decimais = casas || 0;
     return 'R$ ' + Number(valor || 0).toLocaleString('pt-BR', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      minimumFractionDigits: decimais,
+      maximumFractionDigits: decimais
     });
+  }
+
+  /* Hourly rate: sempre com centavos. */
+  function formatarTaxa(valor) {
+    return formatarMoeda(valor, 2);
   }
 
   /* Horas -> '72 h (3 d)' para leitura rápida no catálogo. */
@@ -90,6 +98,7 @@
     maiorData: maiorData,
     formatarData: formatarData,
     formatarMoeda: formatarMoeda,
+    formatarTaxa: formatarTaxa,
     formatarHoras: formatarHoras,
     escapar: escapar,
     id: id,
