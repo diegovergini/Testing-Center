@@ -591,10 +591,11 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   ];
 
   /* Catálogo de procedimentos por cliente.
-     Cada linha é [nome do procedimento, norma], na ordem da especificação do cliente.
-     Nome, norma e revisão vêm de lá; os demais campos ficam em branco para o engenheiro
-     de testes preencher no cadastro — até isso o procedimento aparece no catálogo
-     marcado como "sem equipamento" e com custo zero.
+     Cada linha é [nome do procedimento, norma] e, quando as horas já foram levantadas,
+     um terceiro elemento { ensaio, setup, report }. Nome, norma e revisão vêm da
+     especificação do cliente; as horas vêm do levantamento do centro de testes. Os
+     demais campos ficam em branco para o engenheiro de testes preencher no cadastro —
+     até isso o procedimento aparece no catálogo marcado como "sem equipamento".
 
      Sobre os campos preenchidos depois:
      revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
@@ -607,13 +608,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      O procedimento não é amarrado a fase de projeto: qualquer teste pode rodar em DV, PV ou VAVE. */
   var PROCEDIMENTOS_GM = [
     ['Resonance Durability', 'Appx C'],
-    ['Physical Durability Aging Cycle', 'Appx C'],
-    ['Substrate Retention Cold Vibration Aging', 'Appx C'],
-    ['Container Thermal Shock Ageing Cycle', 'Appx C'],
-    ['Substrate Thermal Shock', 'Appx C'],
+    ['Physical Durability Aging Cycle', 'Appx C', { ensaio: 300, setup: 20, report: 14 }],
+    ['Substrate Retention Cold Vibration Aging', 'Appx C', { ensaio: 150, setup: 16, report: 16 }],
+    ['Container Thermal Shock Ageing Cycle', 'Appx C', { ensaio: 20, setup: 15, report: 12 }],
+    ['Substrate Thermal Shock', 'Appx C', { ensaio: 700, setup: 11, report: 13 }],
     ['Exhaust backpressure', 'GMW16372'],
-    ['Joint Leakage', 'GMW15261'],
-    ['Hanger Dynamic Stifness', 'GMW14182'],
+    ['Joint Leakage', 'GMW15261', { ensaio: 9, setup: 9, report: 7 }],
+    ['Hanger Dynamic Stifness', 'GMW14182', { ensaio: 5, setup: 9, report: 19 }],
     ['Muffler Thermal Shock', 'GMW14380'],
     ['Hanger Durability', 'GMW14381 / GMW16941'],
     ['Pipe Durability', 'GMW14390 / GMW18104']
@@ -623,25 +624,25 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      com nome e norma idênticos — aqui ela entra uma vez. */
   var PROCEDIMENTOS_STELLANTIS = [
     ['Vibrational Analysis', '90.160 - 9.4'],
-    ['Modal Analysis', '90.160 - 9.5 and 7-A7515'],
+    ['Modal Analysis', '90.160 - 9.5 and 7-A7515', { ensaio: 16, setup: 12, report: 40 }],
     ['Thermal Shock on Engine Bench', '90.160 - 9.6'],
     ['Resonance Durability', '90.160 - 9.7'],
-    ['Converter thermal shock', '90.160 - 9.8'],
-    ['Hot vibration test', '90.160 - 9.9'],
-    ['Cold vibration test', '90.160 - 9.10'],
-    ['Hot fatigue test', '90.160 - 9.11'],
+    ['Converter thermal shock', '90.160 - 9.8', { ensaio: 30, setup: 25, report: 41 }],
+    ['Hot vibration test', '90.160 - 9.9', { ensaio: 82, setup: 21, report: 25 }],
+    ['Cold vibration test', '90.160 - 9.10', { ensaio: 82, setup: 21, report: 24 }],
+    ['Hot fatigue test', '90.160 - 9.11', { ensaio: 232.8, setup: 11, report: 30 }],
     ['Hot Vibration Manifold Joint Durability', '90.160 - 9.12'],
-    ['Joint Integrity', '90238 – 9.14 and 90160 – 9.13'],
-    ['Burner Thermal Shock Test', '90160 - 9.21'],
+    ['Joint Integrity', '90238 – 9.14 and 90160 – 9.13', { ensaio: 81, setup: 18, report: 27 }],
+    ['Burner Thermal Shock Test', '90160 - 9.21', { ensaio: 1089, setup: 24, report: 38 }],
     ['Time to Dry', '90238 - 5.3.1 and 7.T4193'],
     ['NVH', '90238 - 7.3'],
     ['Modal Analysis', '90238 - 7.3.8 and 7-A7515'],
-    ['Flow Restriction (Backpressure)', '90238 - 7.4 and 7.A3758'],
+    ['Flow Restriction (Backpressure)', '90238 - 7.4 and 7.A3758', { ensaio: 8, setup: 11, report: 18 }],
     ['Internal Condensate Evacuation', '90238 - 7.6'],
     ['Load Data Acquisition', '90238 - 9.4'],
     ['Cold Fatigue', '90238 - 9.8'],
     ['Muffler Thermal Shock', '90238 - 9.10'],
-    ['Decomposition Tube Internal Shock', '90.301 - 9.1.1'],
+    ['Decomposition Tube Internal Shock', '90.301 - 9.1.1', { ensaio: 360, setup: 22, report: 40 }],
     ['Mixer resonance test', '90.301 - 9.5'],
     ['Tail Pipe Noise', 'B32 3140'],
     ['Subjective Noise', 'B32 3140'],
@@ -659,11 +660,11 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var PROCEDIMENTOS_FORD = [
     ['Thermal fatigue rig test', 'CETP 09.00-E-306'],
     ['Catalytic Converter & Pipe HeatShield Structural Durability Screening Test', 'CETP 09.00-L-306'],
-    ['Global Catalytic Converter Water Quench', 'CETP 09.02-E-303'],
+    ['Global Catalytic Converter Water Quench', 'CETP 09.02-E-303', { ensaio: 14, setup: 7, report: 19 }],
     ['Global Emission Assembly Mechanical Step Stres', 'CETP 09.02-E-308'],
     ['Manifold Crack test', 'CETP 03.01-L-312'],
     ['High Speed Dyno', 'CETP09.00-E-308'],
-    ['Cold Flow Back-pressure', 'CETP 09.00-L-403'],
+    ['Cold Flow Back-pressure', 'CETP 09.00-L-403', { ensaio: 4.8, setup: 14, report: 11 }],
     ['Tail Pipe Noise', 'CETP 09.00-L-901'],
     ['Condensate Evacuatione', 'CETP 09.00-E-400'],
     ['Life Fatigue Curves (S-N Curve)', 'CETP 09.00-E-309'],
@@ -674,13 +675,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     ['Hot Shaker Test', 'EP 18310.55'],
     ['Thermal Fatigue Test', 'EP 18310.55'],
     ['Crack Test Under Overrun Conditions', 'EP EP18100.20'],
-    ['Fatigue Test', 'TL 82391']
+    ['Fatigue Test', 'TL 82391', { ensaio: 135, setup: 8, report: 15 }]
   ];
 
   var PROCEDIMENTOS_HYUNDAI = [
     ['NVH Test', 'ES 28600-09 6.3'],
-    ['Hanger / Pipe Durability', 'ES 28600-22'],
-    ['Backpressure', 'ES 28600-09 - 6.1'],
+    ['Hanger / Pipe Durability', 'ES 28600-22', { ensaio: 109, setup: 14, report: 12 }],
+    ['Backpressure', 'ES 28600-09 - 6.1', { ensaio: 4, setup: 3, report: 12 }],
     ['Hot & Cold Vibration', 'ES28530-01'],
     ['Radiation Noise Test', 'ES 28600-09 - 6.4'],
     ['Ressonance Frequency Test', 'ES 28600-09 - 6.5'],
@@ -692,28 +693,36 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   /* RSA: os quatro procedimentos vêm da mesma norma, mudando só o ensaio. */
   var PROCEDIMENTOS_RSA = [
     ['Cold Flow Backpresure', '34-05-803/--J'],
-    ['Thermal Shock', '34-05-803/--J'],
-    ['Hot Shaker', '34-05-803/--J'],
+    ['Thermal Shock', '34-05-803/--J', { ensaio: 332, setup: 9, report: 19 }],
+    ['Hot Shaker', '34-05-803/--J', { ensaio: 302, setup: 14, report: 21 }],
     ['Condensate Evacuation', '34-05-803/--J']
   ];
 
   var PROCEDIMENTOS_NISSAN = [
-    ['Thermal Cycle Durability', '20000NDS01'],
+    ['Thermal Cycle Durability', '20000NDS01', { ensaio: 375, setup: 11, report: 6 }],
     ['Bypass rate', '20080NDS01'],
     ['Catalyst Retaining Performance Test', '20080NDS01'],
     ['Mount Bracket Durability', '20000NDS01']
   ];
 
   /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
-     (TP-STL-07), então acrescentar um cliente não renumera os que já existem. */
+     (TP-STL-07), então acrescentar um cliente não renumera os que já existem.
+
+     O terceiro elemento da linha, quando existe, são as horas levantadas pelo centro de
+     testes: { ensaio, setup, report }. Procedimento sem esse elemento ainda está por
+     medir e fica zerado. */
   function procedimentosDe(clienteId, prefixo, linhas) {
     return linhas.map(function (linha, i) {
+      var horas = linha[2] || {};
       return {
         id: prefixo + '-' + String(i + 1).padStart(2, '0'),
         nome: linha[0], norma: linha[1], revisao: 'Rev. 01',
         clientes: [clienteId],
         area: 'AMBOS', equipamentoGrupos: [],
-        horasSetup: 0, horasEnsaio: 0, horasReport: 0, amostras: 1,
+        horasSetup: horas.setup || 0,
+        horasEnsaio: horas.ensaio || 0,
+        horasReport: horas.report || 0,
+        amostras: 1,
         hourlyRate: 0, custoInsumos: 0,
         descricao: ''
       };
@@ -744,7 +753,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
      até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
      aditiva e preserva o que já foi preenchido. */
-  var CATALOGO_VERSAO = 8;
+  var CATALOGO_VERSAO = 9;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
@@ -1575,7 +1584,19 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       estado.testes = estado.testes || [];
       if (versaoSalva < 2) estado.testes = [];
       padraoNovo.testes.forEach(function (t) {
-        if (!util.porId(estado.testes, t.id)) estado.testes.push(t);
+        var salvo = util.porId(estado.testes, t.id);
+        if (!salvo) { estado.testes.push(t); return; }
+
+        /* Levantamento de horas do centro de testes: um procedimento que ainda não tem
+           nenhuma hora medida herda as do catálogo de partida. Se alguém já preencheu
+           qualquer uma das três, o cadastro é dele e fica como está. */
+        var semHoras = !salvo.horasSetup && !salvo.horasEnsaio && !salvo.horasReport;
+        var padraoTemHoras = t.horasSetup || t.horasEnsaio || t.horasReport;
+        if (semHoras && padraoTemHoras) {
+          salvo.horasSetup = t.horasSetup;
+          salvo.horasEnsaio = t.horasEnsaio;
+          salvo.horasReport = t.horasReport;
+        }
       });
 
       /* Os clientes que o novo catálogo exige precisam existir no cadastro salvo,

@@ -608,16 +608,63 @@ test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () =
   assert.match(plano.bloqueadas[0].motivo, /sem equipamento/i);
 });
 
-test('o catálogo de partida traz os campos de custo zerados, prontos para preencher', () => {
+/* Horas levantadas pelo centro de testes: [ensaio, setup, report]. O que não está aqui
+   ainda não foi medido e continua zerado no catálogo de partida. */
+const HORAS_LEVANTADAS = {
+  'TP-GM-02': [300, 20, 14],
+  'TP-GM-03': [150, 16, 16],
+  'TP-GM-04': [20, 15, 12],
+  'TP-GM-05': [700, 11, 13],
+  'TP-GM-07': [9, 9, 7],
+  'TP-GM-08': [5, 9, 19],
+  'TP-STL-02': [16, 12, 40],
+  'TP-STL-05': [30, 25, 41],
+  'TP-STL-06': [82, 21, 25],
+  'TP-STL-07': [82, 21, 24],
+  'TP-STL-08': [232.8, 11, 30],
+  'TP-STL-10': [81, 18, 27],
+  'TP-STL-11': [1089, 24, 38],
+  'TP-STL-15': [8, 11, 18],
+  'TP-STL-20': [360, 22, 40],
+  'TP-FRD-03': [14, 7, 19],
+  'TP-FRD-07': [4.8, 14, 11],
+  'TP-VW-04': [135, 8, 15],
+  'TP-HYU-02': [109, 14, 12],
+  'TP-HYU-03': [4, 3, 12],
+  'TP-RSA-02': [332, 9, 19],
+  'TP-RSA-03': [302, 14, 21],
+  'TP-NIS-01': [375, 11, 6]
+};
+
+test('as horas levantadas estão no catálogo, procedimento a procedimento', () => {
+  const base = require('../src/data.js').seed();
+  Object.keys(HORAS_LEVANTADAS).forEach((id) => {
+    const t = util.porId(base.testes, id);
+    assert.ok(t, id + ' não existe no catálogo');
+    const [ensaio, setup, report] = HORAS_LEVANTADAS[id];
+    assert.equal(t.horasEnsaio, ensaio, id + ' com horas de ensaio erradas');
+    assert.equal(t.horasSetup, setup, id + ' com horas de setup erradas');
+    assert.equal(t.horasReport, report, id + ' com horas de report erradas');
+  });
+});
+
+test('o que ainda não foi medido continua zerado, e o rate não veio na tabela', () => {
   const base = require('../src/data.js').seed();
   base.testes.forEach((t) => {
     ['horasSetup', 'horasEnsaio', 'horasReport', 'hourlyRate', 'custoInsumos'].forEach((campo) => {
       assert.equal(typeof t[campo], 'number', t.id + ' sem o campo ' + campo);
-      assert.equal(t[campo], 0, t.id + ' deveria chegar com ' + campo + ' zerado');
     });
     assert.equal(t.custoBase, undefined, t.id + ' ainda usa custoBase');
-    /* Sem horas nem rate o custo é zero: o catálogo mostra R$ 0 até ser completado. */
+    /* Hourly rate e insumos ainda não foram informados para nenhum procedimento. */
+    assert.equal(t.hourlyRate, 0, t.id + ' com hourly rate inesperado');
+    assert.equal(t.custoInsumos, 0, t.id + ' com custo de insumos inesperado');
+    /* Sem rate, o custo é zero mesmo com as horas preenchidas. */
     assert.equal(scheduler.custoCatalogo(t).custoProcedimento, 0, t.id);
+
+    if (!HORAS_LEVANTADAS[t.id]) {
+      assert.equal(t.horasSetup + t.horasEnsaio + t.horasReport, 0,
+        t.id + ' recebeu horas sem estar na tabela levantada');
+    }
   });
 });
 

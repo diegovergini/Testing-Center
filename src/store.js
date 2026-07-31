@@ -34,7 +34,19 @@
       estado.testes = estado.testes || [];
       if (versaoSalva < 2) estado.testes = [];
       padraoNovo.testes.forEach(function (t) {
-        if (!util.porId(estado.testes, t.id)) estado.testes.push(t);
+        var salvo = util.porId(estado.testes, t.id);
+        if (!salvo) { estado.testes.push(t); return; }
+
+        /* Levantamento de horas do centro de testes: um procedimento que ainda não tem
+           nenhuma hora medida herda as do catálogo de partida. Se alguém já preencheu
+           qualquer uma das três, o cadastro é dele e fica como está. */
+        var semHoras = !salvo.horasSetup && !salvo.horasEnsaio && !salvo.horasReport;
+        var padraoTemHoras = t.horasSetup || t.horasEnsaio || t.horasReport;
+        if (semHoras && padraoTemHoras) {
+          salvo.horasSetup = t.horasSetup;
+          salvo.horasEnsaio = t.horasEnsaio;
+          salvo.horasReport = t.horasReport;
+        }
       });
 
       /* Os clientes que o novo catálogo exige precisam existir no cadastro salvo,

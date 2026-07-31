@@ -252,3 +252,39 @@ test('importar converte custoBase em custo de insumos e herda o hourly rate da b
   assert.equal(t.horasReport, 0);
   assert.equal(t.hourlyRate, 610, 'sem rate gravado, herda o custo-hora da bancada que usava');
 });
+
+/* ---- Levantamento de horas ---- */
+
+test('procedimento sem horas medidas recebe as horas do catálogo de partida', () => {
+  const base = dados.seed();
+  base.catalogoVersao = 8;
+  /* Estado de antes do levantamento: o mesmo catálogo, com as horas ainda zeradas. */
+  base.testes = base.testes.map((t) =>
+    Object.assign({}, t, { horasSetup: 0, horasEnsaio: 0, horasReport: 0 }));
+
+  store.importar(JSON.stringify(base));
+  const t = globalThis.TC.util.porId(store.get().testes, 'TP-STL-11');
+
+  assert.equal(t.horasEnsaio, 1089);
+  assert.equal(t.horasSetup, 24);
+  assert.equal(t.horasReport, 38);
+});
+
+test('horas já preenchidas pelo usuário não são sobrescritas pelo levantamento', () => {
+  const base = dados.seed();
+  base.catalogoVersao = 8;
+  base.testes = base.testes.map((t) =>
+    t.id === 'TP-STL-11'
+      ? Object.assign({}, t, { horasSetup: 1, horasEnsaio: 2, horasReport: 3 })
+      : Object.assign({}, t, { horasSetup: 0, horasEnsaio: 0, horasReport: 0 }));
+
+  store.importar(JSON.stringify(base));
+  const estado = store.get();
+
+  const meu = globalThis.TC.util.porId(estado.testes, 'TP-STL-11');
+  assert.deepEqual([meu.horasEnsaio, meu.horasSetup, meu.horasReport], [2, 1, 3],
+    'o cadastro de quem preencheu tem precedência');
+
+  const outro = globalThis.TC.util.porId(estado.testes, 'TP-GM-05');
+  assert.equal(outro.horasEnsaio, 700, 'os demais recebem o levantamento normalmente');
+});
