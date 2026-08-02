@@ -1,29 +1,38 @@
-/* Painel: leitura gerencial do que foi confirmado — custo por cliente, por fase e por área,
-   carga de bancada e o que está fora do prazo. */
+/* Painel: os indicadores de gestão do centro de testes.
+   Volume do mês, ocupação de cada bancada contra a capacidade dela, qualidade do relatório
+   entregue ao cliente, e para onde vai o dinheiro — por projeto, por cliente e no ano.
+   As contas ficam em src/kpi.js; aqui só se desenha. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
-  function agrupar(alocacoes, chave) {
-    var mapa = {};
-    alocacoes.forEach(function (a) {
-      var k = chave(a) || '—';
-      var g = mapa[k] = mapa[k] || { chave: k, custo: 0, horas: 0, ensaios: 0 };
-      g.custo += a.custo.total;
-      g.horas += a.custo.horasFaturaveis;
-      g.ensaios += 1;
-    });
-    return Object.keys(mapa).map(function (k) { return mapa[k]; })
-      .sort(function (a, b) { return b.custo - a.custo; });
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  function nomeDoMes(mes) {
+    return MESES[Number(mes.slice(5, 7)) - 1] + ' de ' + mes.slice(0, 4);
   }
 
-  function barras(grupos, rotulo) {
-    if (!grupos.length) return ui.vazio('Sem dados', 'Confirme testes no catálogo para alimentar o painel.');
+  function porcento(fracao) {
+    return Math.round((fracao || 0) * 100) + '%';
+  }
+
+  /* Ocupação passa de 100% quando o planejamento reservou mais horas do que a bancada tem
+     no mês — sinal de gargalo, não de erro de conta. */
+  function corDaOcupacao(ocupacao) {
+    if (ocupacao > 1) return 'erro';
+    if (ocupacao >= 0.85) return 'alerta';
+    return '';
+  }
+
+  function tabelaDeCusto(grupos, rotulo, vazio) {
+    if (!grupos.length) return ui.vazio(vazio[0], vazio[1]);
     var maximo = grupos[0].custo || 1;
-    return '<table><thead><tr><th>' + e(rotulo) + '</th><th class="num">Ensaios</th><th class="num">Horas</th>' +
-      '<th style="width:38%">Custo</th></tr></thead><tbody>' +
+    var total = grupos.reduce(function (s, g) { return s + g.custo; }, 0);
+    return '<table><thead><tr><th>' + e(rotulo) + '</th><th class="num">Ensaios</th>' +
+      '<th class="num">Horas</th><th style="width:38%">Custo</th></tr></thead><tbody>' +
       grupos.map(function (g) {
         return '<tr><td class="forte">' + e(g.chave) + '</td>' +
           '<td class="num">' + g.ensaios + '</td>' +
@@ -31,119 +40,176 @@
           '<td><div style="display:flex;align-items:center;gap:9px">' +
             '<span class="barra-trilho" style="flex:1"><span class="barra-valor" style="width:' +
               Math.round(g.custo / maximo * 100) + '%"></span></span>' +
-            '<span class="forte" style="min-width:92px;text-align:right">' + e(util.formatarMoeda(g.custo)) + '</span>' +
+            '<span class="forte" style="min-width:96px;text-align:right">' +
+              e(util.formatarMoeda(g.custo)) + '</span>' +
           '</div></td></tr>';
-      }).join('') + '</tbody></table>';
+      }).join('') +
+      '</tbody><tfoot><tr><td class="forte">Total</td>' +
+        '<td class="num forte">' + grupos.reduce(function (s, g) { return s + g.ensaios; }, 0) + '</td>' +
+        '<td class="num forte">' + Math.round(grupos.reduce(function (s, g) { return s + g.horas; }, 0)) + ' h</td>' +
+        '<td class="num forte">' + e(util.formatarMoeda(total)) + '</td></tr></tfoot></table>';
   }
 
   function render(container, ctx) {
-    var estado = ctx.estado, hoje = ctx.hoje;
-    var todas = ctx.plano.alocacoes.filter(function (a) { return a.demanda.status !== 'CANCELADO'; });
+    var estado = ctx.estado, hoje = ctx.hoje, plano = ctx.plano;
+    var kpi = TC.kpi;
 
-    var custoTotal = 0, horasTotal = 0, atrasadas = 0, semJanela = 0, concluidas = 0, cotacoes = 0;
-    todas.forEach(function (a) {
-      custoTotal += a.custo.total;
-      horasTotal += a.custo.horasBancada;
+    var meses = kpi.mesesComMovimento(estado, plano, hoje);
+    var mes = ctx.filtros.mesPainel && meses.indexOf(ctx.filtros.mesPainel) !== -1
+      ? ctx.filtros.mesPainel : kpi.mesDe(hoje);
+    var ano = kpi.anoDe(mes);
+
+    var realizados = kpi.realizadosNoMes(estado, plano, mes);
+    var ftt = kpi.certoDaPrimeiraVez(estado, plano, mes);
+    var ocupacao = kpi.ocupacaoNoMes(estado, plano, mes);
+    var noAno = kpi.custoPlanejadoNoAno(plano, ano);
+    var porProjeto = kpi.custoPorProjeto(estado, plano);
+    var porCliente = kpi.custoPorCliente(estado, plano);
+
+    var horasMes = ocupacao.reduce(function (s, o) { return s + o.horasPlanejadas; }, 0);
+    var capacidadeMes = ocupacao.reduce(function (s, o) { return s + o.capacidade; }, 0);
+
+    var custoRealizado = realizados.reduce(function (s, a) { return s + a.custo.total; }, 0);
+    var semData = kpi.concluidasSemData(estado);
+
+    /* Riscos continuam no painel: são o que exige decisão nesta semana. */
+    var atrasadas = 0, semJanela = 0;
+    plano.alocacoes.forEach(function (a) {
+      if (a.demanda.status === 'CANCELADO') return;
       if (a.atrasado) atrasadas++;
-      if (a.cotacao) cotacoes++;
-      else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
-      if (a.demanda.status === 'CONCLUIDO') concluidas++;
+      else if (!a.cotacao && !a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
     });
 
-    var proximos = ctx.plano.agendadas.filter(function (a) {
-      var d = util.diffDias(hoje, a.inicio);
-      return d >= 0 && d <= 30;
-    }).sort(function (a, b) { return util.diffDias(b.inicio, a.inicio); });
+    var indicadores =
+      '<div class="indicadores">' +
+        '<div class="indicador"><div class="rotulo">Testes realizados</div><div class="valor">' +
+          realizados.length + '</div><div class="nota">concluídos em ' + e(nomeDoMes(mes)) +
+          ' · ' + e(util.formatarMoeda(custoRealizado)) + '</div></div>' +
 
-    var emCurso = ctx.plano.agendadas.filter(function (a) {
-      return util.diffDias(a.inicio, hoje) >= 0 && util.diffDias(hoje, a.fim) >= 0;
-    });
+        '<div class="indicador"><div class="rotulo">Horas de bancada no mês</div><div class="valor">' +
+          Math.round(horasMes) + ' h</div><div class="nota">de ' + Math.round(capacidadeMes) +
+          ' h disponíveis · ' + porcento(capacidadeMes ? horasMes / capacidadeMes : 0) + ' do parque</div></div>' +
 
-    var alertas = [];
-    todas.forEach(function (a) {
-      if (a.atrasado) {
-        alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ' em ' +
-          (a.peca ? a.peca.nome : '—') + ' termina ' + Math.abs(a.folga) + ' dia(s) após o prazo de ' +
-          util.formatarData(a.demanda.prazo, true) + '.' });
-      }
-      if (!a.cotacao && !a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) {
-        alertas.push({ tipo: 'erro', texto: (a.teste ? a.teste.nome : a.demanda.testeId) + ': ' + a.motivo });
-      }
-    });
-    /* Demanda cuja amostra ainda não chegou e cujo prazo já está próximo: a janela
-       de execução aperta antes mesmo de a peça entrar no laboratório. */
-    ctx.plano.agendadas.forEach(function (a) {
-      var esperaAmostra = util.diffDias(hoje, a.demanda.dataAmostras);
-      if (esperaAmostra > 0 && a.folga !== null && a.folga !== undefined && a.folga >= 0 && a.folga < 7) {
-        alertas.push({ tipo: 'alerta', texto: (a.teste ? a.teste.nome : a.demanda.testeId) +
-          ' (LTI ' + (a.demanda.lti || '—') + '): amostras só em ' +
-          util.formatarData(a.demanda.dataAmostras, true) + ' e apenas ' + a.folga + ' dia(s) de folga no prazo.' });
-      }
-    });
+        '<div class="indicador"><div class="rotulo">Certo da primeira vez</div>' +
+          '<div class="valor"' + (ftt.indice !== null && ftt.indice < 0.8
+            ? ' style="color:var(--alerta)"' : '') + '>' +
+            (ftt.indice === null ? '—' : porcento(ftt.indice)) + '</div>' +
+          '<div class="nota">' + (ftt.aprovados
+            ? ftt.semCorrecao + ' de ' + ftt.aprovados + ' relatórios validados sem correção'
+            : 'nenhum relatório validado no mês') + '</div></div>' +
 
-    var porCliente = agrupar(todas, function (a) {
-      var c = util.porId(estado.clientes, a.demanda.clienteId);
-      return c ? c.nome : a.demanda.clienteId;
-    });
-    /* Cotação fica de fora do agrupamento por fase: ela não representa carga de bancada,
-       é orçamento pendente de confirmação. */
-    var porFase = agrupar(todas.filter(function (a) { return !a.cotacao; }), function (a) {
-      var f = util.porId(TC.data.FASES, a.demanda.tipoLti);
-      return f ? f.nome : a.demanda.tipoLti;
-    });
-    var porArea = agrupar(todas, function (a) {
-      var ar = a.teste ? util.porId(TC.data.AREAS, a.teste.area) : null;
-      return ar ? ar.nome : '—';
-    });
+        '<div class="indicador"><div class="rotulo">Planejado em ' + e(ano) + '</div><div class="valor">' +
+          util.formatarMoeda(noAno.custo) + '</div><div class="nota">' + noAno.ensaios +
+          ' ensaios · ' + Math.round(noAno.horas) + ' h de bancada</div></div>' +
+
+        '<div class="indicador"><div class="rotulo">Riscos de prazo</div>' +
+          '<div class="valor" style="color:' + (atrasadas + semJanela ? 'var(--erro)' : 'var(--ok)') + '">' +
+          (atrasadas + semJanela) + '</div><div class="nota">' + atrasadas +
+          ' fora do prazo · ' + semJanela + ' sem janela</div></div>' +
+      '</div>';
+
+    /* Ocupação por unidade, e não por grupo: é a unidade que tem agenda e manutenção. */
+    var linhasOcupacao = ocupacao.map(function (o) {
+      var largura = Math.min(100, Math.round(o.ocupacao * 100));
+      return '<tr>' +
+        '<td><div class="forte">' + e(o.equipamento.nome) + '</div>' +
+          '<div class="sub">' + e(o.grupo) +
+          (o.equipamento.continuo ? ' · contínuo 24 h' : ' · ' + o.equipamento.horasDia + ' h/dia') +
+          (o.diasParados ? ' · ' + o.diasParados + ' d em manutenção' : '') + '</div></td>' +
+        '<td class="num">' + o.ensaios + '</td>' +
+        '<td class="num">' + Math.round(o.horasPlanejadas) + ' h</td>' +
+        '<td class="num">' + Math.round(o.capacidade) + ' h</td>' +
+        '<td><div style="display:flex;align-items:center;gap:9px">' +
+          '<span class="barra-trilho" style="flex:1"><span class="barra-valor ' +
+            corDaOcupacao(o.ocupacao) + '" style="width:' + largura + '%"></span></span>' +
+          '<span class="forte" style="min-width:52px;text-align:right">' +
+            porcento(o.ocupacao) + '</span>' +
+        '</div></td></tr>';
+    }).join('');
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Painel de validação</h2>' +
-        '<p>Posição consolidada de tudo que foi confirmado: quanto custa, quanto ocupa de bancada e o que ameaça o prazo.</p></div>' +
-      '</div>' +
-      '<div class="indicadores">' +
-        '<div class="indicador"><div class="rotulo">Custo confirmado</div><div class="valor">' + util.formatarMoeda(custoTotal) + '</div>' +
-          '<div class="nota">' + todas.length + ' ensaios · ' + concluidas + ' concluídos</div></div>' +
-        '<div class="indicador"><div class="rotulo">Horas de bancada</div><div class="valor">' + Math.round(horasTotal) + ' h</div>' +
-          '<div class="nota">setup + ensaio</div></div>' +
-        '<div class="indicador"><div class="rotulo">Em execução hoje</div><div class="valor">' + emCurso.length + '</div>' +
-          '<div class="nota">' + proximos.length + ' iniciam em 30 dias</div></div>' +
-        '<div class="indicador"><div class="rotulo">Riscos de prazo</div>' +
-          '<div class="valor" style="color:' + (atrasadas + semJanela ? 'var(--erro)' : 'var(--ok)') + '">' + (atrasadas + semJanela) + '</div>' +
-          '<div class="nota">' + atrasadas + ' fora do prazo · ' + semJanela + ' sem janela</div></div>' +
-        '<div class="indicador"><div class="rotulo">Cotações</div><div class="valor">' + cotacoes + '</div>' +
-          '<div class="nota">orçamento, fora do planejamento</div></div>' +
-      '</div>' +
-      (alertas.length
-        ? '<div class="cartao"><div class="cartao-topo"><h3>Pontos de atenção</h3></div><div class="cartao-corpo">' +
-          alertas.slice(0, 12).map(function (al) {
-            return '<div class="aviso ' + al.tipo + '" style="margin-bottom:8px">' + e(al.texto) + '</div>';
+        '<div><h2>Painel do centro de testes</h2>' +
+        '<p>Volume e ocupação do mês, qualidade do relatório entregue ao cliente e para onde vai ' +
+        'o custo. As horas do mês vêm do planejamento; a conclusão e a validação do relatório ' +
+        'são registradas em cada demanda.</p></div>' +
+        '<div class="acoes"><div class="campo" style="margin:0;min-width:190px">' +
+          '<label for="f-mes">Mês de referência</label><select id="f-mes">' +
+          meses.map(function (m) {
+            return '<option value="' + e(m) + '"' + (m === mes ? ' selected' : '') + '>' +
+              e(nomeDoMes(m)) + '</option>';
           }).join('') +
-          (alertas.length > 12 ? '<div class="sub">+ ' + (alertas.length - 12) + ' outros.</div>' : '') +
-          '</div></div>'
+        '</select></div></div>' +
+      '</div>' +
+      indicadores +
+
+      /* Sem data de conclusão o ensaio não pode ser atribuído a mês nenhum. Em vez de
+         inventar um mês, o painel cobra o preenchimento. */
+      (semData.length
+        ? '<div class="cartao"><div class="cartao-corpo"><div class="aviso alerta" style="margin:0">' +
+          '<strong>' + semData.length + ' teste(s) marcados como concluídos sem data de conclusão.</strong> ' +
+          'Eles não entram em nenhum mês do painel até a data ser informada na demanda: ' +
+          e(semData.slice(0, 6).map(function (d) { return d.lti || d.id; }).join(', ')) +
+          (semData.length > 6 ? ' e mais ' + (semData.length - 6) + '.' : '.') +
+          '</div></div></div>'
         : '') +
+
+      '<div class="cartao">' +
+        '<div class="cartao-topo"><h3>Ocupação por equipamento — ' + e(nomeDoMes(mes)) + '</h3>' +
+          '<span class="sub">horas planejadas contra as horas que a bancada tem no mês</span></div>' +
+        (linhasOcupacao
+          ? '<div class="tabela-rolagem"><table><thead><tr><th>Equipamento</th>' +
+            '<th class="num">Ensaios</th><th class="num">Planejadas</th>' +
+            '<th class="num">Disponíveis</th><th style="width:34%">Ocupação</th>' +
+            '</tr></thead><tbody>' + linhasOcupacao + '</tbody></table></div>'
+          : ui.vazio('Nenhum equipamento cadastrado', 'Cadastre as bancadas para medir a ocupação.')) +
+      '</div>' +
+
+      '<div class="cartao"><div class="cartao-topo"><h3>Custo por projeto</h3>' +
+        '<span class="sub">tudo que está confirmado, cotações à parte</span></div>' +
+        '<div class="tabela-rolagem">' +
+        tabelaDeCusto(porProjeto, 'Projeto',
+          ['Sem custo por projeto', 'Confirme testes no catálogo para alimentar o painel.']) +
+        '</div></div>' +
+
       '<div class="cartao"><div class="cartao-topo"><h3>Custo por cliente</h3></div>' +
-        '<div class="tabela-rolagem">' + barras(porCliente, 'Cliente') + '</div></div>' +
-      '<div class="cartao"><div class="cartao-topo"><h3>Custo por fase de projeto</h3>' +
-        '<span class="sub">cotações não entram, pois ainda não são serviço confirmado</span></div>' +
-        '<div class="tabela-rolagem">' + barras(porFase, 'Fase') + '</div></div>' +
-      '<div class="cartao"><div class="cartao-topo"><h3>Custo por área do sistema</h3></div>' +
-        '<div class="tabela-rolagem">' + barras(porArea, 'Área') + '</div></div>' +
-      '<div class="cartao"><div class="cartao-topo"><h3>Próximos 30 dias</h3>' +
-        '<span class="sub">ensaios que entram em bancada</span></div>' +
-        (proximos.length
-          ? '<div class="tabela-rolagem"><table><thead><tr><th>Início</th><th>Procedimento</th><th>Peça</th>' +
-            '<th>Equipamento</th><th class="num">Duração</th><th class="num">Custo</th></tr></thead><tbody>' +
-            proximos.map(function (a) {
-              return '<tr><td class="forte">' + e(util.formatarData(a.inicio, true)) + '</td>' +
-                '<td>' + e(a.teste.nome) + '</td>' +
-                '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
-                '<td>' + e(a.equipamentos.map(function (eq) { return eq.nome; }).join(' + ')) + '</td>' +
-                '<td class="num">' + (util.diffDias(a.inicio, a.fim) + 1) + ' d</td>' +
+        '<div class="tabela-rolagem">' +
+        tabelaDeCusto(porCliente, 'Cliente',
+          ['Sem custo por cliente', 'Confirme testes no catálogo para alimentar o painel.']) +
+        '</div></div>' +
+
+      '<div class="cartao"><div class="cartao-topo"><h3>Testes concluídos em ' + e(nomeDoMes(mes)) + '</h3>' +
+        '<span class="sub">com a situação do relatório</span></div>' +
+        (realizados.length
+          ? '<div class="tabela-rolagem"><table><thead><tr><th>Conclusão</th><th>Procedimento</th>' +
+            '<th>Projeto</th><th>Cliente</th><th>LTI</th><th>Relatório</th>' +
+            '<th class="num">Custo</th></tr></thead><tbody>' +
+            realizados.map(function (a) {
+              var d = a.demanda;
+              var st = util.porId(TC.data.STATUS_RELATORIO, d.relatorioStatus);
+              var cliente = util.porId(estado.clientes, d.clienteId);
+              var correcoes = Number(d.relatorioCorrecoes) || 0;
+              return '<tr><td class="forte">' +
+                e(util.formatarData(TC.kpi.dataDeConclusao(a), true)) + '</td>' +
+                '<td>' + e(a.teste ? a.teste.nome : d.testeId) + '</td>' +
+                '<td>' + e(d.projeto || '—') + '</td>' +
+                '<td>' + e(cliente ? cliente.nome : d.clienteId) + '</td>' +
+                '<td>' + ui.celulaLti(d) + '</td>' +
+                '<td><span class="etiqueta ' +
+                  (d.relatorioStatus === 'APROVADO' ? (correcoes ? 'alerta' : 'ok') : '') + '">' +
+                  e(st ? st.nome : d.relatorioStatus) + '</span>' +
+                  (correcoes ? ' <span class="sub">' + correcoes + ' correção(ões)</span>' : '') + '</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
-          : ui.vazio('Nada entra em bancada nos próximos 30 dias', '')) +
+          : ui.vazio('Nenhum teste concluído em ' + nomeDoMes(mes),
+              'Marque a demanda como concluída e informe a data para o indicador contar.')) +
       '</div>';
+
+    var seletor = container.querySelector('#f-mes');
+    seletor.addEventListener('change', function () {
+      ctx.filtros.mesPainel = seletor.value;
+      ctx.atualizar();
+    });
   }
 
   TC.views = TC.views || {};

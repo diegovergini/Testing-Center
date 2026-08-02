@@ -107,10 +107,13 @@ arquivos['TC_Procedimentos'] = csv(
   }))
 );
 
-/* As quatro últimas colunas são preenchidas pelo motor de planejamento, não pelo usuário. */
+/* DataConclusao, DataRelatorio, RelatorioStatus e RelatorioCorrecoes são o registro da
+   execução real — alimentam os indicadores do painel (testes realizados no mês e certo da
+   primeira vez). As quatro últimas colunas são preenchidas pelo motor de planejamento. */
 arquivos['TC_Demandas'] = csv(
   ['Title', 'ProcedimentoId', 'PecaId', 'ClienteId', 'Projeto', 'PartNumber', 'LTI', 'TipoLTI',
     'Prioridade', 'Quantidade', 'DataAmostras', 'Prazo', 'InicioFixo', 'Observacao', 'Status',
+    'DataConclusao', 'DataRelatorio', 'RelatorioStatus', 'RelatorioCorrecoes',
     'InicioPlanejado', 'FimPlanejado', 'EquipamentosAlocados', 'MotivoBloqueio'],
   (estado.demandas || []).map((d) => ({
     Title: d.id, ProcedimentoId: d.testeId, PecaId: d.pecaId, ClienteId: d.clienteId,
@@ -118,6 +121,9 @@ arquivos['TC_Demandas'] = csv(
     TipoLTI: d.tipoLti, Prioridade: d.prioridade, Quantidade: d.quantidade,
     DataAmostras: d.dataAmostras || '', Prazo: d.prazo || '', InicioFixo: d.inicioFixo || '',
     Observacao: d.observacao || '', Status: d.status,
+    DataConclusao: d.dataConclusao || '', DataRelatorio: d.dataRelatorio || '',
+    RelatorioStatus: d.relatorioStatus || 'NAO_ENVIADO',
+    RelatorioCorrecoes: d.relatorioCorrecoes || 0,
     InicioPlanejado: '', FimPlanejado: '', EquipamentosAlocados: '', MotivoBloqueio: ''
   }))
 );

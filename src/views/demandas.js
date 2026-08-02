@@ -113,6 +113,21 @@
         '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
         '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
       '</div>' +
+      /* Execução real e ciclo do relatório: é daqui que saem os indicadores do painel
+         (testes realizados no mês e certo da primeira vez). */
+      '<p class="sub" style="margin:14px 0 8px"><strong>Execução e relatório</strong> — ' +
+        'alimenta os indicadores do painel. Preencha conforme o ensaio anda.</p>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Data de conclusão do ensaio</label>' +
+          '<input type="date" name="dataConclusao" value="' + e(demanda.dataConclusao || '') + '"></div>' +
+        '<div class="campo"><label>Situação do relatório</label><select name="relatorioStatus">' +
+          ui.opcoes(TC.data.STATUS_RELATORIO, demanda.relatorioStatus || 'NAO_ENVIADO') + '</select></div>' +
+        '<div class="campo"><label>Rodadas de correção</label>' +
+          '<input type="number" min="0" name="relatorioCorrecoes" value="' +
+          e(String(demanda.relatorioCorrecoes || 0)) + '"></div>' +
+        '<div class="campo"><label>Data de validação pelo cliente</label>' +
+          '<input type="date" name="dataRelatorio" value="' + e(demanda.dataRelatorio || '') + '"></div>' +
+      '</div>' +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
 
     var janela = ui.modal({
@@ -133,6 +148,9 @@
           projeto: v.projeto.trim(), partNumber: v.partNumber.trim(),
           prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
           dataAmostras: v.dataAmostras, prazo: v.prazo,
+          dataConclusao: v.dataConclusao, dataRelatorio: v.dataRelatorio,
+          relatorioStatus: v.relatorioStatus,
+          relatorioCorrecoes: Math.max(0, Number(v.relatorioCorrecoes) || 0),
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');

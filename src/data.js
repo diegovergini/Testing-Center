@@ -48,6 +48,15 @@
     permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
   };
 
+  /* Ciclo do relatório de ensaio. O indicador "certo da primeira vez" mede quantos
+     relatórios o cliente validou sem pedir nenhuma correção. */
+  var STATUS_RELATORIO = [
+    { id: 'NAO_ENVIADO', nome: 'Não enviado' },
+    { id: 'EM_ANALISE', nome: 'Em análise do cliente' },
+    { id: 'CORRECAO', nome: 'Em correção' },
+    { id: 'APROVADO', nome: 'Aprovado pelo cliente' }
+  ];
+
   var STATUS_COTACAO = [
     { id: 'ABERTA', nome: 'Em elaboração' },
     { id: 'ENVIADA', nome: 'Enviada' },
@@ -279,6 +288,7 @@
     PERFIS: PERFIS,
     PERMISSOES_PADRAO: PERMISSOES_PADRAO,
     STATUS_COTACAO: STATUS_COTACAO,
+    STATUS_RELATORIO: STATUS_RELATORIO,
     FASES: FASES,
     FASES_ANTIGAS: FASES_ANTIGAS,
     TIPOS_LTI: TIPOS_LTI,

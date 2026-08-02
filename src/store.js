@@ -126,6 +126,12 @@
       if (typeof d.lti !== 'string') d.lti = '';
       if (typeof d.projeto !== 'string') d.projeto = '';
       if (typeof d.partNumber !== 'string') d.partNumber = '';
+      /* Execução real e ciclo do relatório: alimentam os indicadores do painel
+         (testes realizados no mês e certo da primeira vez). */
+      if (typeof d.dataConclusao !== 'string') d.dataConclusao = '';
+      if (typeof d.dataRelatorio !== 'string') d.dataRelatorio = '';
+      if (typeof d.relatorioStatus !== 'string') d.relatorioStatus = 'NAO_ENVIADO';
+      if (typeof d.relatorioCorrecoes !== 'number') d.relatorioCorrecoes = 0;
       if (!d.dataAmostras) d.dataAmostras = dataAntigaDaPeca[d.pecaId] || util.hoje();
       delete d.fase;
     });
@@ -227,6 +233,11 @@
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
         dataAmostras: dados.dataAmostras || util.hoje(),
+        /* Preenchidos depois, conforme o ensaio roda e o relatório vai ao cliente. */
+        dataConclusao: '',
+        dataRelatorio: '',
+        relatorioStatus: 'NAO_ENVIADO',
+        relatorioCorrecoes: 0,
         prazo: dados.prazo || '',
         inicioFixo: dados.inicioFixo || '',
         observacao: dados.observacao || '',

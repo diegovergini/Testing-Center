@@ -237,6 +237,44 @@ pela metade:
 * **Confirmar necessidade de teste** — todos os campos, exceto *forçar início*, que existe
   justamente para o caso excepcional de fixar uma data na mão.
 
+## Painel do centro de testes
+
+Os indicadores de gestão, com um seletor de mês de referência. As contas ficam em
+`src/kpi.js` — módulo puro, coberto por testes, para nenhuma definição de KPI ficar
+escondida dentro de HTML.
+
+| Indicador | Como é medido |
+|---|---|
+| **Testes realizados no mês** | Demandas concluídas cuja **data de conclusão** cai no mês |
+| **Horas de bancada no mês** | Horas que o planejamento reservou no mês, contra a capacidade do parque |
+| **Certo da primeira vez** | Relatórios validados pelo cliente no mês **sem nenhuma rodada de correção** |
+| **Planejado no ano** | Custo e horas dos ensaios cuja janela começa no ano |
+| **Ocupação por equipamento** | Por unidade: horas planejadas ÷ horas que aquela bancada tem no mês |
+| **Custo por projeto / por cliente** | Todo serviço confirmado, executado ou não; cotação fica de fora |
+
+Três decisões que valem registro:
+
+**Ensaio que atravessa o mês é rateado.** Um ensaio de 47 dias no Burner não joga 1.113 h
+em um mês só: as horas são distribuídas pelos dias de operação que caem em cada mês.
+
+**Ensaio que ocupa duas bancadas conta nas duas.** É o que acontece de fato com a agenda
+delas — as duas ficam presas o mesmo tempo.
+
+**Capacidade desconta manutenção.** As horas disponíveis do mês são dias em que a bancada
+opera, menos as paradas programadas, vezes o turno, vezes as posições em paralelo.
+
+O painel soma o que já foi executado: demanda concluída sai do planejamento (não disputa
+mais bancada), mas continua no custo por projeto e por cliente.
+
+### O que precisa ser preenchido na demanda
+
+O painel depende de quatro campos que o time registra conforme o ensaio anda, no formulário
+da demanda: **data de conclusão do ensaio**, **situação do relatório** (não enviado, em
+análise, em correção, aprovado), **rodadas de correção** e **data de validação pelo cliente**.
+
+Sem data de conclusão, um teste marcado como concluído não pode ser atribuído a mês nenhum.
+O painel não chuta: mostra um aviso com as LTIs pendentes de preenchimento.
+
 ## Modelo de custo
 
 ```

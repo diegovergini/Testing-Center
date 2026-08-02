@@ -88,6 +88,11 @@ $listas = [ordered]@{
     @{ Nome = 'InicioFixo';     Tipo = 'DateTime' },
     @{ Nome = 'Observacao';     Tipo = 'Note' },
     @{ Nome = 'Status';         Tipo = 'Choice'; Opcoes = @('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA') },
+    # Registro da execução real: alimenta os indicadores do painel.
+    @{ Nome = 'DataConclusao';       Tipo = 'DateTime' },
+    @{ Nome = 'DataRelatorio';       Tipo = 'DateTime' },
+    @{ Nome = 'RelatorioStatus';     Tipo = 'Choice'; Opcoes = @('NAO_ENVIADO', 'EM_ANALISE', 'CORRECAO', 'APROVADO') },
+    @{ Nome = 'RelatorioCorrecoes';  Tipo = 'Number' },
     # Preenchidas pelo motor de planejamento, não pelo usuário.
     @{ Nome = 'InicioPlanejado';      Tipo = 'DateTime' },
     @{ Nome = 'FimPlanejado';         Tipo = 'DateTime' },
