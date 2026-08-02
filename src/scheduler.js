@@ -269,7 +269,10 @@
     return custoDemanda(null, teste, null, null, hourlyRate);
   }
 
-  var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
+  /* Estados em que a demanda ainda disputa bancada. A lista vem do fluxo, para não haver
+     duas verdades sobre o que está ativo. */
+  var fluxo = TC.fluxo || (typeof require !== 'undefined' ? require('./fluxo.js') : null);
+  var ATIVAS = fluxo.estadosAtivos();
 
   /* Uma LTI de cotação é orçamento: calcula custo e duração, mas não reserva bancada. */
   function ehCotacao(demanda) {

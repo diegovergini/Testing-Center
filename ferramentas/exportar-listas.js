@@ -113,7 +113,7 @@ arquivos['TC_Procedimentos'] = csv(
 arquivos['TC_Demandas'] = csv(
   ['Title', 'ProcedimentoId', 'PecaId', 'ClienteId', 'Projeto', 'PartNumber', 'LTI', 'TipoLTI',
     'Prioridade', 'Quantidade', 'DataAmostras', 'Prazo', 'InicioFixo', 'Observacao', 'Status',
-    'DataConclusao', 'DataRelatorio', 'RelatorioStatus', 'RelatorioCorrecoes',
+    'DataConclusao', 'DataRelatorio', 'RelatorioCorrecoes',
     'InicioPlanejado', 'FimPlanejado', 'EquipamentosAlocados', 'MotivoBloqueio'],
   (estado.demandas || []).map((d) => ({
     Title: d.id, ProcedimentoId: d.testeId, PecaId: d.pecaId, ClienteId: d.clienteId,
@@ -122,7 +122,6 @@ arquivos['TC_Demandas'] = csv(
     DataAmostras: d.dataAmostras || '', Prazo: d.prazo || '', InicioFixo: d.inicioFixo || '',
     Observacao: d.observacao || '', Status: d.status,
     DataConclusao: d.dataConclusao || '', DataRelatorio: d.dataRelatorio || '',
-    RelatorioStatus: d.relatorioStatus || 'NAO_ENVIADO',
     RelatorioCorrecoes: d.relatorioCorrecoes || 0,
     InicioPlanejado: '', FimPlanejado: '', EquipamentosAlocados: '', MotivoBloqueio: ''
   }))
@@ -158,6 +157,23 @@ arquivos['TC_CotacaoItens'] = csv(
     'HourlyRate', 'CustoHoras', 'CustoInsumos', 'CustoUnitario', 'Amostras', 'Total'],
   itens
 );
+
+/* Histórico dos fluxos: uma linha por passagem, de demanda e de cotação. É o rastro de
+   quem moveu o quê e quando. */
+const historico = [];
+[['Demanda', estado.demandas || []], ['Cotacao', estado.cotacoes || []]].forEach(([tipo, lista]) => {
+  lista.forEach((registro) => {
+    (registro.historico || []).forEach((h, i) => {
+      const chave = registro.numero || registro.id;
+      historico.push({
+        Title: chave + ' #' + (i + 1), Tipo: tipo, Registro: chave,
+        Em: h.em, De: h.de, Para: h.para, Perfil: h.perfil || '', Nota: h.nota || ''
+      });
+    });
+  });
+});
+arquivos['TC_Historico'] = csv(
+  ['Title', 'Tipo', 'Registro', 'Em', 'De', 'Para', 'Perfil', 'Nota'], historico);
 
 fs.mkdirSync(destino, { recursive: true });
 console.log('Origem dos dados: ' + origem);

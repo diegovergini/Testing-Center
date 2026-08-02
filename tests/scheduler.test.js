@@ -38,7 +38,7 @@ function demanda(extra) {
   return Object.assign({
     id: 'DM-01', testeId: 'TP-01', pecaId: 'PC-01', clienteId: 'CLI-01',
     lti: 'LTI-0001', tipoLti: 'DV', dataAmostras: SEGUNDA,
-    prioridade: 'MEDIA', quantidade: 1, prazo: '', inicioFixo: '', status: 'PENDENTE',
+    prioridade: 'MEDIA', quantidade: 1, prazo: '', inicioFixo: '', status: 'SOLICITADA',
     criadoEm: SEGUNDA
   }, extra);
 }
@@ -213,8 +213,8 @@ test('demandas concluídas e canceladas não ocupam bancada', () => {
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 72 })],
     demandas: [
-      demanda({ id: 'FEITA', status: 'CONCLUIDO' }),
-      demanda({ id: 'CANCELADA', status: 'CANCELADO' }),
+      demanda({ id: 'FEITA', status: 'CONCLUIDA' }),
+      demanda({ id: 'CANCELADA', status: 'CANCELADA' }),
       demanda({ id: 'ATIVA' })
     ]
   });

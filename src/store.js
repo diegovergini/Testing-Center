@@ -4,8 +4,10 @@
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util;
-  /* No navegador o scheduler já foi carregado; no Node (testes) resolvemos na hora. */
+  /* No navegador estes módulos já foram carregados; no Node (testes) resolvemos na hora. */
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
+  if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
+  if (!TC.permissoes && typeof require !== 'undefined') require('./permissoes.js');
 
   var CHAVE = 'testing-center/v1';
   var estado = null;
@@ -116,6 +118,29 @@
       delete t.custoBase;
     });
 
+    /* Status antigo (PENDENTE/EM_ANDAMENTO/CONCLUIDO/CANCELADO) mais o campo separado de
+       situação do relatório viraram um fluxo só. A conversão junta os dois: quem estava
+       concluído com relatório aprovado passa direto a validado. */
+    var STATUS_ANTIGO = {
+      PENDENTE: 'SOLICITADA', EM_ANDAMENTO: 'EM_EXECUCAO',
+      CONCLUIDO: 'CONCLUIDA', CANCELADO: 'CANCELADA'
+    };
+    var RELATORIO_ANTIGO = {
+      EM_ANALISE: 'RELATORIO_ENVIADO', CORRECAO: 'EM_CORRECAO', APROVADO: 'VALIDADA'
+    };
+    var estadosDemanda = TC.fluxo.estados('demanda').map(function (e) { return e.id; });
+    (estado.demandas || []).forEach(function (d) {
+      if (estadosDemanda.indexOf(d.status) === -1) {
+        d.status = STATUS_ANTIGO[d.status] || 'SOLICITADA';
+        /* Só quem já terminou o ensaio pode ter avançado no ciclo do relatório. */
+        if (d.status === 'CONCLUIDA' && RELATORIO_ANTIGO[d.relatorioStatus]) {
+          d.status = RELATORIO_ANTIGO[d.relatorioStatus];
+        }
+      }
+      delete d.relatorioStatus;
+      if (!Array.isArray(d.historico)) d.historico = [];
+    });
+
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
        de serviço, e o número fica em branco para ser preenchido. */
     (estado.demandas || []).forEach(function (d) {
@@ -130,7 +155,6 @@
          (testes realizados no mês e certo da primeira vez). */
       if (typeof d.dataConclusao !== 'string') d.dataConclusao = '';
       if (typeof d.dataRelatorio !== 'string') d.dataRelatorio = '';
-      if (typeof d.relatorioStatus !== 'string') d.relatorioStatus = 'NAO_ENVIADO';
       if (typeof d.relatorioCorrecoes !== 'number') d.relatorioCorrecoes = 0;
       if (!d.dataAmostras) d.dataAmostras = dataAntigaDaPeca[d.pecaId] || util.hoje();
       delete d.fase;
@@ -138,7 +162,15 @@
 
     /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
     if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
+    var COTACAO_ANTIGA = {
+      ABERTA: 'RASCUNHO', ENVIADA: 'SOLICITADA', APROVADA: 'APROVADA', RECUSADA: 'RECUSADA'
+    };
+    var estadosCotacao = TC.fluxo.estados('cotacao').map(function (e) { return e.id; });
     estado.cotacoes.forEach(function (c) {
+      if (estadosCotacao.indexOf(c.status) === -1) {
+        c.status = COTACAO_ANTIGA[c.status] || 'RASCUNHO';
+      }
+      if (!Array.isArray(c.historico)) c.historico = [];
       if (typeof c.lti !== 'string') c.lti = '';
       if (typeof c.previsaoExecucao !== 'string') c.previsaoExecucao = '';
       /* A peça de referência saiu; o item passou a guardar a quantidade em "amostras".
@@ -202,6 +234,30 @@
     }
   }
 
+  /* Aplica uma passagem de estado, gravando o histórico. Os campos que a transição exige
+     (data de conclusão, data de validação) são gravados junto, na mesma operação — não
+     adianta mudar o estado e deixar a data para depois. */
+  function mover(tipo, registro, para, dados) {
+    var valores = dados || {};
+    var perfil = TC.permissoes.perfilAtual(estado);
+    var conferido = TC.fluxo.validar(tipo, registro, para, perfil, valores);
+    if (!conferido.ok) return conferido;
+
+    var de = registro.status;
+    ['dataConclusao', 'dataRelatorio'].forEach(function (campo) {
+      if (valores[campo]) registro[campo] = valores[campo];
+    });
+    if (conferido.transicao.contaCorrecao) {
+      registro.relatorioCorrecoes = (Number(registro.relatorioCorrecoes) || 0) + 1;
+    }
+    registro.status = para;
+    registro.historico = registro.historico || [];
+    registro.historico.push(
+      TC.fluxo.registroDeHistorico(de, para, perfil, valores.nota));
+    commit();
+    return { ok: true, registro: registro };
+  }
+
   function notificar() {
     ouvintes.forEach(function (fn) { fn(estado); });
   }
@@ -236,12 +292,12 @@
         /* Preenchidos depois, conforme o ensaio roda e o relatório vai ao cliente. */
         dataConclusao: '',
         dataRelatorio: '',
-        relatorioStatus: 'NAO_ENVIADO',
         relatorioCorrecoes: 0,
+        historico: [],
         prazo: dados.prazo || '',
         inicioFixo: dados.inicioFixo || '',
         observacao: dados.observacao || '',
-        status: 'PENDENTE',
+        status: TC.fluxo.FLUXOS.demanda.inicial,
         criadoEm: util.hoje()
       };
       estado.demandas.push(demanda);
@@ -402,7 +458,8 @@
       cotacao.id = util.id('COT');
       cotacao.numero = cotacao.numero || store.proximoNumeroCotacao();
       cotacao.criadoEm = cotacao.criadoEm || util.hoje();
-      cotacao.status = cotacao.status || 'ABERTA';
+      cotacao.status = cotacao.status || TC.fluxo.FLUXOS.cotacao.inicial;
+      cotacao.historico = cotacao.historico || [];
       estado.cotacoes.push(cotacao);
       commit();
       return cotacao;
@@ -410,6 +467,21 @@
     removerCotacao: function (id) {
       estado.cotacoes = estado.cotacoes.filter(function (c) { return c.id !== id; });
       commit();
+    },
+
+    /* ---- Fluxos ----
+       Uma passagem de estado só acontece por aqui: o fluxo valida perfil, transição e
+       campos exigidos, e cada passagem deixa uma linha no histórico do registro.
+       Devolve { ok: true, registro } ou { ok: false, motivo }. */
+    moverDemanda: function (id, para, dados) {
+      var demanda = util.porId(estado.demandas, id);
+      if (!demanda) return { ok: false, motivo: 'Demanda não encontrada.' };
+      return mover('demanda', demanda, para, dados);
+    },
+    moverCotacao: function (id, para, dados) {
+      var cotacao = util.porId(estado.cotacoes, id);
+      if (!cotacao) return { ok: false, motivo: 'Cotação não encontrada.' };
+      return mover('cotacao', cotacao, para, dados);
     },
 
     /* ---- Backup ---- */

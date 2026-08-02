@@ -32,9 +32,9 @@ function demanda(extra) {
   return Object.assign({
     id: 'DM-01', testeId: 'TP-01', pecaId: 'PC-01', clienteId: 'CLI-01',
     projeto: 'Projeto A', lti: 'LTI-1', tipoLti: 'DV', dataAmostras: SEGUNDA,
-    prioridade: 'MEDIA', quantidade: 1, prazo: '', inicioFixo: '', status: 'PENDENTE',
+    prioridade: 'MEDIA', quantidade: 1, prazo: '', inicioFixo: '', status: 'SOLICITADA',
     criadoEm: SEGUNDA, dataConclusao: '', dataRelatorio: '',
-    relatorioStatus: 'NAO_ENVIADO', relatorioCorrecoes: 0
+    relatorioCorrecoes: 0, historico: []
   }, extra);
 }
 
@@ -150,7 +150,7 @@ test('demanda concluída não some do custo, mesmo fora do planejamento', () => 
   const s = estado({
     demandas: [
       demanda({ id: 'A', projeto: 'Onix' }),
-      demanda({ id: 'B', projeto: 'Onix', status: 'CONCLUIDO', dataConclusao: '2026-07-10' })
+      demanda({ id: 'B', projeto: 'Onix', status: 'CONCLUIDA', dataConclusao: '2026-07-10' })
     ]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
@@ -165,9 +165,9 @@ test('demanda concluída não some do custo, mesmo fora do planejamento', () => 
 test('só conta como realizado no mês o que foi concluído nele', () => {
   const s = estado({
     demandas: [
-      demanda({ id: 'A', status: 'CONCLUIDO', dataConclusao: '2026-07-15' }),
-      demanda({ id: 'B', status: 'CONCLUIDO', dataConclusao: '2026-08-02' }),
-      demanda({ id: 'C', status: 'EM_ANDAMENTO', dataConclusao: '2026-07-20' })
+      demanda({ id: 'A', status: 'CONCLUIDA', dataConclusao: '2026-07-15' }),
+      demanda({ id: 'B', status: 'CONCLUIDA', dataConclusao: '2026-08-02' }),
+      demanda({ id: 'C', status: 'EM_EXECUCAO', dataConclusao: '2026-07-20' })
     ]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
@@ -180,8 +180,8 @@ test('só conta como realizado no mês o que foi concluído nele', () => {
 test('concluído sem data de conclusão não é atribuído a mês nenhum, e o painel avisa', () => {
   const s = estado({
     demandas: [
-      demanda({ id: 'A', status: 'CONCLUIDO', dataConclusao: '' }),
-      demanda({ id: 'B', status: 'CONCLUIDO', dataConclusao: '2026-07-09' })
+      demanda({ id: 'A', status: 'CONCLUIDA', dataConclusao: '' }),
+      demanda({ id: 'B', status: 'CONCLUIDA', dataConclusao: '2026-07-09' })
     ]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
@@ -193,7 +193,7 @@ test('concluído sem data de conclusão não é atribuído a mês nenhum, e o pa
 });
 
 test('demanda ainda ativa usa o fim planejado como referência de conclusão', () => {
-  const s = estado({ demandas: [demanda({ status: 'EM_ANDAMENTO' })] });
+  const s = estado({ demandas: [demanda({ status: 'EM_EXECUCAO' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(kpi.dataDeConclusao(plano.alocacoes[0]), plano.alocacoes[0].fim);
 });
@@ -203,14 +203,14 @@ test('demanda ainda ativa usa o fim planejado como referência de conclusão', (
 test('certo da primeira vez é o relatório aprovado sem nenhuma correção', () => {
   const s = estado({
     demandas: [
-      demanda({ id: 'A', status: 'CONCLUIDO', dataConclusao: '2026-07-10',
-        relatorioStatus: 'APROVADO', dataRelatorio: '2026-07-20', relatorioCorrecoes: 0 }),
-      demanda({ id: 'B', status: 'CONCLUIDO', dataConclusao: '2026-07-11',
-        relatorioStatus: 'APROVADO', dataRelatorio: '2026-07-25', relatorioCorrecoes: 2 }),
-      demanda({ id: 'C', status: 'CONCLUIDO', dataConclusao: '2026-07-12',
-        relatorioStatus: 'APROVADO', dataRelatorio: '2026-07-28', relatorioCorrecoes: 0 }),
-      demanda({ id: 'D', status: 'CONCLUIDO', dataConclusao: '2026-07-13',
-        relatorioStatus: 'EM_ANALISE', dataRelatorio: '' })
+      demanda({ id: 'A', status: 'VALIDADA', dataConclusao: '2026-07-10',
+        dataRelatorio: '2026-07-20', relatorioCorrecoes: 0 }),
+      demanda({ id: 'B', status: 'VALIDADA', dataConclusao: '2026-07-11',
+        dataRelatorio: '2026-07-25', relatorioCorrecoes: 2 }),
+      demanda({ id: 'C', status: 'VALIDADA', dataConclusao: '2026-07-12',
+        dataRelatorio: '2026-07-28', relatorioCorrecoes: 0 }),
+      demanda({ id: 'D', status: 'CONCLUIDA', dataConclusao: '2026-07-13',
+        status: 'RELATORIO_ENVIADO', dataRelatorio: '' })
     ]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
@@ -224,8 +224,8 @@ test('certo da primeira vez é o relatório aprovado sem nenhuma correção', ()
 
 test('o índice conta pelo mês da validação, não pelo da execução', () => {
   const s = estado({
-    demandas: [demanda({ status: 'CONCLUIDO', dataConclusao: '2026-07-10',
-      relatorioStatus: 'APROVADO', dataRelatorio: '2026-08-05', relatorioCorrecoes: 0 })]
+    demandas: [demanda({ status: 'VALIDADA', dataConclusao: '2026-07-10',
+      dataRelatorio: '2026-08-05', relatorioCorrecoes: 0 })]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
 
@@ -271,7 +271,7 @@ test('cotação e demanda cancelada ficam fora dos cortes de custo', () => {
     demandas: [
       demanda({ id: 'A', projeto: 'Onix' }),
       demanda({ id: 'B', projeto: 'Onix', tipoLti: 'COTACAO' }),
-      demanda({ id: 'C', projeto: 'Onix', status: 'CANCELADO' })
+      demanda({ id: 'C', projeto: 'Onix', status: 'CANCELADA' })
     ]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
@@ -307,8 +307,8 @@ test('custo planejado no ano soma os ensaios que começam nele', () => {
 
 test('o seletor de mês lista o mês corrente e os meses com movimento', () => {
   const s = estado({
-    demandas: [demanda({ status: 'CONCLUIDO', dataConclusao: '2026-03-10',
-      dataRelatorio: '2026-04-02', relatorioStatus: 'APROVADO' })]
+    demandas: [demanda({ status: 'CONCLUIDA', dataConclusao: '2026-03-10',
+      dataRelatorio: '2026-04-02', status: 'VALIDADA' })]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
   const meses = kpi.mesesComMovimento(s, plano, '2026-07-06');

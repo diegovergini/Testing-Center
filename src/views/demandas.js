@@ -48,7 +48,8 @@
     return texto + '<div style="margin-top:3px">' + etiqueta + '</div>';
   }
 
-  function linha(a, podeEditar) {
+  function linha(a, podeEditar, perfil) {
+    var transicoes = TC.fluxo.transicoesDe('demanda', a.demanda.status, perfil);
     var d = a.demanda;
     return '<tr data-demanda="' + e(d.id) + '">' +
       '<td>' +
@@ -72,12 +73,22 @@
       '<td>' + celulaJanela(a) + '</td>' +
       '<td>' + celulaPrazo(a) + '</td>' +
       '<td class="num forte">' + e(util.formatarMoeda(a.custo.total)) + '</td>' +
-      '<td>' + ui.etiquetaStatus(d.status) + '</td>' +
+      '<td>' + ui.etiquetaStatus(d.status) +
+        (d.relatorioCorrecoes
+          ? '<div class="sub">' + d.relatorioCorrecoes + ' correção(ões)</div>' : '') + '</td>' +
+      /* Só aparecem os botões que o fluxo autoriza para o perfil em uso — a regra de quem
+         faz o quê está em src/fluxo.js, não espalhada pela tela. */
       '<td class="num" style="white-space:nowrap">' +
+        transicoes.map(function (t) {
+          return '<button class="botao pequeno ' +
+            (t.para === 'CANCELADA' ? 'perigo' : 'primario') +
+            ' mover" data-para="' + e(t.para) + '" title="' + e(t.descricao || '') + '">' +
+            e(t.rotulo) + '</button> ';
+        }).join('') +
         (podeEditar
           ? '<button class="botao pequeno editar">Editar</button> ' +
             '<button class="botao pequeno perigo excluir" title="Remover demanda">✕</button>'
-          : '<span class="sub">—</span>') +
+          : (transicoes.length ? '' : '<span class="sub">—</span>')) +
       '</td>' +
     '</tr>';
   }
@@ -85,8 +96,6 @@
   function abrirEdicao(ctx, demanda, alocacao) {
     var estado = ctx.estado;
     var teste = util.porId(estado.testes, demanda.testeId);
-    var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
-
     var corpo =
       '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
         (teste && teste.revisao ? ' · ' + e(teste.revisao) : '') +
@@ -109,25 +118,18 @@
           '<input type="date" name="dataAmostras" value="' + e(demanda.dataAmostras || '') + '"></div>' +
         '<div class="campo"><label>Prazo para finalização</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
-        '<div class="campo"><label>Status</label><select name="status">' + ui.opcoes(statusLista, demanda.status) + '</select></div>' +
         '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
         '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
       '</div>' +
-      /* Execução real e ciclo do relatório: é daqui que saem os indicadores do painel
-         (testes realizados no mês e certo da primeira vez). */
-      '<p class="sub" style="margin:14px 0 8px"><strong>Execução e relatório</strong> — ' +
-        'alimenta os indicadores do painel. Preencha conforme o ensaio anda.</p>' +
-      '<div class="grade-campos">' +
-        '<div class="campo"><label>Data de conclusão do ensaio</label>' +
-          '<input type="date" name="dataConclusao" value="' + e(demanda.dataConclusao || '') + '"></div>' +
-        '<div class="campo"><label>Situação do relatório</label><select name="relatorioStatus">' +
-          ui.opcoes(TC.data.STATUS_RELATORIO, demanda.relatorioStatus || 'NAO_ENVIADO') + '</select></div>' +
-        '<div class="campo"><label>Rodadas de correção</label>' +
-          '<input type="number" min="0" name="relatorioCorrecoes" value="' +
-          e(String(demanda.relatorioCorrecoes || 0)) + '"></div>' +
-        '<div class="campo"><label>Data de validação pelo cliente</label>' +
-          '<input type="date" name="dataRelatorio" value="' + e(demanda.dataRelatorio || '') + '"></div>' +
-      '</div>' +
+      /* A situação não se edita à mão: ela muda pelos botões do fluxo, que registram
+         quem fez a passagem e quando. As datas ficam visíveis para conferência. */
+      '<p class="sub" style="margin:14px 0 8px"><strong>Situação: ' +
+        e(TC.fluxo.nomeDoEstado('demanda', demanda.status)) + '</strong>' +
+        (demanda.dataConclusao ? ' · ensaio concluído em ' + e(util.formatarData(demanda.dataConclusao, true)) : '') +
+        (demanda.dataRelatorio ? ' · relatório validado em ' + e(util.formatarData(demanda.dataRelatorio, true)) : '') +
+        (demanda.relatorioCorrecoes ? ' · ' + demanda.relatorioCorrecoes + ' correção(ões)' : '') +
+        '<br>A situação muda pelos botões de fluxo na lista de demandas.</p>' +
+      ui.historico('demanda', demanda) +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
 
     var janela = ui.modal({
@@ -146,11 +148,8 @@
         TC.store.atualizarDemanda(demanda.id, {
           clienteId: v.clienteId, pecaId: v.pecaId, lti: v.lti.trim(), tipoLti: v.tipoLti,
           projeto: v.projeto.trim(), partNumber: v.partNumber.trim(),
-          prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
+          prioridade: v.prioridade, quantidade: Number(v.quantidade) || 1,
           dataAmostras: v.dataAmostras, prazo: v.prazo,
-          dataConclusao: v.dataConclusao, dataRelatorio: v.dataRelatorio,
-          relatorioStatus: v.relatorioStatus,
-          relatorioCorrecoes: Math.max(0, Number(v.relatorioCorrecoes) || 0),
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');
@@ -161,7 +160,10 @@
 
   function render(container, ctx) {
     var estado = ctx.estado, f = ctx.filtros;
-    var todas = ctx.plano.alocacoes;
+    /* Todas as demandas, não só as que o planejamento carrega: a concluída sai do plano
+       (não disputa mais bancada) mas continua no fluxo, com relatório para enviar e
+       validar. Se a lista viesse do plano, a demanda sumiria no meio do caminho. */
+    var todas = TC.kpi.demandasComCusto(estado, ctx.plano);
     var lista = filtrar(todas, f);
 
     var custoTotal = 0, atrasadas = 0, semJanela = 0, cotacoes = 0;
@@ -172,7 +174,8 @@
       else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
     });
 
-    var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
+    var statusLista = TC.fluxo.estados('demanda');
+    var perfilAtual = TC.permissoes.perfilAtual(estado);
 
     container.innerHTML =
       '<div class="cabecalho">' +
@@ -205,7 +208,7 @@
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Procedimento</th><th>Projeto</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
           '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
-          '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar); }).join('') + '</tbody></table></div>'
+          '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar, perfilAtual); }).join('') + '</tbody></table></div>'
           : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
       '</div>';
 
@@ -234,6 +237,16 @@
     container.querySelectorAll('tr[data-demanda]').forEach(function (tr) {
       var alocacao = null;
       lista.forEach(function (a) { if (a.demandaId === tr.dataset.demanda) alocacao = a; });
+      tr.querySelectorAll('.mover').forEach(function (botao) {
+        botao.onclick = function () {
+          ui.moverNoFluxo({
+            tipo: 'demanda', registro: alocacao.demanda, para: botao.dataset.para,
+            aoMover: function (v) {
+              return TC.store.moverDemanda(alocacao.demandaId, botao.dataset.para, v);
+            }
+          });
+        };
+      });
       var editar = tr.querySelector('.editar');
       if (!editar) return;
       editar.onclick = function () { abrirEdicao(ctx, alocacao.demanda, alocacao); };

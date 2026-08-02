@@ -21,7 +21,7 @@ function comDadosAntigos() {
   };
   base.demandas = [
     { id: 'D1', testeId: base.testes[0].id, pecaId: 'PC-ANTIGA', clienteId: 'CLI-VW',
-      fase: 'PPAP', prioridade: 'MEDIA', quantidade: 1, status: 'PENDENTE', criadoEm: '2026-07-06' }
+      fase: 'PPAP', prioridade: 'MEDIA', quantidade: 1, status: 'SOLICITADA', criadoEm: '2026-07-06' }
   ];
   return JSON.stringify(base);
 }
@@ -61,7 +61,7 @@ test('demanda antiga sem data de amostras recebe uma data utilizável', () => {
   const base = dados.seed();
   base.demandas = [
     { id: 'D9', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: 'CLI-VW',
-      tipoLti: 'DV', lti: 'LTI-9', prioridade: 'MEDIA', quantidade: 1, status: 'PENDENTE' }
+      tipoLti: 'DV', lti: 'LTI-9', prioridade: 'MEDIA', quantidade: 1, status: 'SOLICITADA' }
   ];
   store.importar(JSON.stringify(base));
   assert.equal(store.get().demandas[0].dataAmostras, globalThis.TC.util.hoje());
@@ -138,7 +138,7 @@ test('demanda antiga ganha os campos de projeto e part number vazios', () => {
   const base = dados.seed();
   base.demandas = [
     { id: 'D7', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: 'CLI-VW',
-      tipoLti: 'DV', lti: 'LTI-7', prioridade: 'MEDIA', quantidade: 1, status: 'PENDENTE',
+      tipoLti: 'DV', lti: 'LTI-7', prioridade: 'MEDIA', quantidade: 1, status: 'SOLICITADA',
       dataAmostras: '2026-08-01' }
   ];
   store.importar(JSON.stringify(base));
@@ -164,7 +164,7 @@ function comCatalogoAntigo() {
   base.demandas = [{
     id: 'D-VELHA', testeId: 'TP-VELHO', pecaId: 'PC-HOT', clienteId: 'CLI-VW',
     tipoLti: 'DV', lti: 'LTI-1', prioridade: 'MEDIA', quantidade: 1,
-    status: 'PENDENTE', dataAmostras: '2026-08-01'
+    status: 'SOLICITADA', dataAmostras: '2026-08-01'
   }];
   return JSON.stringify(base);
 }
@@ -208,7 +208,7 @@ test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
   base.demandas = [
     { id: 'D-GM', testeId: 'TP-GM-06', pecaId: base.pecas[0].id, clienteId: 'CLI-GM',
       projeto: 'Onix', partNumber: 'PN', lti: 'LTI-1', tipoLti: 'PV', prioridade: 'ALTA',
-      quantidade: 1, status: 'PENDENTE', dataAmostras: '2026-08-01', prazo: '2026-10-01' }
+      quantidade: 1, status: 'SOLICITADA', dataAmostras: '2026-08-01', prazo: '2026-10-01' }
   ];
 
   store.importar(JSON.stringify(base));

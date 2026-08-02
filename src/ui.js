@@ -97,16 +97,76 @@
     return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
   }
 
-  var STATUS = {
-    PENDENTE: ['marca', 'Pendente'],
-    EM_ANDAMENTO: ['alerta', 'Em andamento'],
-    CONCLUIDO: ['ok', 'Concluído'],
-    CANCELADO: ['', 'Cancelado']
-  };
+  /* O status vem do fluxo: nome e cor moram lá, junto das regras de passagem. */
+  function etiquetaEstado(tipo, status) {
+    var st = TC.fluxo.estado(tipo, status);
+    return '<span class="etiqueta ' + (st ? st.cor : '') + '">' +
+      e(st ? st.nome : status) + '</span>';
+  }
 
   function etiquetaStatus(status) {
-    var m = STATUS[status] || ['', status];
-    return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
+    return etiquetaEstado('demanda', status);
+  }
+
+  /* Histórico do fluxo: quem moveu, quando, de onde para onde e por quê. É o que permite
+     auditar uma demanda meses depois sem depender da memória de ninguém. */
+  function historico(tipo, registro) {
+    var linhas = registro.historico || [];
+    if (!linhas.length) {
+      return '<p class="sub" style="margin:10px 0 0">Sem passagens registradas ainda.</p>';
+    }
+    return '<div class="campo" style="margin-top:14px"><label>Histórico</label>' +
+      '<div class="lista-selecao" style="max-height:180px">' +
+      linhas.slice().reverse().map(function (h) {
+        return '<div class="linha-selecao" style="display:block">' +
+          '<div><span class="sub mono">' + e(util.formatarData(h.em, true)) + '</span> · ' +
+          e(TC.fluxo.nomeDoEstado(tipo, h.de)) + ' → <strong>' +
+          e(TC.fluxo.nomeDoEstado(tipo, h.para)) + '</strong>' +
+          (h.perfil ? ' <span class="sub">por ' + e(TC.permissoes.nomeDoPerfil(h.perfil)) + '</span>' : '') +
+          '</div>' +
+          (h.nota ? '<div class="sub">' + e(h.nota) + '</div>' : '') +
+          '</div>';
+      }).join('') + '</div></div>';
+  }
+
+  /* Diálogo de uma passagem de fluxo: mostra o que vai acontecer, pede o que a transição
+     exige e só então grava. Serve para demanda e cotação. */
+  function moverNoFluxo(opcoes) {
+    var tipo = opcoes.tipo, registro = opcoes.registro, para = opcoes.para;
+    var t = TC.fluxo.transicao(tipo, registro.status, para);
+    if (!t) { notificar('Passagem indisponível.'); return; }
+
+    var campos = '';
+    (t.exige || []).forEach(function (campo) {
+      var rotulo = campo === 'dataConclusao' ? 'Data de conclusão do ensaio'
+        : campo === 'dataRelatorio' ? 'Data de validação pelo cliente' : campo;
+      campos += '<div class="campo"><label>' + e(rotulo) + '</label>' +
+        '<input type="date" name="' + e(campo) + '" value="' +
+        e(registro[campo] || util.hoje()) + '"></div>';
+    });
+
+    var janela = modal({
+      titulo: t.rotulo,
+      corpo:
+        '<div class="aviso">' +
+          e(TC.fluxo.nomeDoEstado(tipo, registro.status)) + ' → <strong>' +
+          e(TC.fluxo.nomeDoEstado(tipo, para)) + '</strong>' +
+          (t.descricao ? '<br>' + e(t.descricao) : '') +
+          (t.contaCorrecao ? '<br><strong>Esta devolução conta uma rodada de correção</strong> ' +
+            'e afeta o indicador de certo da primeira vez.' : '') +
+        '</div>' +
+        campos +
+        '<div class="campo"><label>Observação' +
+          (t.exigeNota ? '' : ' <span class="sub" style="font-weight:400">(opcional)</span>') +
+          '</label><textarea name="nota" rows="2" placeholder="Fica registrada no histórico"></textarea></div>',
+      confirmar: t.rotulo,
+      aoConfirmar: function (v) {
+        var resultado = opcoes.aoMover(v);
+        if (!resultado.ok) { notificar(resultado.motivo); return false; }
+        notificar(t.rotulo + ': ' + TC.fluxo.nomeDoEstado(tipo, para) + '.');
+      }
+    });
+    return janela;
   }
 
   function etiquetaPrioridade(prioridade) {
@@ -184,9 +244,11 @@
     etiquetaPrioridade: etiquetaPrioridade,
     etiquetaTipoLti: etiquetaTipoLti,
     celulaLti: celulaLti,
+    etiquetaEstado: etiquetaEstado,
+    historico: historico,
+    moverNoFluxo: moverNoFluxo,
     opcoes: opcoes,
     validarObrigatorios: validarObrigatorios,
-    vazio: vazio,
-    STATUS: STATUS
+    vazio: vazio
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

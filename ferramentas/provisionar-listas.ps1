@@ -87,11 +87,10 @@ $listas = [ordered]@{
     @{ Nome = 'Prazo';          Tipo = 'DateTime' },
     @{ Nome = 'InicioFixo';     Tipo = 'DateTime' },
     @{ Nome = 'Observacao';     Tipo = 'Note' },
-    @{ Nome = 'Status';         Tipo = 'Choice'; Opcoes = @('PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA') },
+    @{ Nome = 'Status';         Tipo = 'Choice'; Opcoes = @('SOLICITADA', 'ACEITA', 'EM_EXECUCAO', 'CONCLUIDA', 'RELATORIO_ENVIADO', 'EM_CORRECAO', 'VALIDADA', 'CANCELADA') },
     # Registro da execução real: alimenta os indicadores do painel.
     @{ Nome = 'DataConclusao';       Tipo = 'DateTime' },
     @{ Nome = 'DataRelatorio';       Tipo = 'DateTime' },
-    @{ Nome = 'RelatorioStatus';     Tipo = 'Choice'; Opcoes = @('NAO_ENVIADO', 'EM_ANALISE', 'CORRECAO', 'APROVADO') },
     @{ Nome = 'RelatorioCorrecoes';  Tipo = 'Number' },
     # Preenchidas pelo motor de planejamento, não pelo usuário.
     @{ Nome = 'InicioPlanejado';      Tipo = 'DateTime' },
@@ -106,9 +105,19 @@ $listas = [ordered]@{
     @{ Nome = 'LTI';              Tipo = 'Text' },
     @{ Nome = 'Solicitante';      Tipo = 'Text' },
     @{ Nome = 'PrevisaoExecucao'; Tipo = 'DateTime' },
-    @{ Nome = 'Status';           Tipo = 'Choice'; Opcoes = @('ABERTA', 'ENVIADA', 'APROVADA', 'RECUSADA') },
+    @{ Nome = 'Status';           Tipo = 'Choice'; Opcoes = @('RASCUNHO', 'SOLICITADA', 'EM_ANALISE', 'DEVOLVIDA', 'VALIDADA', 'APROVADA', 'RECUSADA') },
     @{ Nome = 'Observacao';       Tipo = 'Note' },
     @{ Nome = 'CriadoEm';         Tipo = 'DateTime' }
+  )
+  # Uma linha por passagem de fluxo: o rastro de quem moveu o quê e quando.
+  'TC_Historico' = @(
+    @{ Nome = 'Tipo';     Tipo = 'Choice'; Opcoes = @('Demanda', 'Cotacao') },
+    @{ Nome = 'Registro'; Tipo = 'Text' },
+    @{ Nome = 'Em';       Tipo = 'DateTime' },
+    @{ Nome = 'De';       Tipo = 'Text' },
+    @{ Nome = 'Para';     Tipo = 'Text' },
+    @{ Nome = 'Perfil';   Tipo = 'Text' },
+    @{ Nome = 'Nota';     Tipo = 'Note' }
   )
   # Preço congelado no momento da cotação: mudar o catálogo depois não pode reescrever
   # um orçamento já entregue.

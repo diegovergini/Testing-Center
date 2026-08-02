@@ -237,6 +237,64 @@ pela metade:
 * **Confirmar necessidade de teste** — todos os campos, exceto *forçar início*, que existe
   justamente para o caso excepcional de fixar uma data na mão.
 
+## Os fluxos
+
+Duas máquinas de estado em `src/fluxo.js`: quais são os estados, **quem pode mover cada
+passagem** e o que precisa estar preenchido para a passagem valer. A interface só desenha os
+botões que o fluxo autoriza para o perfil em uso — a regra não fica espalhada pelas telas.
+
+### Demanda de teste
+
+```
+                    Engenharia de Produto pede
+                              │
+        SOLICITADA ──aceite (Testes)──► ACEITA ──início (Testes)──► EM_EXECUCAO
+                                                                          │ conclusão (Testes)
+                                                                          ▼
+      VALIDADA ◄──validação (Produto)── RELATORIO_ENVIADO ◄──envio (Testes)── CONCLUIDA
+                                              │  ▲
+                             correção (Produto)│  │ reenvio (Testes)
+                                              ▼  │
+                                          EM_CORRECAO
+```
+
+**Quem executa não valida o próprio relatório.** Enviar o relatório é do centro de testes;
+validar ou devolver é do cliente interno. Cada devolução conta uma rodada de correção — é daí
+que sai o indicador de certo da primeira vez.
+
+Só **SOLICITADA, ACEITA e EM_EXECUCAO** disputam bancada; o planejamento lê essa lista do
+próprio fluxo. Cancelar é possível até o ensaio terminar: depois disso ele já custou bancada.
+
+### Cotação
+
+```
+   RASCUNHO ──envio (Produto)──► SOLICITADA ──análise (Testes)──► EM_ANALISE
+                                      ▲                                │
+                    reenvio (Produto) │                                │ validação (Testes)
+                                      └──── DEVOLVIDA ◄────────────────┤
+                                                                       ▼
+                                          APROVADA / RECUSADA ◄── VALIDADA
+                                              (Produto decide)
+```
+
+O centro de testes valida o preço, mas **não aprova em nome do cliente**: a decisão volta
+para quem pediu. Devolver e recusar exigem justificativa.
+
+### O que cada passagem exige
+
+| Passagem | Exige |
+|---|---|
+| Concluir ensaio | Data de conclusão — sem ela o teste não entra em nenhum mês do painel |
+| Validar relatório | Data de validação pelo cliente |
+| Pedir correção, cancelar, devolver, recusar | Justificativa, que fica no histórico |
+
+**Histórico por registro.** Cada passagem grava uma linha com data, de/para, perfil e
+observação. É o que permite auditar uma demanda meses depois sem depender da memória de
+ninguém. Aparece no formulário da demanda e no detalhe da cotação.
+
+A situação **não é campo editável**: ela só muda pelos botões do fluxo. Isso impede que
+alguém marque "concluído" sem passar pela execução, e garante que todo avanço deixe rastro.
+
 ## Painel do centro de testes
 
 Os indicadores de gestão, com um seletor de mês de referência. As contas ficam em
@@ -266,14 +324,14 @@ opera, menos as paradas programadas, vezes o turno, vezes as posições em paral
 O painel soma o que já foi executado: demanda concluída sai do planejamento (não disputa
 mais bancada), mas continua no custo por projeto e por cliente.
 
-### O que precisa ser preenchido na demanda
+### De onde vêm os dados do painel
 
-O painel depende de quatro campos que o time registra conforme o ensaio anda, no formulário
-da demanda: **data de conclusão do ensaio**, **situação do relatório** (não enviado, em
-análise, em correção, aprovado), **rodadas de correção** e **data de validação pelo cliente**.
+Do fluxo. As datas de conclusão e de validação são pedidas na própria passagem de estado, e
+as rodadas de correção são contadas automaticamente a cada devolução — ninguém digita um
+indicador à mão.
 
-Sem data de conclusão, um teste marcado como concluído não pode ser atribuído a mês nenhum.
-O painel não chuta: mostra um aviso com as LTIs pendentes de preenchimento.
+Sem data de conclusão, um teste executado não pode ser atribuído a mês nenhum. O painel não
+chuta: mostra um aviso com as LTIs pendentes de preenchimento.
 
 ## Modelo de custo
 
@@ -336,6 +394,8 @@ index.html            carrega os scripts na ordem; sem bundler
 assets/styles.css     tema claro/escuro
 src/util.js           datas em UTC, moeda, escape de HTML
 docs/hospedagem.md    onde hospedar e como controlar acesso (documento para a TI)
+src/fluxo.js          os fluxos de demanda e de cotação: estados, quem move e o que exige
+src/kpi.js            os indicadores do painel
 src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
 src/scheduler.js      motor de alocação e cálculo de custo — sem dependência de DOM
 src/permissoes.js     perfil em uso e o que ele vê/edita

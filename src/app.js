@@ -25,8 +25,10 @@
   function contadores(estado, plano) {
     return {
       catalogo: estado.testes.length,
+      /* O contador mostra o que está em aberto no fluxo: ainda há algo a fazer enquanto
+         a demanda não foi validada pelo cliente nem cancelada. */
       demandas: estado.demandas.filter(function (d) {
-        return TC.scheduler.STATUS_ATIVOS.indexOf(d.status) !== -1;
+        return ['VALIDADA', 'CANCELADA'].indexOf(d.status) === -1;
       }).length,
       planejamento: plano.agendadas.length,
       cotacoes: estado.cotacoes.length,

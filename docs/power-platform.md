@@ -92,12 +92,28 @@ Dois jeitos de criar as listas:
 | `TC_Demandas` | A necessidade confirmada e o resultado do planejamento | 0 |
 | `TC_Cotacoes` | Cabeçalho do orçamento | 0 |
 | `TC_CotacaoItens` | Itens com o preço congelado na data da cotação | 0 |
+| `TC_Historico` | Uma linha por passagem de fluxo: de, para, quem, quando, nota | 0 |
 
 A coluna `Title` guarda o código do registro (`TP-GM-01`, `CLI-GM`, `COT-2026-0001`), que é
 como as listas se referenciam entre si.
 
 Campos de vários valores — os clientes que exigem um procedimento, os grupos de bancada que
 ele ocupa ao mesmo tempo — ficam numa coluna de texto separados por `; `.
+
+## Os fluxos na Power Platform
+
+Os dois fluxos (`src/fluxo.js`) traduzem-se bem para lá, e é onde a Power Platform brilha:
+
+* **Estados e permissão de passagem**: o Power App mostra os botões conforme o grupo do
+  Entra a que a pessoa pertence — a mesma regra de hoje, agora garantida pela plataforma.
+* **Avisos por e-mail**: um fluxo do Power Automate dispara em cada passagem. O cliente
+  recebe quando o relatório é enviado ou a cotação é validada; o centro de testes recebe
+  quando uma demanda é aberta ou uma correção é pedida. Isso é o que a versão de hoje não
+  tem como fazer.
+* **Aprovações nativas**: validar relatório e aprovar cotação podem virar uma ação de
+  aprovação do Power Automate, respondida do Outlook ou do Teams, sem abrir o app.
+* **Histórico**: cada passagem vira um item numa lista `TC_Historico` (registro, de, para,
+  quem, quando, nota) — o mesmo conteúdo que a versão atual guarda embutido.
 
 ## O caminho
 

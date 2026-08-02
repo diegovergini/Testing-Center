@@ -7,14 +7,13 @@
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
+  /* Nome e cor do estado vêm do fluxo, junto das regras de quem pode movê-lo. */
   function nomeStatus(id) {
-    var s = util.porId(TC.data.STATUS_COTACAO, id);
-    return s ? s.nome : id;
+    return TC.fluxo.nomeDoEstado('cotacao', id);
   }
 
   function etiquetaStatus(id) {
-    var cor = { ABERTA: 'marca', ENVIADA: 'alerta', APROVADA: 'ok', RECUSADA: 'erro' }[id] || '';
-    return '<span class="etiqueta ' + cor + '">' + e(nomeStatus(id)) + '</span>';
+    return ui.etiquetaEstado('cotacao', id);
   }
 
   /* Congela o preço de um procedimento no momento da cotação, inclusive o hourly rate
@@ -149,20 +148,13 @@
       '</div>' +
       (cotacao.observacao ? '<p class="sub">' + e(cotacao.observacao) + '</p>' : '') +
       tabelaItens(cotacao) +
-      (podeEditar
-        ? '<div class="campo" style="margin-top:14px;max-width:260px"><label>Status</label>' +
-          '<select name="status">' + ui.opcoes(TC.data.STATUS_COTACAO, cotacao.status) + '</select></div>'
-        : '');
+      ui.historico('cotacao', cotacao);
 
     var janela = ui.modal({
       titulo: 'Cotação ' + cotacao.numero,
       corpo: corpo,
       largura: 'min(1100px, 100%)',
-      confirmar: podeEditar ? 'Salvar status' : null,
-      aoConfirmar: podeEditar ? function (v) {
-        TC.store.salvarCotacao({ id: cotacao.id, status: v.status });
-        ui.notificar('Cotação atualizada.');
-      } : null
+      confirmar: null
     });
 
     var pe = janela.querySelector('.modal-pe');
@@ -391,12 +383,15 @@
       return util.diffDias(b.criadoEm, a.criadoEm) || (a.numero < b.numero ? 1 : -1);
     });
 
+    var perfilAtual = TC.permissoes.perfilAtual(estado);
+    var EM_ANDAMENTO = ['RASCUNHO', 'SOLICITADA', 'EM_ANALISE', 'DEVOLVIDA', 'VALIDADA'];
+
     var totalGeral = 0, aprovadas = 0, emAberto = 0;
     lista.forEach(function (c) {
       var t = totalDaCotacao(c);
       totalGeral += t;
       if (c.status === 'APROVADA') aprovadas += t;
-      if (c.status === 'ABERTA' || c.status === 'ENVIADA') emAberto += t;
+      if (EM_ANDAMENTO.indexOf(c.status) !== -1) emAberto += t;
     });
 
     var linhas = lista.map(function (c) {
@@ -415,7 +410,15 @@
         '<td class="num">' + (c.itens || []).length + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(totalDaCotacao(c))) + '</td>' +
         '<td>' + etiquetaStatus(c.status) + '</td>' +
+        /* Cada perfil enxerga só as passagens que são dele: o cliente envia e decide, o
+           centro de testes analisa e valida. */
         '<td class="num" style="white-space:nowrap">' +
+          TC.fluxo.transicoesDe('cotacao', c.status, perfilAtual).map(function (t) {
+            return '<button class="botao pequeno ' +
+              (t.para === 'RECUSADA' || t.para === 'DEVOLVIDA' ? 'perigo' : 'primario') +
+              ' mover" data-para="' + e(t.para) + '" title="' + e(t.descricao || '') + '">' +
+              e(t.rotulo) + '</button> ';
+          }).join('') +
           '<button class="botao pequeno ver">Abrir</button> ' +
           '<button class="botao pequeno excel">Excel</button>' +
           (podeEditar ? ' <button class="botao pequeno perigo excluir" title="Remover cotação">✕</button>' : '') +
@@ -455,6 +458,14 @@
 
     container.querySelectorAll('tr[data-cotacao]').forEach(function (tr) {
       var cotacao = util.porId(estado.cotacoes, tr.dataset.cotacao);
+      tr.querySelectorAll('.mover').forEach(function (botao) {
+        botao.onclick = function () {
+          ui.moverNoFluxo({
+            tipo: 'cotacao', registro: cotacao, para: botao.dataset.para,
+            aoMover: function (v) { return TC.store.moverCotacao(cotacao.id, botao.dataset.para, v); }
+          });
+        };
+      });
       tr.querySelector('.ver').onclick = function () { abrirDetalhe(ctx, cotacao); };
       tr.querySelector('.excel').onclick = function () { exportarExcel(estado, cotacao); };
       var excluir = tr.querySelector('.excluir');

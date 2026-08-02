@@ -155,15 +155,23 @@
     return alocacao.fim || '';
   }
 
+  /* O ensaio foi executado a partir do momento em que é concluído: o que vem depois
+     (relatório enviado, em correção, validado) já rodou na bancada e conta como realizado. */
+  var EXECUTADOS = ['CONCLUIDA', 'RELATORIO_ENVIADO', 'EM_CORRECAO', 'VALIDADA'];
+
+  function jaExecutada(demanda) {
+    return EXECUTADOS.indexOf(demanda.status) !== -1;
+  }
+
   function concluidasSemData(estado) {
     return (estado.demandas || []).filter(function (d) {
-      return d.status === 'CONCLUIDO' && !d.dataConclusao;
+      return jaExecutada(d) && !d.dataConclusao;
     });
   }
 
   function realizadosNoMes(estado, plano, mes) {
     return demandasComCusto(estado, plano).filter(function (a) {
-      return a.demanda.status === 'CONCLUIDO' && dentroDoMes(dataDeConclusao(a), mes);
+      return jaExecutada(a.demanda) && dentroDoMes(dataDeConclusao(a), mes);
     });
   }
 
@@ -172,7 +180,7 @@
      nem a favor nem contra, porque o veredito não saiu. */
   function certoDaPrimeiraVez(estado, plano, mes) {
     var aprovados = demandasComCusto(estado, plano).filter(function (a) {
-      return a.demanda.relatorioStatus === 'APROVADO' &&
+      return a.demanda.status === 'VALIDADA' &&
         dentroDoMes(a.demanda.dataRelatorio || dataDeConclusao(a), mes);
     });
     var semCorrecao = aprovados.filter(function (a) {
@@ -218,7 +226,7 @@
      Concluída entra — o custo do que já foi executado é o que mais importa no acumulado. */
   function confirmadas(estado, plano) {
     return demandasComCusto(estado, plano).filter(function (a) {
-      return !a.cotacao && a.demanda.status !== 'CANCELADO';
+      return !a.cotacao && a.demanda.status !== 'CANCELADA';
     });
   }
 
@@ -266,7 +274,9 @@
     demandasComCusto: demandasComCusto,
     confirmadas: confirmadas,
     dataDeConclusao: dataDeConclusao,
-    concluidasSemData: concluidasSemData
+    concluidasSemData: concluidasSemData,
+    jaExecutada: jaExecutada,
+    EXECUTADOS: EXECUTADOS
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = TC.kpi;

@@ -75,7 +75,7 @@
     /* Riscos continuam no painel: são o que exige decisão nesta semana. */
     var atrasadas = 0, semJanela = 0;
     plano.alocacoes.forEach(function (a) {
-      if (a.demanda.status === 'CANCELADO') return;
+      if (a.demanda.status === 'CANCELADA') return;
       if (a.atrasado) atrasadas++;
       else if (!a.cotacao && !a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
     });
@@ -186,7 +186,6 @@
             '<th class="num">Custo</th></tr></thead><tbody>' +
             realizados.map(function (a) {
               var d = a.demanda;
-              var st = util.porId(TC.data.STATUS_RELATORIO, d.relatorioStatus);
               var cliente = util.porId(estado.clientes, d.clienteId);
               var correcoes = Number(d.relatorioCorrecoes) || 0;
               return '<tr><td class="forte">' +
@@ -195,9 +194,7 @@
                 '<td>' + e(d.projeto || '—') + '</td>' +
                 '<td>' + e(cliente ? cliente.nome : d.clienteId) + '</td>' +
                 '<td>' + ui.celulaLti(d) + '</td>' +
-                '<td><span class="etiqueta ' +
-                  (d.relatorioStatus === 'APROVADO' ? (correcoes ? 'alerta' : 'ok') : '') + '">' +
-                  e(st ? st.nome : d.relatorioStatus) + '</span>' +
+                '<td>' + ui.etiquetaEstado('demanda', d.status) +
                   (correcoes ? ' <span class="sub">' + correcoes + ' correção(ões)</span>' : '') + '</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'

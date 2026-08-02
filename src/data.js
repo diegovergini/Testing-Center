@@ -48,21 +48,8 @@
     permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
   };
 
-  /* Ciclo do relatório de ensaio. O indicador "certo da primeira vez" mede quantos
-     relatórios o cliente validou sem pedir nenhuma correção. */
-  var STATUS_RELATORIO = [
-    { id: 'NAO_ENVIADO', nome: 'Não enviado' },
-    { id: 'EM_ANALISE', nome: 'Em análise do cliente' },
-    { id: 'CORRECAO', nome: 'Em correção' },
-    { id: 'APROVADO', nome: 'Aprovado pelo cliente' }
-  ];
-
-  var STATUS_COTACAO = [
-    { id: 'ABERTA', nome: 'Em elaboração' },
-    { id: 'ENVIADA', nome: 'Enviada' },
-    { id: 'APROVADA', nome: 'Aprovada' },
-    { id: 'RECUSADA', nome: 'Recusada' }
-  ];
+  /* Os estados de demanda e de cotação vivem em src/fluxo.js, junto das regras de quem
+     pode mover cada um — para não haver duas listas de status a manter. */
 
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
@@ -287,8 +274,6 @@
     HOURLY_RATE_VIGENCIA: HOURLY_RATE_VIGENCIA,
     PERFIS: PERFIS,
     PERMISSOES_PADRAO: PERMISSOES_PADRAO,
-    STATUS_COTACAO: STATUS_COTACAO,
-    STATUS_RELATORIO: STATUS_RELATORIO,
     FASES: FASES,
     FASES_ANTIGAS: FASES_ANTIGAS,
     TIPOS_LTI: TIPOS_LTI,

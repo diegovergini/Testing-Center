@@ -552,21 +552,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
   };
 
-  /* Ciclo do relatório de ensaio. O indicador "certo da primeira vez" mede quantos
-     relatórios o cliente validou sem pedir nenhuma correção. */
-  var STATUS_RELATORIO = [
-    { id: 'NAO_ENVIADO', nome: 'Não enviado' },
-    { id: 'EM_ANALISE', nome: 'Em análise do cliente' },
-    { id: 'CORRECAO', nome: 'Em correção' },
-    { id: 'APROVADO', nome: 'Aprovado pelo cliente' }
-  ];
-
-  var STATUS_COTACAO = [
-    { id: 'ABERTA', nome: 'Em elaboração' },
-    { id: 'ENVIADA', nome: 'Enviada' },
-    { id: 'APROVADA', nome: 'Aprovada' },
-    { id: 'RECUSADA', nome: 'Recusada' }
-  ];
+  /* Os estados de demanda e de cotação vivem em src/fluxo.js, junto das regras de quem
+     pode mover cada um — para não haver duas listas de status a manter. */
 
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
@@ -791,8 +778,6 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     HOURLY_RATE_VIGENCIA: HOURLY_RATE_VIGENCIA,
     PERFIS: PERFIS,
     PERMISSOES_PADRAO: PERMISSOES_PADRAO,
-    STATUS_COTACAO: STATUS_COTACAO,
-    STATUS_RELATORIO: STATUS_RELATORIO,
     FASES: FASES,
     FASES_ANTIGAS: FASES_ANTIGAS,
     TIPOS_LTI: TIPOS_LTI,
@@ -816,6 +801,226 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = TC.data;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
+/* Fluxos da plataforma: demanda de teste e cotação.
+   Cada fluxo é uma máquina de estados — quais são os estados, quem pode mover de um para
+   o outro, e o que precisa estar preenchido para a passagem valer. Fica num módulo puro,
+   testado, porque é aqui que mora a regra de quem faz o quê. A interface só desenha os
+   botões que este módulo autoriza. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
+
+  /* --- Demanda de teste ---------------------------------------------------------------
+
+     O cliente interno pede, o centro de testes aceita e executa, o relatório vai ao
+     cliente, e o cliente valida ou devolve para correção.
+
+       SOLICITADA ─aceite→ ACEITA ─início→ EM_EXECUCAO ─fim→ CONCLUIDA
+                                                                │ envio do relatório
+                                                                ▼
+                                    VALIDADA ←validação─ RELATORIO_ENVIADO
+                                                                │ correção pedida
+                                                                ▼
+                                                          EM_CORRECAO ─reenvio→ (volta)
+
+     "ativo" marca os estados que ainda disputam bancada: são os que o planejamento
+     agenda. Concluída em diante, o ensaio já saiu do equipamento. */
+  var DEMANDA = [
+    { id: 'SOLICITADA', nome: 'Solicitada', cor: 'marca', ativo: true,
+      dono: 'PRODUTO', descricao: 'Cliente interno abriu a demanda; aguarda aceite do centro de testes' },
+    { id: 'ACEITA', nome: 'Aceita', cor: 'marca', ativo: true,
+      dono: 'TESTES', descricao: 'Centro de testes assumiu; o ensaio está agendado' },
+    { id: 'EM_EXECUCAO', nome: 'Em execução', cor: 'alerta', ativo: true,
+      dono: 'TESTES', descricao: 'Ensaio rodando na bancada' },
+    { id: 'CONCLUIDA', nome: 'Ensaio concluído', cor: 'ok', ativo: false,
+      dono: 'TESTES', descricao: 'Ensaio terminado; relatório em elaboração' },
+    { id: 'RELATORIO_ENVIADO', nome: 'Relatório enviado', cor: 'marca', ativo: false,
+      dono: 'PRODUTO', descricao: 'Relatório com o cliente, aguardando validação' },
+    { id: 'EM_CORRECAO', nome: 'Em correção', cor: 'erro', ativo: false,
+      dono: 'TESTES', descricao: 'Cliente pediu correção do relatório' },
+    { id: 'VALIDADA', nome: 'Validada pelo cliente', cor: 'ok', ativo: false,
+      dono: null, descricao: 'Cliente validou o relatório; demanda encerrada' },
+    { id: 'CANCELADA', nome: 'Cancelada', cor: '', ativo: false,
+      dono: null, descricao: 'Demanda encerrada sem execução' }
+  ];
+
+  /* perfil = quem tem o botão. exige = campos que precisam estar preenchidos na passagem;
+     sem eles a transição é recusada, para o dado do indicador não nascer furado. */
+  var TRANSICOES_DEMANDA = [
+    { de: 'SOLICITADA', para: 'ACEITA', perfil: 'TESTES', rotulo: 'Aceitar demanda',
+      descricao: 'O centro de testes assume a demanda e ela entra firme no planejamento.' },
+    { de: 'ACEITA', para: 'EM_EXECUCAO', perfil: 'TESTES', rotulo: 'Iniciar ensaio',
+      descricao: 'A peça entrou na bancada.' },
+    { de: 'EM_EXECUCAO', para: 'CONCLUIDA', perfil: 'TESTES', rotulo: 'Concluir ensaio',
+      exige: ['dataConclusao'],
+      descricao: 'O ensaio terminou. A data de conclusão alimenta o painel do mês.' },
+    { de: 'CONCLUIDA', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Enviar relatório',
+      descricao: 'O relatório vai ao cliente para validação.' },
+    { de: 'RELATORIO_ENVIADO', para: 'VALIDADA', perfil: 'PRODUTO', rotulo: 'Validar relatório',
+      exige: ['dataRelatorio'],
+      descricao: 'O cliente aceita o relatório como está. É esta validação que conta no ' +
+        'indicador de certo da primeira vez.' },
+    { de: 'RELATORIO_ENVIADO', para: 'EM_CORRECAO', perfil: 'PRODUTO', rotulo: 'Pedir correção',
+      contaCorrecao: true, exigeNota: true,
+      descricao: 'O cliente devolve o relatório. A rodada de correção é contabilizada.' },
+    { de: 'EM_CORRECAO', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Reenviar relatório',
+      descricao: 'Relatório corrigido e devolvido ao cliente.' },
+    { de: 'SOLICITADA', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancelar', exigeNota: true },
+    { de: 'ACEITA', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancelar', exigeNota: true },
+    { de: 'EM_EXECUCAO', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancelar', exigeNota: true }
+  ];
+
+  /* --- Cotação ------------------------------------------------------------------------
+
+     O cliente monta a partir do catálogo e envia; o centro de testes analisa e valida;
+     o cliente aprova ou recusa.
+
+       RASCUNHO ─envio→ SOLICITADA ─análise→ EM_ANALISE ─validação→ VALIDADA
+                              ▲                    │                     │
+                              └── DEVOLVIDA ───────┘            APROVADA / RECUSADA
+  */
+  var COTACAO = [
+    { id: 'RASCUNHO', nome: 'Rascunho', cor: '', dono: 'PRODUTO',
+      descricao: 'Cliente interno montando a lista de procedimentos' },
+    { id: 'SOLICITADA', nome: 'Solicitada', cor: 'marca', dono: 'TESTES',
+      descricao: 'Enviada ao centro de testes, aguardando análise' },
+    { id: 'EM_ANALISE', nome: 'Em análise', cor: 'alerta', dono: 'TESTES',
+      descricao: 'Centro de testes conferindo escopo, horas e preço' },
+    { id: 'DEVOLVIDA', nome: 'Devolvida ao cliente', cor: 'erro', dono: 'PRODUTO',
+      descricao: 'Falta informação para cotar; volta ao solicitante' },
+    { id: 'VALIDADA', nome: 'Validada pelo centro de testes', cor: 'ok', dono: 'PRODUTO',
+      descricao: 'Preço confirmado e devolvido ao cliente para decisão' },
+    { id: 'APROVADA', nome: 'Aprovada pelo cliente', cor: 'ok', dono: null,
+      descricao: 'Cliente aprovou; os testes podem ser demandados' },
+    { id: 'RECUSADA', nome: 'Recusada', cor: '', dono: null,
+      descricao: 'Cliente não seguiu com o orçamento' }
+  ];
+
+  var TRANSICOES_COTACAO = [
+    { de: 'RASCUNHO', para: 'SOLICITADA', perfil: 'PRODUTO', rotulo: 'Enviar para cotação',
+      descricao: 'A solicitação vai ao centro de testes.' },
+    { de: 'SOLICITADA', para: 'EM_ANALISE', perfil: 'TESTES', rotulo: 'Assumir análise',
+      descricao: 'O centro de testes assume a conferência do escopo e do preço.' },
+    { de: 'EM_ANALISE', para: 'VALIDADA', perfil: 'TESTES', rotulo: 'Validar cotação',
+      descricao: 'Preço confirmado. A cotação volta ao cliente para decisão.' },
+    { de: 'EM_ANALISE', para: 'DEVOLVIDA', perfil: 'TESTES', rotulo: 'Devolver ao solicitante',
+      exigeNota: true,
+      descricao: 'Falta informação para cotar; a cotação volta a quem pediu.' },
+    { de: 'DEVOLVIDA', para: 'SOLICITADA', perfil: 'PRODUTO', rotulo: 'Reenviar',
+      descricao: 'Informação complementada; volta ao centro de testes.' },
+    { de: 'VALIDADA', para: 'APROVADA', perfil: 'PRODUTO', rotulo: 'Aprovar cotação',
+      descricao: 'O cliente aprova o orçamento.' },
+    { de: 'VALIDADA', para: 'RECUSADA', perfil: 'PRODUTO', rotulo: 'Recusar cotação',
+      exigeNota: true, descricao: 'O cliente não segue com o orçamento.' }
+  ];
+
+  var FLUXOS = {
+    demanda: { estados: DEMANDA, transicoes: TRANSICOES_DEMANDA, inicial: 'SOLICITADA' },
+    cotacao: { estados: COTACAO, transicoes: TRANSICOES_COTACAO, inicial: 'RASCUNHO' }
+  };
+
+  function fluxo(tipo) {
+    return FLUXOS[tipo];
+  }
+
+  function estados(tipo) {
+    return fluxo(tipo).estados;
+  }
+
+  function estado(tipo, id) {
+    return util.porId(estados(tipo), id) || null;
+  }
+
+  function nomeDoEstado(tipo, id) {
+    var e = estado(tipo, id);
+    return e ? e.nome : id;
+  }
+
+  /* Estados que ainda disputam bancada. Só a demanda tem essa noção. */
+  function estadosAtivos() {
+    return DEMANDA.filter(function (e) { return e.ativo; }).map(function (e) { return e.id; });
+  }
+
+  /* Transições disponíveis a partir de um estado. Sem perfil, devolve todas — é assim que
+     a documentação e os testes enxergam o fluxo inteiro. */
+  function transicoesDe(tipo, de, perfil) {
+    return fluxo(tipo).transicoes.filter(function (t) {
+      if (t.de !== de) return false;
+      if (!perfil) return true;
+      return t.perfil === 'QUALQUER' || t.perfil === perfil;
+    });
+  }
+
+  function transicao(tipo, de, para) {
+    var achadas = fluxo(tipo).transicoes.filter(function (t) {
+      return t.de === de && t.para === para;
+    });
+    return achadas[0] || null;
+  }
+
+  function podeTransicionar(tipo, de, para, perfil) {
+    var t = transicao(tipo, de, para);
+    if (!t) return false;
+    return t.perfil === 'QUALQUER' || t.perfil === perfil;
+  }
+
+  /* Valida a passagem antes de gravar: perfil certo, transição existente e campos exigidos
+     preenchidos. Devolve { ok: true } ou { ok: false, motivo: '...' }. */
+  function validar(tipo, registro, para, perfil, dados) {
+    var de = registro.status;
+    var t = transicao(tipo, de, para);
+    if (!t) {
+      return { ok: false, motivo: 'Não existe passagem de "' + nomeDoEstado(tipo, de) +
+        '" para "' + nomeDoEstado(tipo, para) + '".' };
+    }
+    if (t.perfil !== 'QUALQUER' && t.perfil !== perfil) {
+      return { ok: false, motivo: 'Esta passagem é do perfil ' +
+        (t.perfil === 'TESTES' ? 'Engenheiro de Testes' : 'Engenheiro de Produto') + '.' };
+    }
+    var valores = dados || {};
+    var faltando = (t.exige || []).filter(function (campo) {
+      return !(valores[campo] || registro[campo]);
+    });
+    if (faltando.length) {
+      return { ok: false, motivo: 'Preencha antes: ' + faltando.join(', ') + '.' };
+    }
+    if (t.exigeNota && !(valores.nota || '').trim()) {
+      return { ok: false, motivo: 'Descreva o motivo para registrar no histórico.' };
+    }
+    return { ok: true, transicao: t };
+  }
+
+  /* Uma linha de histórico por passagem: quem, quando, de onde para onde e por quê.
+     É o que permite auditar a demanda depois sem depender da memória de ninguém. */
+  function registroDeHistorico(de, para, perfil, nota, quando) {
+    return {
+      em: quando || util.hoje(),
+      de: de, para: para,
+      perfil: perfil || '',
+      nota: (nota || '').trim()
+    };
+  }
+
+  TC.fluxo = {
+    FLUXOS: FLUXOS,
+    fluxo: fluxo,
+    estados: estados,
+    estado: estado,
+    nomeDoEstado: nomeDoEstado,
+    estadosAtivos: estadosAtivos,
+    transicoesDe: transicoesDe,
+    transicao: transicao,
+    podeTransicionar: podeTransicionar,
+    validar: validar,
+    registroDeHistorico: registroDeHistorico
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = TC.fluxo;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
@@ -1090,7 +1295,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return custoDemanda(null, teste, null, null, hourlyRate);
   }
 
-  var ATIVAS = ['PENDENTE', 'EM_ANDAMENTO'];
+  /* Estados em que a demanda ainda disputa bancada. A lista vem do fluxo, para não haver
+     duas verdades sobre o que está ativo. */
+  var fluxo = TC.fluxo || (typeof require !== 'undefined' ? require('./fluxo.js') : null);
+  var ATIVAS = fluxo.estadosAtivos();
 
   /* Uma LTI de cotação é orçamento: calcula custo e duração, mas não reserva bancada. */
   function ehCotacao(demanda) {
@@ -1433,15 +1641,23 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return alocacao.fim || '';
   }
 
+  /* O ensaio foi executado a partir do momento em que é concluído: o que vem depois
+     (relatório enviado, em correção, validado) já rodou na bancada e conta como realizado. */
+  var EXECUTADOS = ['CONCLUIDA', 'RELATORIO_ENVIADO', 'EM_CORRECAO', 'VALIDADA'];
+
+  function jaExecutada(demanda) {
+    return EXECUTADOS.indexOf(demanda.status) !== -1;
+  }
+
   function concluidasSemData(estado) {
     return (estado.demandas || []).filter(function (d) {
-      return d.status === 'CONCLUIDO' && !d.dataConclusao;
+      return jaExecutada(d) && !d.dataConclusao;
     });
   }
 
   function realizadosNoMes(estado, plano, mes) {
     return demandasComCusto(estado, plano).filter(function (a) {
-      return a.demanda.status === 'CONCLUIDO' && dentroDoMes(dataDeConclusao(a), mes);
+      return jaExecutada(a.demanda) && dentroDoMes(dataDeConclusao(a), mes);
     });
   }
 
@@ -1450,7 +1666,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      nem a favor nem contra, porque o veredito não saiu. */
   function certoDaPrimeiraVez(estado, plano, mes) {
     var aprovados = demandasComCusto(estado, plano).filter(function (a) {
-      return a.demanda.relatorioStatus === 'APROVADO' &&
+      return a.demanda.status === 'VALIDADA' &&
         dentroDoMes(a.demanda.dataRelatorio || dataDeConclusao(a), mes);
     });
     var semCorrecao = aprovados.filter(function (a) {
@@ -1496,7 +1712,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      Concluída entra — o custo do que já foi executado é o que mais importa no acumulado. */
   function confirmadas(estado, plano) {
     return demandasComCusto(estado, plano).filter(function (a) {
-      return !a.cotacao && a.demanda.status !== 'CANCELADO';
+      return !a.cotacao && a.demanda.status !== 'CANCELADA';
     });
   }
 
@@ -1544,7 +1760,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     demandasComCusto: demandasComCusto,
     confirmadas: confirmadas,
     dataDeConclusao: dataDeConclusao,
-    concluidasSemData: concluidasSemData
+    concluidasSemData: concluidasSemData,
+    jaExecutada: jaExecutada,
+    EXECUTADOS: EXECUTADOS
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = TC.kpi;
@@ -1873,8 +2091,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util;
-  /* No navegador o scheduler já foi carregado; no Node (testes) resolvemos na hora. */
+  /* No navegador estes módulos já foram carregados; no Node (testes) resolvemos na hora. */
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
+  if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
+  if (!TC.permissoes && typeof require !== 'undefined') require('./permissoes.js');
 
   var CHAVE = 'testing-center/v1';
   var estado = null;
@@ -1985,6 +2205,29 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       delete t.custoBase;
     });
 
+    /* Status antigo (PENDENTE/EM_ANDAMENTO/CONCLUIDO/CANCELADO) mais o campo separado de
+       situação do relatório viraram um fluxo só. A conversão junta os dois: quem estava
+       concluído com relatório aprovado passa direto a validado. */
+    var STATUS_ANTIGO = {
+      PENDENTE: 'SOLICITADA', EM_ANDAMENTO: 'EM_EXECUCAO',
+      CONCLUIDO: 'CONCLUIDA', CANCELADO: 'CANCELADA'
+    };
+    var RELATORIO_ANTIGO = {
+      EM_ANALISE: 'RELATORIO_ENVIADO', CORRECAO: 'EM_CORRECAO', APROVADO: 'VALIDADA'
+    };
+    var estadosDemanda = TC.fluxo.estados('demanda').map(function (e) { return e.id; });
+    (estado.demandas || []).forEach(function (d) {
+      if (estadosDemanda.indexOf(d.status) === -1) {
+        d.status = STATUS_ANTIGO[d.status] || 'SOLICITADA';
+        /* Só quem já terminou o ensaio pode ter avançado no ciclo do relatório. */
+        if (d.status === 'CONCLUIDA' && RELATORIO_ANTIGO[d.relatorioStatus]) {
+          d.status = RELATORIO_ANTIGO[d.relatorioStatus];
+        }
+      }
+      delete d.relatorioStatus;
+      if (!Array.isArray(d.historico)) d.historico = [];
+    });
+
     /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
        de serviço, e o número fica em branco para ser preenchido. */
     (estado.demandas || []).forEach(function (d) {
@@ -1999,7 +2242,6 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
          (testes realizados no mês e certo da primeira vez). */
       if (typeof d.dataConclusao !== 'string') d.dataConclusao = '';
       if (typeof d.dataRelatorio !== 'string') d.dataRelatorio = '';
-      if (typeof d.relatorioStatus !== 'string') d.relatorioStatus = 'NAO_ENVIADO';
       if (typeof d.relatorioCorrecoes !== 'number') d.relatorioCorrecoes = 0;
       if (!d.dataAmostras) d.dataAmostras = dataAntigaDaPeca[d.pecaId] || util.hoje();
       delete d.fase;
@@ -2007,7 +2249,15 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
     if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
+    var COTACAO_ANTIGA = {
+      ABERTA: 'RASCUNHO', ENVIADA: 'SOLICITADA', APROVADA: 'APROVADA', RECUSADA: 'RECUSADA'
+    };
+    var estadosCotacao = TC.fluxo.estados('cotacao').map(function (e) { return e.id; });
     estado.cotacoes.forEach(function (c) {
+      if (estadosCotacao.indexOf(c.status) === -1) {
+        c.status = COTACAO_ANTIGA[c.status] || 'RASCUNHO';
+      }
+      if (!Array.isArray(c.historico)) c.historico = [];
       if (typeof c.lti !== 'string') c.lti = '';
       if (typeof c.previsaoExecucao !== 'string') c.previsaoExecucao = '';
       /* A peça de referência saiu; o item passou a guardar a quantidade em "amostras".
@@ -2071,6 +2321,30 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     }
   }
 
+  /* Aplica uma passagem de estado, gravando o histórico. Os campos que a transição exige
+     (data de conclusão, data de validação) são gravados junto, na mesma operação — não
+     adianta mudar o estado e deixar a data para depois. */
+  function mover(tipo, registro, para, dados) {
+    var valores = dados || {};
+    var perfil = TC.permissoes.perfilAtual(estado);
+    var conferido = TC.fluxo.validar(tipo, registro, para, perfil, valores);
+    if (!conferido.ok) return conferido;
+
+    var de = registro.status;
+    ['dataConclusao', 'dataRelatorio'].forEach(function (campo) {
+      if (valores[campo]) registro[campo] = valores[campo];
+    });
+    if (conferido.transicao.contaCorrecao) {
+      registro.relatorioCorrecoes = (Number(registro.relatorioCorrecoes) || 0) + 1;
+    }
+    registro.status = para;
+    registro.historico = registro.historico || [];
+    registro.historico.push(
+      TC.fluxo.registroDeHistorico(de, para, perfil, valores.nota));
+    commit();
+    return { ok: true, registro: registro };
+  }
+
   function notificar() {
     ouvintes.forEach(function (fn) { fn(estado); });
   }
@@ -2105,12 +2379,12 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         /* Preenchidos depois, conforme o ensaio roda e o relatório vai ao cliente. */
         dataConclusao: '',
         dataRelatorio: '',
-        relatorioStatus: 'NAO_ENVIADO',
         relatorioCorrecoes: 0,
+        historico: [],
         prazo: dados.prazo || '',
         inicioFixo: dados.inicioFixo || '',
         observacao: dados.observacao || '',
-        status: 'PENDENTE',
+        status: TC.fluxo.FLUXOS.demanda.inicial,
         criadoEm: util.hoje()
       };
       estado.demandas.push(demanda);
@@ -2271,7 +2545,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       cotacao.id = util.id('COT');
       cotacao.numero = cotacao.numero || store.proximoNumeroCotacao();
       cotacao.criadoEm = cotacao.criadoEm || util.hoje();
-      cotacao.status = cotacao.status || 'ABERTA';
+      cotacao.status = cotacao.status || TC.fluxo.FLUXOS.cotacao.inicial;
+      cotacao.historico = cotacao.historico || [];
       estado.cotacoes.push(cotacao);
       commit();
       return cotacao;
@@ -2279,6 +2554,21 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     removerCotacao: function (id) {
       estado.cotacoes = estado.cotacoes.filter(function (c) { return c.id !== id; });
       commit();
+    },
+
+    /* ---- Fluxos ----
+       Uma passagem de estado só acontece por aqui: o fluxo valida perfil, transição e
+       campos exigidos, e cada passagem deixa uma linha no histórico do registro.
+       Devolve { ok: true, registro } ou { ok: false, motivo }. */
+    moverDemanda: function (id, para, dados) {
+      var demanda = util.porId(estado.demandas, id);
+      if (!demanda) return { ok: false, motivo: 'Demanda não encontrada.' };
+      return mover('demanda', demanda, para, dados);
+    },
+    moverCotacao: function (id, para, dados) {
+      var cotacao = util.porId(estado.cotacoes, id);
+      if (!cotacao) return { ok: false, motivo: 'Cotação não encontrada.' };
+      return mover('cotacao', cotacao, para, dados);
     },
 
     /* ---- Backup ---- */
@@ -2404,16 +2694,76 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
   }
 
-  var STATUS = {
-    PENDENTE: ['marca', 'Pendente'],
-    EM_ANDAMENTO: ['alerta', 'Em andamento'],
-    CONCLUIDO: ['ok', 'Concluído'],
-    CANCELADO: ['', 'Cancelado']
-  };
+  /* O status vem do fluxo: nome e cor moram lá, junto das regras de passagem. */
+  function etiquetaEstado(tipo, status) {
+    var st = TC.fluxo.estado(tipo, status);
+    return '<span class="etiqueta ' + (st ? st.cor : '') + '">' +
+      e(st ? st.nome : status) + '</span>';
+  }
 
   function etiquetaStatus(status) {
-    var m = STATUS[status] || ['', status];
-    return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
+    return etiquetaEstado('demanda', status);
+  }
+
+  /* Histórico do fluxo: quem moveu, quando, de onde para onde e por quê. É o que permite
+     auditar uma demanda meses depois sem depender da memória de ninguém. */
+  function historico(tipo, registro) {
+    var linhas = registro.historico || [];
+    if (!linhas.length) {
+      return '<p class="sub" style="margin:10px 0 0">Sem passagens registradas ainda.</p>';
+    }
+    return '<div class="campo" style="margin-top:14px"><label>Histórico</label>' +
+      '<div class="lista-selecao" style="max-height:180px">' +
+      linhas.slice().reverse().map(function (h) {
+        return '<div class="linha-selecao" style="display:block">' +
+          '<div><span class="sub mono">' + e(util.formatarData(h.em, true)) + '</span> · ' +
+          e(TC.fluxo.nomeDoEstado(tipo, h.de)) + ' → <strong>' +
+          e(TC.fluxo.nomeDoEstado(tipo, h.para)) + '</strong>' +
+          (h.perfil ? ' <span class="sub">por ' + e(TC.permissoes.nomeDoPerfil(h.perfil)) + '</span>' : '') +
+          '</div>' +
+          (h.nota ? '<div class="sub">' + e(h.nota) + '</div>' : '') +
+          '</div>';
+      }).join('') + '</div></div>';
+  }
+
+  /* Diálogo de uma passagem de fluxo: mostra o que vai acontecer, pede o que a transição
+     exige e só então grava. Serve para demanda e cotação. */
+  function moverNoFluxo(opcoes) {
+    var tipo = opcoes.tipo, registro = opcoes.registro, para = opcoes.para;
+    var t = TC.fluxo.transicao(tipo, registro.status, para);
+    if (!t) { notificar('Passagem indisponível.'); return; }
+
+    var campos = '';
+    (t.exige || []).forEach(function (campo) {
+      var rotulo = campo === 'dataConclusao' ? 'Data de conclusão do ensaio'
+        : campo === 'dataRelatorio' ? 'Data de validação pelo cliente' : campo;
+      campos += '<div class="campo"><label>' + e(rotulo) + '</label>' +
+        '<input type="date" name="' + e(campo) + '" value="' +
+        e(registro[campo] || util.hoje()) + '"></div>';
+    });
+
+    var janela = modal({
+      titulo: t.rotulo,
+      corpo:
+        '<div class="aviso">' +
+          e(TC.fluxo.nomeDoEstado(tipo, registro.status)) + ' → <strong>' +
+          e(TC.fluxo.nomeDoEstado(tipo, para)) + '</strong>' +
+          (t.descricao ? '<br>' + e(t.descricao) : '') +
+          (t.contaCorrecao ? '<br><strong>Esta devolução conta uma rodada de correção</strong> ' +
+            'e afeta o indicador de certo da primeira vez.' : '') +
+        '</div>' +
+        campos +
+        '<div class="campo"><label>Observação' +
+          (t.exigeNota ? '' : ' <span class="sub" style="font-weight:400">(opcional)</span>') +
+          '</label><textarea name="nota" rows="2" placeholder="Fica registrada no histórico"></textarea></div>',
+      confirmar: t.rotulo,
+      aoConfirmar: function (v) {
+        var resultado = opcoes.aoMover(v);
+        if (!resultado.ok) { notificar(resultado.motivo); return false; }
+        notificar(t.rotulo + ': ' + TC.fluxo.nomeDoEstado(tipo, para) + '.');
+      }
+    });
+    return janela;
   }
 
   function etiquetaPrioridade(prioridade) {
@@ -2491,10 +2841,12 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     etiquetaPrioridade: etiquetaPrioridade,
     etiquetaTipoLti: etiquetaTipoLti,
     celulaLti: celulaLti,
+    etiquetaEstado: etiquetaEstado,
+    historico: historico,
+    moverNoFluxo: moverNoFluxo,
     opcoes: opcoes,
     validarObrigatorios: validarObrigatorios,
-    vazio: vazio,
-    STATUS: STATUS
+    vazio: vazio
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
@@ -3020,14 +3372,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
+  /* Nome e cor do estado vêm do fluxo, junto das regras de quem pode movê-lo. */
   function nomeStatus(id) {
-    var s = util.porId(TC.data.STATUS_COTACAO, id);
-    return s ? s.nome : id;
+    return TC.fluxo.nomeDoEstado('cotacao', id);
   }
 
   function etiquetaStatus(id) {
-    var cor = { ABERTA: 'marca', ENVIADA: 'alerta', APROVADA: 'ok', RECUSADA: 'erro' }[id] || '';
-    return '<span class="etiqueta ' + cor + '">' + e(nomeStatus(id)) + '</span>';
+    return ui.etiquetaEstado('cotacao', id);
   }
 
   /* Congela o preço de um procedimento no momento da cotação, inclusive o hourly rate
@@ -3162,20 +3513,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       '</div>' +
       (cotacao.observacao ? '<p class="sub">' + e(cotacao.observacao) + '</p>' : '') +
       tabelaItens(cotacao) +
-      (podeEditar
-        ? '<div class="campo" style="margin-top:14px;max-width:260px"><label>Status</label>' +
-          '<select name="status">' + ui.opcoes(TC.data.STATUS_COTACAO, cotacao.status) + '</select></div>'
-        : '');
+      ui.historico('cotacao', cotacao);
 
     var janela = ui.modal({
       titulo: 'Cotação ' + cotacao.numero,
       corpo: corpo,
       largura: 'min(1100px, 100%)',
-      confirmar: podeEditar ? 'Salvar status' : null,
-      aoConfirmar: podeEditar ? function (v) {
-        TC.store.salvarCotacao({ id: cotacao.id, status: v.status });
-        ui.notificar('Cotação atualizada.');
-      } : null
+      confirmar: null
     });
 
     var pe = janela.querySelector('.modal-pe');
@@ -3404,12 +3748,15 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       return util.diffDias(b.criadoEm, a.criadoEm) || (a.numero < b.numero ? 1 : -1);
     });
 
+    var perfilAtual = TC.permissoes.perfilAtual(estado);
+    var EM_ANDAMENTO = ['RASCUNHO', 'SOLICITADA', 'EM_ANALISE', 'DEVOLVIDA', 'VALIDADA'];
+
     var totalGeral = 0, aprovadas = 0, emAberto = 0;
     lista.forEach(function (c) {
       var t = totalDaCotacao(c);
       totalGeral += t;
       if (c.status === 'APROVADA') aprovadas += t;
-      if (c.status === 'ABERTA' || c.status === 'ENVIADA') emAberto += t;
+      if (EM_ANDAMENTO.indexOf(c.status) !== -1) emAberto += t;
     });
 
     var linhas = lista.map(function (c) {
@@ -3428,7 +3775,15 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         '<td class="num">' + (c.itens || []).length + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(totalDaCotacao(c))) + '</td>' +
         '<td>' + etiquetaStatus(c.status) + '</td>' +
+        /* Cada perfil enxerga só as passagens que são dele: o cliente envia e decide, o
+           centro de testes analisa e valida. */
         '<td class="num" style="white-space:nowrap">' +
+          TC.fluxo.transicoesDe('cotacao', c.status, perfilAtual).map(function (t) {
+            return '<button class="botao pequeno ' +
+              (t.para === 'RECUSADA' || t.para === 'DEVOLVIDA' ? 'perigo' : 'primario') +
+              ' mover" data-para="' + e(t.para) + '" title="' + e(t.descricao || '') + '">' +
+              e(t.rotulo) + '</button> ';
+          }).join('') +
           '<button class="botao pequeno ver">Abrir</button> ' +
           '<button class="botao pequeno excel">Excel</button>' +
           (podeEditar ? ' <button class="botao pequeno perigo excluir" title="Remover cotação">✕</button>' : '') +
@@ -3468,6 +3823,14 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     container.querySelectorAll('tr[data-cotacao]').forEach(function (tr) {
       var cotacao = util.porId(estado.cotacoes, tr.dataset.cotacao);
+      tr.querySelectorAll('.mover').forEach(function (botao) {
+        botao.onclick = function () {
+          ui.moverNoFluxo({
+            tipo: 'cotacao', registro: cotacao, para: botao.dataset.para,
+            aoMover: function (v) { return TC.store.moverCotacao(cotacao.id, botao.dataset.para, v); }
+          });
+        };
+      });
       tr.querySelector('.ver').onclick = function () { abrirDetalhe(ctx, cotacao); };
       tr.querySelector('.excel').onclick = function () { exportarExcel(estado, cotacao); };
       var excluir = tr.querySelector('.excluir');
@@ -3537,7 +3900,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return texto + '<div style="margin-top:3px">' + etiqueta + '</div>';
   }
 
-  function linha(a, podeEditar) {
+  function linha(a, podeEditar, perfil) {
+    var transicoes = TC.fluxo.transicoesDe('demanda', a.demanda.status, perfil);
     var d = a.demanda;
     return '<tr data-demanda="' + e(d.id) + '">' +
       '<td>' +
@@ -3561,12 +3925,22 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       '<td>' + celulaJanela(a) + '</td>' +
       '<td>' + celulaPrazo(a) + '</td>' +
       '<td class="num forte">' + e(util.formatarMoeda(a.custo.total)) + '</td>' +
-      '<td>' + ui.etiquetaStatus(d.status) + '</td>' +
+      '<td>' + ui.etiquetaStatus(d.status) +
+        (d.relatorioCorrecoes
+          ? '<div class="sub">' + d.relatorioCorrecoes + ' correção(ões)</div>' : '') + '</td>' +
+      /* Só aparecem os botões que o fluxo autoriza para o perfil em uso — a regra de quem
+         faz o quê está em src/fluxo.js, não espalhada pela tela. */
       '<td class="num" style="white-space:nowrap">' +
+        transicoes.map(function (t) {
+          return '<button class="botao pequeno ' +
+            (t.para === 'CANCELADA' ? 'perigo' : 'primario') +
+            ' mover" data-para="' + e(t.para) + '" title="' + e(t.descricao || '') + '">' +
+            e(t.rotulo) + '</button> ';
+        }).join('') +
         (podeEditar
           ? '<button class="botao pequeno editar">Editar</button> ' +
             '<button class="botao pequeno perigo excluir" title="Remover demanda">✕</button>'
-          : '<span class="sub">—</span>') +
+          : (transicoes.length ? '' : '<span class="sub">—</span>')) +
       '</td>' +
     '</tr>';
   }
@@ -3574,8 +3948,6 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   function abrirEdicao(ctx, demanda, alocacao) {
     var estado = ctx.estado;
     var teste = util.porId(estado.testes, demanda.testeId);
-    var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
-
     var corpo =
       '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
         (teste && teste.revisao ? ' · ' + e(teste.revisao) : '') +
@@ -3598,25 +3970,18 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
           '<input type="date" name="dataAmostras" value="' + e(demanda.dataAmostras || '') + '"></div>' +
         '<div class="campo"><label>Prazo para finalização</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
         '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
-        '<div class="campo"><label>Status</label><select name="status">' + ui.opcoes(statusLista, demanda.status) + '</select></div>' +
         '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
         '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
       '</div>' +
-      /* Execução real e ciclo do relatório: é daqui que saem os indicadores do painel
-         (testes realizados no mês e certo da primeira vez). */
-      '<p class="sub" style="margin:14px 0 8px"><strong>Execução e relatório</strong> — ' +
-        'alimenta os indicadores do painel. Preencha conforme o ensaio anda.</p>' +
-      '<div class="grade-campos">' +
-        '<div class="campo"><label>Data de conclusão do ensaio</label>' +
-          '<input type="date" name="dataConclusao" value="' + e(demanda.dataConclusao || '') + '"></div>' +
-        '<div class="campo"><label>Situação do relatório</label><select name="relatorioStatus">' +
-          ui.opcoes(TC.data.STATUS_RELATORIO, demanda.relatorioStatus || 'NAO_ENVIADO') + '</select></div>' +
-        '<div class="campo"><label>Rodadas de correção</label>' +
-          '<input type="number" min="0" name="relatorioCorrecoes" value="' +
-          e(String(demanda.relatorioCorrecoes || 0)) + '"></div>' +
-        '<div class="campo"><label>Data de validação pelo cliente</label>' +
-          '<input type="date" name="dataRelatorio" value="' + e(demanda.dataRelatorio || '') + '"></div>' +
-      '</div>' +
+      /* A situação não se edita à mão: ela muda pelos botões do fluxo, que registram
+         quem fez a passagem e quando. As datas ficam visíveis para conferência. */
+      '<p class="sub" style="margin:14px 0 8px"><strong>Situação: ' +
+        e(TC.fluxo.nomeDoEstado('demanda', demanda.status)) + '</strong>' +
+        (demanda.dataConclusao ? ' · ensaio concluído em ' + e(util.formatarData(demanda.dataConclusao, true)) : '') +
+        (demanda.dataRelatorio ? ' · relatório validado em ' + e(util.formatarData(demanda.dataRelatorio, true)) : '') +
+        (demanda.relatorioCorrecoes ? ' · ' + demanda.relatorioCorrecoes + ' correção(ões)' : '') +
+        '<br>A situação muda pelos botões de fluxo na lista de demandas.</p>' +
+      ui.historico('demanda', demanda) +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
 
     var janela = ui.modal({
@@ -3635,11 +4000,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         TC.store.atualizarDemanda(demanda.id, {
           clienteId: v.clienteId, pecaId: v.pecaId, lti: v.lti.trim(), tipoLti: v.tipoLti,
           projeto: v.projeto.trim(), partNumber: v.partNumber.trim(),
-          prioridade: v.prioridade, status: v.status, quantidade: Number(v.quantidade) || 1,
+          prioridade: v.prioridade, quantidade: Number(v.quantidade) || 1,
           dataAmostras: v.dataAmostras, prazo: v.prazo,
-          dataConclusao: v.dataConclusao, dataRelatorio: v.dataRelatorio,
-          relatorioStatus: v.relatorioStatus,
-          relatorioCorrecoes: Math.max(0, Number(v.relatorioCorrecoes) || 0),
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');
@@ -3650,7 +4012,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   function render(container, ctx) {
     var estado = ctx.estado, f = ctx.filtros;
-    var todas = ctx.plano.alocacoes;
+    /* Todas as demandas, não só as que o planejamento carrega: a concluída sai do plano
+       (não disputa mais bancada) mas continua no fluxo, com relatório para enviar e
+       validar. Se a lista viesse do plano, a demanda sumiria no meio do caminho. */
+    var todas = TC.kpi.demandasComCusto(estado, ctx.plano);
     var lista = filtrar(todas, f);
 
     var custoTotal = 0, atrasadas = 0, semJanela = 0, cotacoes = 0;
@@ -3661,7 +4026,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       else if (!a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
     });
 
-    var statusLista = Object.keys(ui.STATUS).map(function (k) { return { id: k, nome: ui.STATUS[k][1] }; });
+    var statusLista = TC.fluxo.estados('demanda');
+    var perfilAtual = TC.permissoes.perfilAtual(estado);
 
     container.innerHTML =
       '<div class="cabecalho">' +
@@ -3694,7 +4060,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Procedimento</th><th>Projeto</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
           '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
-          '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar); }).join('') + '</tbody></table></div>'
+          '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar, perfilAtual); }).join('') + '</tbody></table></div>'
           : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
       '</div>';
 
@@ -3723,6 +4089,16 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     container.querySelectorAll('tr[data-demanda]').forEach(function (tr) {
       var alocacao = null;
       lista.forEach(function (a) { if (a.demandaId === tr.dataset.demanda) alocacao = a; });
+      tr.querySelectorAll('.mover').forEach(function (botao) {
+        botao.onclick = function () {
+          ui.moverNoFluxo({
+            tipo: 'demanda', registro: alocacao.demanda, para: botao.dataset.para,
+            aoMover: function (v) {
+              return TC.store.moverDemanda(alocacao.demandaId, botao.dataset.para, v);
+            }
+          });
+        };
+      });
       var editar = tr.querySelector('.editar');
       if (!editar) return;
       editar.onclick = function () { abrirEdicao(ctx, alocacao.demanda, alocacao); };
@@ -4557,7 +4933,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     /* Riscos continuam no painel: são o que exige decisão nesta semana. */
     var atrasadas = 0, semJanela = 0;
     plano.alocacoes.forEach(function (a) {
-      if (a.demanda.status === 'CANCELADO') return;
+      if (a.demanda.status === 'CANCELADA') return;
       if (a.atrasado) atrasadas++;
       else if (!a.cotacao && !a.inicio && TC.scheduler.STATUS_ATIVOS.indexOf(a.demanda.status) !== -1) semJanela++;
     });
@@ -4668,7 +5044,6 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
             '<th class="num">Custo</th></tr></thead><tbody>' +
             realizados.map(function (a) {
               var d = a.demanda;
-              var st = util.porId(TC.data.STATUS_RELATORIO, d.relatorioStatus);
               var cliente = util.porId(estado.clientes, d.clienteId);
               var correcoes = Number(d.relatorioCorrecoes) || 0;
               return '<tr><td class="forte">' +
@@ -4677,9 +5052,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
                 '<td>' + e(d.projeto || '—') + '</td>' +
                 '<td>' + e(cliente ? cliente.nome : d.clienteId) + '</td>' +
                 '<td>' + ui.celulaLti(d) + '</td>' +
-                '<td><span class="etiqueta ' +
-                  (d.relatorioStatus === 'APROVADO' ? (correcoes ? 'alerta' : 'ok') : '') + '">' +
-                  e(st ? st.nome : d.relatorioStatus) + '</span>' +
+                '<td>' + ui.etiquetaEstado('demanda', d.status) +
                   (correcoes ? ' <span class="sub">' + correcoes + ' correção(ões)</span>' : '') + '</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
@@ -4801,8 +5174,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   function contadores(estado, plano) {
     return {
       catalogo: estado.testes.length,
+      /* O contador mostra o que está em aberto no fluxo: ainda há algo a fazer enquanto
+         a demanda não foi validada pelo cliente nem cancelada. */
       demandas: estado.demandas.filter(function (d) {
-        return TC.scheduler.STATUS_ATIVOS.indexOf(d.status) !== -1;
+        return ['VALIDADA', 'CANCELADA'].indexOf(d.status) === -1;
       }).length,
       planejamento: plano.agendadas.length,
       cotacoes: estado.cotacoes.length,
