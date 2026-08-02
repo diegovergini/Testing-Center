@@ -191,6 +191,21 @@ o custo de insumos. A revisão acompanha o
 procedimento em toda a aplicação — tabela, demanda, Gantt e CSV — para não restar dúvida sobre
 qual versão foi executada.
 
+### Manutenção das bancadas
+
+Cada parada tem duas vidas. Nasce **planejada** — e já bloqueia a agenda, porque nenhum
+ensaio é agendado atravessando uma parada — e é fechada com o **registro do que foi feito**,
+quando passa a **realizada**. Registrar exige a descrição: é o histórico da bancada.
+
+A tela de Equipamentos mostra, por unidade, a **última manutenção** (data, tipo, há quantos
+dias e o que foi feito) e a **próxima prevista** (data, tipo e em quantos dias). No topo
+aparecem as pendências: paradas com data vencida e sem registro, uma a uma, e uma linha só
+com os equipamentos sem próxima manutenção agendada.
+
+Uma parada planejada que venceu **não** vira "a próxima": ela é atraso, e fica separada até
+alguém registrar o que foi feito ou removê-la. As datas podem mudar no registro — manutenção
+raramente termina no dia previsto.
+
 Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
 LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo e calendário — são
 restrições de agenda, não de custo.
@@ -395,6 +410,7 @@ assets/styles.css     tema claro/escuro
 src/util.js           datas em UTC, moeda, escape de HTML
 docs/hospedagem.md    onde hospedar e como controlar acesso (documento para a TI)
 src/fluxo.js          os fluxos de demanda e de cotação: estados, quem move e o que exige
+src/manutencao.js     última e próxima manutenção de cada bancada, e o que está vencido
 src/kpi.js            os indicadores do painel
 src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
 src/scheduler.js      motor de alocação e cálculo de custo — sem dependência de DOM

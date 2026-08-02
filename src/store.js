@@ -7,6 +7,7 @@
   /* No navegador estes módulos já foram carregados; no Node (testes) resolvemos na hora. */
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
   if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
+  if (!TC.manutencao && typeof require !== 'undefined') require('./manutencao.js');
   if (!TC.permissoes && typeof require !== 'undefined') require('./permissoes.js');
 
   var CHAVE = 'testing-center/v1';
@@ -116,6 +117,21 @@
       delete t.hourlyRate;
       if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
       delete t.custoBase;
+    });
+
+    /* As paradas de manutenção passaram a ter duas vidas: planejada e realizada, com o
+       registro do que foi feito. Parada antiga que já terminou entra como realizada — ela
+       aconteceu —, e a que ainda está por vir fica planejada. */
+    (estado.equipamentos || []).forEach(function (eq) {
+      (eq.manutencao || []).forEach(function (m) {
+        if (typeof m.tipo !== 'string') m.tipo = 'PREVENTIVA';
+        if (typeof m.oQueFoiFeito !== 'string') m.oQueFoiFeito = '';
+        if (typeof m.responsavel !== 'string') m.responsavel = '';
+        if (typeof m.situacao !== 'string') {
+          m.situacao = util.diffDias(util.hoje(), m.fim) < 0
+            ? TC.manutencao.REALIZADA : TC.manutencao.PLANEJADA;
+        }
+      });
     });
 
     /* Status antigo (PENDENTE/EM_ANDAMENTO/CONCLUIDO/CANCELADO) mais o campo separado de
@@ -350,12 +366,41 @@
       estado.equipamentos = estado.equipamentos.filter(function (e) { return e.id !== id; });
       commit();
     },
+    /* A parada nasce planejada — e já bloqueia a agenda do equipamento a partir daí. */
     adicionarManutencao: function (equipamentoId, janela) {
       var eq = util.porId(estado.equipamentos, equipamentoId);
-      if (!eq) return;
+      if (!eq) return null;
       eq.manutencao = eq.manutencao || [];
-      eq.manutencao.push({ id: util.id('MN'), inicio: janela.inicio, fim: janela.fim, motivo: janela.motivo || 'Manutenção' });
+      var parada = {
+        id: util.id('MN'),
+        inicio: janela.inicio, fim: janela.fim,
+        tipo: janela.tipo || 'PREVENTIVA',
+        motivo: janela.motivo || 'Manutenção',
+        situacao: janela.situacao || TC.manutencao.PLANEJADA,
+        oQueFoiFeito: janela.oQueFoiFeito || '',
+        responsavel: janela.responsavel || ''
+      };
+      eq.manutencao.push(parada);
       commit();
+      return parada;
+    },
+
+    /* Registro do que foi feito: a parada passa a realizada e guarda a execução.
+       As datas podem mudar aqui — manutenção raramente termina no dia previsto. */
+    registrarManutencao: function (equipamentoId, paradaId, dados) {
+      var eq = util.porId(estado.equipamentos, equipamentoId);
+      if (!eq) return null;
+      var parada = util.porId(eq.manutencao || [], paradaId);
+      if (!parada) return null;
+      if (dados.inicio) parada.inicio = dados.inicio;
+      if (dados.fim) parada.fim = dados.fim;
+      if (dados.tipo) parada.tipo = dados.tipo;
+      if (typeof dados.motivo === 'string' && dados.motivo.trim()) parada.motivo = dados.motivo.trim();
+      parada.oQueFoiFeito = (dados.oQueFoiFeito || '').trim();
+      parada.responsavel = (dados.responsavel || '').trim();
+      parada.situacao = TC.manutencao.REALIZADA;
+      commit();
+      return parada;
     },
     removerManutencao: function (equipamentoId, janelaId) {
       var eq = util.porId(estado.equipamentos, equipamentoId);

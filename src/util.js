@@ -71,6 +71,12 @@
     return horas + ' h (' + (Math.round(dias * 10) / 10) + ' d)';
   }
 
+  /* Corta um texto longo para caber numa célula, preservando a leitura. */
+  function recortar(texto, limite) {
+    var t = String(texto == null ? '' : texto);
+    return t.length > limite ? t.slice(0, limite - 1).trimEnd() + '…' : t;
+  }
+
   function escapar(texto) {
     return String(texto == null ? '' : texto)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -101,6 +107,7 @@
     formatarTaxa: formatarTaxa,
     formatarHoras: formatarHoras,
     escapar: escapar,
+    recortar: recortar,
     id: id,
     porId: porId
   };

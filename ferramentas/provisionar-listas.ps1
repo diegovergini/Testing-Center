@@ -45,11 +45,16 @@ $listas = [ordered]@{
     # 0 = domingo. Texto porque não existe coluna de lista de números.
     @{ Nome = 'DiasUteis'; Tipo = 'Text' }
   )
+  # A parada nasce planejada e é fechada com o registro do que foi feito.
   'TC_Manutencoes' = @(
     @{ Nome = 'EquipamentoId'; Tipo = 'Text' },
     @{ Nome = 'Inicio';        Tipo = 'DateTime' },
     @{ Nome = 'Fim';           Tipo = 'DateTime' },
-    @{ Nome = 'Motivo';        Tipo = 'Text' }
+    @{ Nome = 'Tipo';          Tipo = 'Choice'; Opcoes = @('PREVENTIVA', 'CALIBRACAO', 'CORRETIVA', 'MELHORIA') },
+    @{ Nome = 'Motivo';        Tipo = 'Text' },
+    @{ Nome = 'Situacao';      Tipo = 'Choice'; Opcoes = @('PLANEJADA', 'REALIZADA') },
+    @{ Nome = 'OQueFoiFeito';  Tipo = 'Note' },
+    @{ Nome = 'Responsavel';   Tipo = 'Text' }
   )
   'TC_Pecas' = @(
     @{ Nome = 'Nome';         Tipo = 'Text' },

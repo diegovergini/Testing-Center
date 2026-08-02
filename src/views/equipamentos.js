@@ -83,35 +83,131 @@
     });
   }
 
-  function abrirManutencao(equipamento) {
+  function nomeTipo(id) {
+    var t = util.porId(TC.data.TIPOS_MANUTENCAO, id);
+    return t ? t.nome : (id || '—');
+  }
+
+  /* Registro do que foi feito: fecha uma parada planejada. As datas podem mudar aqui —
+     manutenção raramente termina no dia previsto. */
+  function abrirRegistro(equipamento, parada) {
+    ui.modal({
+      titulo: 'Registrar manutenção de ' + equipamento.nome,
+      corpo:
+        '<div class="aviso">Parada planejada de <strong>' +
+          e(util.formatarData(parada.inicio, true)) + '</strong> a <strong>' +
+          e(util.formatarData(parada.fim, true)) + '</strong> — ' + e(parada.motivo) + '.<br>' +
+          'Ajuste as datas se a execução saiu do previsto.</div>' +
+        '<div class="grade-campos">' +
+          '<div class="campo"><label>Início realizado</label>' +
+            '<input type="date" name="inicio" value="' + e(parada.inicio) + '"></div>' +
+          '<div class="campo"><label>Fim realizado</label>' +
+            '<input type="date" name="fim" value="' + e(parada.fim) + '"></div>' +
+          '<div class="campo"><label>Tipo</label><select name="tipo">' +
+            ui.opcoes(TC.data.TIPOS_MANUTENCAO, parada.tipo || 'PREVENTIVA') + '</select></div>' +
+          '<div class="campo"><label>Responsável</label>' +
+            '<input name="responsavel" value="' + e(parada.responsavel || '') + '" ' +
+            'placeholder="Quem executou"></div>' +
+        '</div>' +
+        '<div class="campo"><label>O que foi feito</label>' +
+          '<textarea name="oQueFoiFeito" rows="3" placeholder="Troca de termopares, calibração da célula de carga, ajuste do controlador...">' +
+          e(parada.oQueFoiFeito || '') + '</textarea></div>',
+      confirmar: 'Registrar como realizada',
+      aoConfirmar: function (v) {
+        if (!v.inicio || !v.fim) { ui.notificar('Informe início e fim.'); return false; }
+        if (util.diffDias(v.inicio, v.fim) < 0) { ui.notificar('O fim deve ser posterior ao início.'); return false; }
+        if (!(v.oQueFoiFeito || '').trim()) {
+          ui.notificar('Descreva o que foi feito — é o histórico da bancada.');
+          return false;
+        }
+        TC.store.registrarManutencao(equipamento.id, parada.id, v);
+        ui.notificar('Manutenção registrada.');
+      }
+    });
+  }
+
+  function abrirManutencao(equipamento, hoje) {
+    var situacao = TC.manutencao.situacao(equipamento, hoje);
+    var lista = TC.manutencao.paradas(equipamento).slice().sort(function (a, b) {
+      return util.diffDias(b.inicio, a.inicio);
+    });
+
     var corpo =
-      '<p class="sub" style="margin-top:0">Nenhum ensaio é agendado atravessando uma parada. Demandas já planejadas são empurradas automaticamente.</p>' +
-      '<div class="grade-campos">' +
-        '<div class="campo"><label>Início</label><input type="date" name="inicio" value="' + e(util.hoje()) + '"></div>' +
-        '<div class="campo"><label>Fim</label><input type="date" name="fim" value="' + e(util.somaDias(util.hoje(), 3)) + '"></div>' +
-        '<div class="campo"><label>Motivo</label><input name="motivo" placeholder="Calibração anual"></div>' +
+      '<div class="aviso">' +
+        (situacao.ultima
+          ? '<strong>Última manutenção:</strong> ' + e(util.formatarData(situacao.ultima.fim, true)) +
+            ' (' + situacao.diasDesdeUltima + ' dias atrás) — ' + e(situacao.ultima.oQueFoiFeito || situacao.ultima.motivo)
+          : '<strong>Nenhuma manutenção registrada</strong> nesta bancada') +
+        '<br>' +
+        (situacao.proxima
+          ? '<strong>Próxima prevista:</strong> ' + e(util.formatarData(situacao.proxima.inicio, true)) +
+            ' (em ' + situacao.diasParaProxima + ' dias) — ' + e(situacao.proxima.motivo)
+          : '<strong>Sem próxima manutenção agendada.</strong>') +
       '</div>' +
-      (equipamento.manutencao && equipamento.manutencao.length
-        ? '<table style="margin-top:8px"><thead><tr><th>Período</th><th>Motivo</th><th></th></tr></thead><tbody>' +
-          equipamento.manutencao.map(function (m) {
-            return '<tr><td>' + e(util.formatarData(m.inicio, true)) + ' → ' + e(util.formatarData(m.fim, true)) + '</td>' +
-              '<td>' + e(m.motivo) + '</td>' +
-              '<td class="num"><button type="button" class="botao pequeno perigo remover" data-janela="' + e(m.id) + '">Remover</button></td></tr>';
-          }).join('') + '</tbody></table>'
+      (situacao.atrasadas.length
+        ? '<div class="aviso erro">' + situacao.atrasadas.length +
+          ' parada(s) com data vencida e sem registro do que foi feito. Registre ou remova.</div>'
+        : '') +
+      '<p class="sub" style="margin:0 0 10px">Agendar uma parada bloqueia a agenda: nenhum ensaio ' +
+        'é planejado atravessando o período, e as demandas já planejadas são empurradas.</p>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Início</label><input type="date" name="inicio" value="' +
+          e(util.hoje()) + '"></div>' +
+        '<div class="campo"><label>Fim</label><input type="date" name="fim" value="' +
+          e(util.somaDias(util.hoje(), 3)) + '"></div>' +
+        '<div class="campo"><label>Tipo</label><select name="tipo">' +
+          ui.opcoes(TC.data.TIPOS_MANUTENCAO, 'PREVENTIVA') + '</select></div>' +
+        '<div class="campo"><label>Motivo / escopo previsto</label>' +
+          '<input name="motivo" placeholder="Calibração anual"></div>' +
+      '</div>' +
+      (lista.length
+        ? '<div class="tabela-rolagem" style="margin-top:8px"><table><thead><tr>' +
+          '<th>Período</th><th>Tipo</th><th>Escopo / o que foi feito</th><th>Situação</th><th></th>' +
+          '</tr></thead><tbody>' +
+          lista.map(function (m) {
+            var realizada = m.situacao === TC.manutencao.REALIZADA;
+            /* diffDias(a, b) é b - a: vencida é a planejada cujo fim ficou para trás. */
+            var vencida = !realizada && util.diffDias(m.fim, hoje) > 0;
+            return '<tr>' +
+              '<td style="white-space:nowrap">' + e(util.formatarData(m.inicio, true)) + ' → ' +
+                e(util.formatarData(m.fim, true)) + '</td>' +
+              '<td>' + e(nomeTipo(m.tipo)) + '</td>' +
+              '<td><div>' + e(m.motivo) + '</div>' +
+                (m.oQueFoiFeito ? '<div class="sub">' + e(m.oQueFoiFeito) + '</div>' : '') +
+                (m.responsavel ? '<div class="sub">por ' + e(m.responsavel) + '</div>' : '') + '</td>' +
+              '<td><span class="etiqueta ' + (realizada ? 'ok' : vencida ? 'erro' : 'alerta') + '">' +
+                (realizada ? 'Realizada' : vencida ? 'Vencida' : 'Planejada') + '</span></td>' +
+              '<td class="num" style="white-space:nowrap">' +
+                (realizada ? '' : '<button type="button" class="botao pequeno primario registrar" data-janela="' +
+                  e(m.id) + '">Registrar</button> ') +
+                '<button type="button" class="botao pequeno perigo remover" data-janela="' +
+                  e(m.id) + '">✕</button></td>' +
+            '</tr>';
+          }).join('') + '</tbody></table></div>'
         : '');
 
     var janela = ui.modal({
-      titulo: 'Paradas de ' + equipamento.nome,
+      titulo: 'Manutenção de ' + equipamento.nome,
       corpo: corpo,
+      largura: 'min(900px, 100%)',
       confirmar: 'Agendar parada',
       aoConfirmar: function (v) {
         if (!v.inicio || !v.fim) { ui.notificar('Informe início e fim.'); return false; }
         if (util.diffDias(v.inicio, v.fim) < 0) { ui.notificar('O fim deve ser posterior ao início.'); return false; }
-        TC.store.adicionarManutencao(equipamento.id, { inicio: v.inicio, fim: v.fim, motivo: v.motivo });
-        ui.notificar('Parada registrada — planejamento recalculado.');
+        TC.store.adicionarManutencao(equipamento.id, {
+          inicio: v.inicio, fim: v.fim, tipo: v.tipo, motivo: v.motivo || 'Manutenção'
+        });
+        ui.notificar('Parada agendada — planejamento recalculado.');
       }
     });
 
+    janela.querySelectorAll('.registrar').forEach(function (botao) {
+      botao.onclick = function () {
+        var parada = util.porId(equipamento.manutencao, botao.dataset.janela);
+        ui.fecharModal();
+        abrirRegistro(equipamento, parada);
+      };
+    });
     janela.querySelectorAll('.remover').forEach(function (botao) {
       botao.onclick = function () {
         TC.store.removerManutencao(equipamento.id, botao.dataset.janela);
@@ -127,6 +223,10 @@
     var horizonte = 90;
     var ocupacao = ocupacaoPorEquipamento(ctx.plano, ctx.hoje, horizonte);
 
+    var pendencias = TC.manutencao.pendencias(estado, ctx.hoje);
+    var vencidas = pendencias.filter(function (p) { return p.tipo === 'atrasada'; });
+    var semPlano = pendencias.filter(function (p) { return p.tipo === 'sem-proxima'; });
+
     var irmaos = {};
     TC.scheduler.agruparEquipamentos(estado.equipamentos).forEach(function (g) {
       irmaos[g.id] = g.membros.length;
@@ -134,6 +234,7 @@
 
     var linhas = estado.equipamentos.map(function (eq) {
       var o = ocupacao[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
+      var m = TC.manutencao.situacao(eq, ctx.hoje);
       var capacidade = eq.posicoes * horizonte;
       var uso = Math.min(100, Math.round(o.dias / capacidade * 100));
       var dias = eq.diasUteis.slice().sort().map(function (d) { return util.NOMES_DIA[d]; }).join(' ');
@@ -155,12 +256,25 @@
             '<span class="sub">' + uso + '%</span></div>' +
         '</td>' +
         '<td class="num">' + Math.round(o.horas) + ' h</td>' +
-        '<td>' + ((eq.manutencao || []).length
-          ? '<span class="etiqueta alerta">' + eq.manutencao.length + ' parada(s)</span>'
-          : '<span class="sub">—</span>') + '</td>' +
+        /* Última e próxima manutenção são a pergunta de gestão da bancada: há quanto
+           tempo ela roda sem intervenção e quando ela para de novo. */
+        '<td>' + (m.ultima
+          ? '<div class="forte">' + e(util.formatarData(m.ultima.fim, true)) + '</div>' +
+            '<div class="sub">' + e(nomeTipo(m.ultima.tipo)) + ' · há ' + m.diasDesdeUltima + ' d</div>' +
+            '<div class="sub">' + e(util.recortar(m.ultima.oQueFoiFeito || m.ultima.motivo, 46)) + '</div>'
+          : '<span class="sub">nenhuma registrada</span>') + '</td>' +
+        '<td>' + (m.proxima
+          ? '<div class="forte">' + e(util.formatarData(m.proxima.inicio, true)) + '</div>' +
+            '<div class="sub">' + e(nomeTipo(m.proxima.tipo)) + ' · em ' + m.diasParaProxima + ' d</div>'
+          : '<span class="etiqueta alerta">não agendada</span>') +
+          (m.atrasadas.length
+            ? '<div><span class="etiqueta erro">' + m.atrasadas.length + ' vencida(s)</span></div>'
+            : '') +
+          (m.emManutencaoHoje ? '<div><span class="etiqueta erro">parada hoje</span></div>' : '') +
+        '</td>' +
         '<td class="num" style="white-space:nowrap">' +
           (podeEditar
-            ? '<button class="botao pequeno manutencao">Paradas</button> ' +
+            ? '<button class="botao pequeno manutencao">Manutenção</button> ' +
               '<button class="botao pequeno editar">Editar</button> ' +
               '<button class="botao pequeno perigo excluir" title="Remover equipamento">✕</button>'
             : '<span class="sub">—</span>') +
@@ -174,12 +288,31 @@
         '<p>Capacidade instalada do laboratório. Posições em paralelo, calendário e paradas de manutenção são exatamente as restrições que o planejamento respeita. O custo do ensaio não vem daqui: ele sai do hourly rate do procedimento.</p></div>' +
         (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="novo">+ Novo equipamento</button></div>' : '') +
       '</div>' +
+      /* Vencidas aparecem uma a uma: cada uma é uma cobrança. "Sem próxima agendada" vira
+         uma linha só, senão o aviso vira uma parede que ninguém lê. */
+      (vencidas.length || semPlano.length
+        ? '<div class="cartao"><div class="cartao-corpo">' +
+          vencidas.slice(0, 6).map(function (p) {
+            return '<div class="aviso erro" style="margin-bottom:8px">' + e(p.texto) + '</div>';
+          }).join('') +
+          (vencidas.length > 6
+            ? '<div class="sub" style="margin-bottom:8px">+ ' + (vencidas.length - 6) +
+              ' outra(s) parada(s) vencida(s).</div>'
+            : '') +
+          (semPlano.length
+            ? '<div class="aviso alerta" style="margin:0"><strong>' + semPlano.length +
+              ' equipamento(s) sem próxima manutenção agendada:</strong> ' +
+              e(semPlano.map(function (p) { return p.equipamento.nome; }).join(', ')) + '.</div>'
+            : '') +
+          '</div></div>'
+        : '') +
       '<div class="cartao">' +
         '<div class="cartao-topo"><h3>Ocupação nos próximos ' + horizonte + ' dias</h3>' +
           '<span class="sub">Percentual calculado sobre posições × dias disponíveis</span></div>' +
         '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Equipamento</th><th>Grupo</th><th class="num">Posições</th><th>Regime</th>' +
-          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Horas alocadas</th><th>Manutenção</th><th></th>' +
+          '<th class="num">Ensaios</th><th>Ocupação</th><th class="num">Horas alocadas</th>' +
+          '<th>Última manutenção</th><th>Próxima prevista</th><th></th>' +
         '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
       '</div>';
 
@@ -190,7 +323,7 @@
       var editar = tr.querySelector('.editar');
       if (!editar) return;
       editar.onclick = function () { abrirEdicao(eq, estado); };
-      tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq); };
+      tr.querySelector('.manutencao').onclick = function () { abrirManutencao(eq, ctx.hoje); };
       tr.querySelector('.excluir').onclick = function () {
         var grupo = TC.scheduler.grupoDe(eq);
         var ultimaDoGrupo = irmaos[grupo] === 1;

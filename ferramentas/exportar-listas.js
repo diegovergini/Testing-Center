@@ -73,18 +73,24 @@ arquivos['TC_Equipamentos'] = csv(
   }))
 );
 
-/* As paradas de manutenção viram uma lista própria: são vários períodos por equipamento
-   e cada um tem início, fim e motivo. */
+/* As paradas de manutenção viram uma lista própria: são vários períodos por equipamento.
+   A parada nasce planejada (e já bloqueia a agenda) e é fechada com o registro do que foi
+   feito — é dessa lista que saem a última manutenção e a próxima prevista de cada bancada. */
 const manutencoes = [];
 estado.equipamentos.forEach((eq) => {
   (eq.manutencao || []).forEach((m) => {
     manutencoes.push({
       Title: eq.id + ' ' + m.inicio, EquipamentoId: eq.id,
-      Inicio: m.inicio, Fim: m.fim, Motivo: m.motivo || ''
+      Inicio: m.inicio, Fim: m.fim, Tipo: m.tipo || 'PREVENTIVA',
+      Motivo: m.motivo || '', Situacao: m.situacao || 'PLANEJADA',
+      OQueFoiFeito: m.oQueFoiFeito || '', Responsavel: m.responsavel || ''
     });
   });
 });
-arquivos['TC_Manutencoes'] = csv(['Title', 'EquipamentoId', 'Inicio', 'Fim', 'Motivo'], manutencoes);
+arquivos['TC_Manutencoes'] = csv(
+  ['Title', 'EquipamentoId', 'Inicio', 'Fim', 'Tipo', 'Motivo', 'Situacao',
+    'OQueFoiFeito', 'Responsavel'],
+  manutencoes);
 
 arquivos['TC_Pecas'] = csv(
   ['Title', 'Nome', 'Descricao', 'CustoAmostra'],

@@ -51,6 +51,15 @@
   /* Os estados de demanda e de cotação vivem em src/fluxo.js, junto das regras de quem
      pode mover cada um — para não haver duas listas de status a manter. */
 
+  /* Natureza da parada. Preventiva e calibração são programadas; corretiva é a que
+     acontece porque a bancada quebrou. */
+  var TIPOS_MANUTENCAO = [
+    { id: 'PREVENTIVA', nome: 'Preventiva' },
+    { id: 'CALIBRACAO', nome: 'Calibração' },
+    { id: 'CORRETIVA', nome: 'Corretiva' },
+    { id: 'MELHORIA', nome: 'Melhoria / adequação' }
+  ];
+
   var AREAS = [
     { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
     { id: 'COLD', nome: 'Cold End', descricao: 'Silencioso, ressonador, tubos, ponteira, coxins' },
@@ -278,6 +287,7 @@
     FASES_ANTIGAS: FASES_ANTIGAS,
     TIPOS_LTI: TIPOS_LTI,
     AREAS: AREAS,
+    TIPOS_MANUTENCAO: TIPOS_MANUTENCAO,
     PRIORIDADES: PRIORIDADES,
     seed: function () {
       return {
