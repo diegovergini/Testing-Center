@@ -1,5 +1,5 @@
-/* Testes da gestão de manutenção: última realizada, próxima prevista, vencidas e o
-   efeito sobre a agenda do equipamento. */
+/* Maintenance management tests: last carried out, next planned, overdue ones and the effect
+   on the equipment calendar. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -23,39 +23,39 @@ function equipamento(paradas) {
 function parada(extra) {
   return Object.assign({
     id: 'MN-1', inicio: '2026-08-01', fim: '2026-08-03', tipo: 'PREVENTIVA',
-    motivo: 'Calibração', situacao: 'PLANEJADA', oQueFoiFeito: '', responsavel: ''
+    motivo: 'Calibration', situacao: 'PLANEJADA', oQueFoiFeito: '', responsavel: ''
   }, extra);
 }
 
-/* ---- Última realizada ---- */
+/* ---- Last carried out ---- */
 
-test('a última manutenção é a realizada que terminou mais tarde', () => {
+test('the last maintenance is the carried-out one that ended latest', () => {
   const eq = equipamento([
     parada({ id: 'A', inicio: '2026-05-04', fim: '2026-05-06', situacao: 'REALIZADA',
       oQueFoiFeito: 'troca de termopares' }),
     parada({ id: 'B', inicio: '2026-07-06', fim: '2026-07-08', situacao: 'REALIZADA',
-      oQueFoiFeito: 'calibração da célula de carga' }),
+      oQueFoiFeito: 'load cell calibrated' }),
     parada({ id: 'C', inicio: '2026-06-01', fim: '2026-06-02', situacao: 'REALIZADA',
       oQueFoiFeito: 'ajuste do controlador' })
   ]);
   const s = manutencao.situacao(eq, HOJE);
 
   assert.equal(s.ultima.id, 'B');
-  assert.equal(s.ultima.oQueFoiFeito, 'calibração da célula de carga');
+  assert.equal(s.ultima.oQueFoiFeito, 'load cell calibrated');
   assert.equal(s.diasDesdeUltima, util.diffDias('2026-07-08', HOJE));
 });
 
-test('parada apenas planejada não conta como última realizada', () => {
+test('a merely planned downtime does not count as the last one carried out', () => {
   const eq = equipamento([parada({ inicio: '2026-06-01', fim: '2026-06-03' })]);
   const s = manutencao.situacao(eq, HOJE);
 
-  assert.equal(s.ultima, null, 'planejada e vencida não é manutenção feita');
+  assert.equal(s.ultima, null, 'planned and overdue is not maintenance carried out');
   assert.equal(s.diasDesdeUltima, null);
 });
 
-/* ---- Próxima prevista ---- */
+/* ---- Next planned ---- */
 
-test('a próxima prevista é a planejada que começa mais cedo daqui para a frente', () => {
+test('the next planned one is the planned downtime starting soonest from here on', () => {
   const eq = equipamento([
     parada({ id: 'A', inicio: '2026-11-03', fim: '2026-11-05' }),
     parada({ id: 'B', inicio: '2026-09-14', fim: '2026-09-16' }),
@@ -67,15 +67,15 @@ test('a próxima prevista é a planejada que começa mais cedo daqui para a fren
   assert.equal(s.diasParaProxima, util.diffDias(HOJE, '2026-09-14'));
 });
 
-test('parada em curso hoje conta como próxima e é sinalizada', () => {
+test('a downtime running today counts as the next one and is flagged', () => {
   const eq = equipamento([parada({ inicio: '2026-08-09', fim: '2026-08-12' })]);
   const s = manutencao.situacao(eq, HOJE);
 
-  assert.equal(s.proxima.id, 'MN-1', 'ainda não terminou, então ainda é a próxima');
+  assert.equal(s.proxima.id, 'MN-1', 'it has not finished yet, so it is still the next one');
   assert.equal(s.emManutencaoHoje, true);
 });
 
-test('sem parada futura agendada a próxima é nula', () => {
+test('with no future downtime scheduled, the next one is null', () => {
   const eq = equipamento([
     parada({ inicio: '2026-05-04', fim: '2026-05-06', situacao: 'REALIZADA', oQueFoiFeito: 'x' })
   ]);
@@ -84,7 +84,7 @@ test('sem parada futura agendada a próxima é nula', () => {
 
 /* ---- Vencidas ---- */
 
-test('planejada com data vencida vira pendência, não próxima', () => {
+test('a planned downtime past its date becomes an outstanding item, not the next one', () => {
   const eq = equipamento([
     parada({ id: 'VENCIDA', inicio: '2026-07-06', fim: '2026-07-08' }),
     parada({ id: 'FUTURA', inicio: '2026-09-14', fim: '2026-09-16' })
@@ -95,7 +95,7 @@ test('planejada com data vencida vira pendência, não próxima', () => {
   assert.deepEqual(s.atrasadas.map((m) => m.id), ['VENCIDA']);
 });
 
-test('as pendências apontam o que exige decisão do gestor', () => {
+test('the outstanding items point at what needs a decision from the manager', () => {
   const estado = {
     equipamentos: [
       equipamento([parada({ id: 'V', inicio: '2026-07-01', fim: '2026-07-02' })]),
@@ -108,13 +108,13 @@ test('as pendências apontam o que exige decisão do gestor', () => {
 
   assert.equal(lista.filter((p) => p.tipo === 'atrasada').length, 1);
   assert.deepEqual(lista.filter((p) => p.tipo === 'sem-proxima').map((p) => p.equipamento.id),
-    ['EQ-01', 'EQ-02'], 'quem só tem parada vencida também está sem próxima agendada');
+    ['EQ-01', 'EQ-02'], 'having only an overdue downtime also means no next one scheduled');
   assert.equal(lista.filter((p) => p.equipamento.id === 'EQ-03').length, 0);
 });
 
 /* ---- Efeito na agenda ---- */
 
-test('parada planejada bloqueia a bancada, realizada no passado não atrapalha', () => {
+test('planned downtime blocks the rig, one carried out in the past gets in the way of nothing', () => {
   const eq = equipamento([
     parada({ id: 'PASSADA', inicio: '2026-08-03', fim: '2026-08-05', situacao: 'REALIZADA',
       oQueFoiFeito: 'feita' }),
@@ -127,10 +127,10 @@ test('parada planejada bloqueia a bancada, realizada no passado não atrapalha',
 
 /* ---- Store ---- */
 
-test('a parada nasce planejada e o registro a fecha com o que foi feito', () => {
+test('downtime is born planned and the record closes it with what was done', () => {
   store.restaurarPadrao();
   const criada = store.adicionarManutencao('SHAKER', {
-    inicio: '2026-09-01', fim: '2026-09-03', tipo: 'CALIBRACAO', motivo: 'Calibração anual'
+    inicio: '2026-09-01', fim: '2026-09-03', tipo: 'CALIBRACAO', motivo: 'Annual calibration'
   });
 
   assert.equal(criada.situacao, 'PLANEJADA');
@@ -138,26 +138,26 @@ test('a parada nasce planejada e o registro a fecha com o que foi feito', () => 
 
   store.registrarManutencao('SHAKER', criada.id, {
     inicio: '2026-09-01', fim: '2026-09-05',
-    oQueFoiFeito: 'calibração da célula e troca do amplificador',
+    oQueFoiFeito: 'load cell calibrated and amplifier replaced',
     responsavel: 'Metrologia'
   });
 
   const eq = globalThis.TC.util.porId(store.get().equipamentos, 'SHAKER');
   const parada = globalThis.TC.util.porId(eq.manutencao, criada.id);
   assert.equal(parada.situacao, 'REALIZADA');
-  assert.equal(parada.fim, '2026-09-05', 'a execução pode estender o período previsto');
-  assert.equal(parada.oQueFoiFeito, 'calibração da célula e troca do amplificador');
+  assert.equal(parada.fim, '2026-09-05', 'the work can extend beyond the planned period');
+  assert.equal(parada.oQueFoiFeito, 'load cell calibrated and amplifier replaced');
   assert.equal(parada.responsavel, 'Metrologia');
   assert.equal(manutencao.situacao(eq, '2026-09-10').ultima.id, criada.id);
 });
 
-test('paradas gravadas antes deste cadastro entram com a situação certa', () => {
+test('downtimes saved before this register go in with the right status', () => {
   const base = dados.seed();
   base.equipamentos = base.equipamentos.map((eq) => eq.id === 'SHAKER'
     ? Object.assign({}, eq, {
       manutencao: [
-        { id: 'ANTIGA', inicio: '2020-01-06', fim: '2020-01-08', motivo: 'Calibração' },
-        { id: 'FUTURA', inicio: '2099-01-06', fim: '2099-01-08', motivo: 'Revisão' }
+        { id: 'ANTIGA', inicio: '2020-01-06', fim: '2020-01-08', motivo: 'Calibration' },
+        { id: 'FUTURA', inicio: '2099-01-06', fim: '2099-01-08', motivo: 'Overhaul' }
       ]
     })
     : eq);
@@ -166,7 +166,7 @@ test('paradas gravadas antes deste cadastro entram com a situação certa', () =
   const eq = globalThis.TC.util.porId(store.get().equipamentos, 'SHAKER');
 
   assert.equal(globalThis.TC.util.porId(eq.manutencao, 'ANTIGA').situacao, 'REALIZADA',
-    'já aconteceu');
+    'it already happened');
   assert.equal(globalThis.TC.util.porId(eq.manutencao, 'FUTURA').situacao, 'PLANEJADA');
   eq.manutencao.forEach((m) => {
     assert.equal(typeof m.tipo, 'string');
@@ -174,17 +174,17 @@ test('paradas gravadas antes deste cadastro entram com a situação certa', () =
   });
 });
 
-test('a manutenção agendada tira horas da capacidade do mês', () => {
+test('scheduled maintenance takes hours off the month\'s capacity', () => {
   store.restaurarPadrao();
   const antes = kpi.capacidadeNoMes(
     globalThis.TC.util.porId(store.get().equipamentos, 'SHAKER'), '2026-09');
 
   store.adicionarManutencao('SHAKER', {
-    inicio: '2026-09-07', fim: '2026-09-11', tipo: 'PREVENTIVA', motivo: 'Revisão'
+    inicio: '2026-09-07', fim: '2026-09-11', tipo: 'PREVENTIVA', motivo: 'Overhaul'
   });
   const depois = kpi.capacidadeNoMes(
     globalThis.TC.util.porId(store.get().equipamentos, 'SHAKER'), '2026-09');
 
-  assert.equal(antes.horas - depois.horas, 5 * 16, 'cinco dias úteis de 16 h saem do mês');
+  assert.equal(antes.horas - depois.horas, 5 * 16, 'five working days of 16 h come off the month');
   assert.equal(depois.diasParados, 5);
 });

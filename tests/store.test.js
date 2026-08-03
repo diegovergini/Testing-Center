@@ -1,4 +1,4 @@
-/* Testes do estado: migração de fases antigas e integridade ao remover cadastros. */
+/* State tests: migration of the old phases and integrity when removing register entries. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -8,8 +8,8 @@ require('../src/store.js');
 
 const store = globalThis.TC.store;
 
-/* Estado no formato anterior: peça com cliente/área/data, procedimento com fases,
-   demanda sem LTI e sem data de amostras. */
+/* State in the earlier format: part type with customer/end/date, procedure with phases,
+   request with a phase. */
 function comDadosAntigos() {
   const base = dados.seed();
   base.testes[0].fases = ['CONCEITO', 'DV'];
@@ -26,19 +26,19 @@ function comDadosAntigos() {
   return JSON.stringify(base);
 }
 
-test('importar migra fases, LTI e a data de amostras para a demanda', () => {
+test('importing migrates phases, LTI and the sample date onto the request', () => {
   store.init();
   store.importar(comDadosAntigos());
   const estado = store.get();
 
-  assert.equal(estado.demandas[0].tipoLti, 'PV', 'a antiga fase da demanda vira a classificação da LTI');
-  assert.equal(estado.demandas[0].fase, undefined, 'o campo fase não existe mais na demanda');
-  assert.equal(estado.demandas[0].lti, '', 'LTI sem número fica em branco para ser preenchida');
+  assert.equal(estado.demandas[0].tipoLti, 'PV', 'the request\'s old phase becomes the LTI classification');
+  assert.equal(estado.demandas[0].fase, undefined, 'the phase field no longer exists on the request');
+  assert.equal(estado.demandas[0].lti, '', 'an LTI with no number is left blank to be filled in');
   assert.equal(estado.demandas[0].dataAmostras, '2026-09-15',
-    'a data que estava na peça passa para a demanda, sem perder o planejamento');
+    'the date that was on the part type moves to the request, without losing the schedule');
 });
 
-test('importar limpa cliente, área e estoque das peças', () => {
+test('importing clears customer, system end and stock from the part types', () => {
   store.importar(comDadosAntigos());
   store.get().pecas.forEach((p) => {
     assert.equal(p.clienteId, undefined);
@@ -49,15 +49,15 @@ test('importar limpa cliente, área e estoque das peças', () => {
   });
 });
 
-test('importar tira a fase do procedimento e garante o campo revisão', () => {
+test('importing strips the phase from the procedure and guarantees the revision field', () => {
   store.importar(comDadosAntigos());
   store.get().testes.forEach((t) => {
     assert.equal(t.fases, undefined, t.id + ' manteve fase amarrada');
-    assert.equal(typeof t.revisao, 'string', t.id + ' ficou sem o campo revisão');
+    assert.equal(typeof t.revisao, 'string', t.id + ' was left without the revision field');
   });
 });
 
-test('demanda antiga sem data de amostras recebe uma data utilizável', () => {
+test('an old request with no sample date receives a usable one', () => {
   const base = dados.seed();
   base.demandas = [
     { id: 'D9', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: 'CLI-VW',
@@ -67,11 +67,11 @@ test('demanda antiga sem data de amostras recebe uma data utilizável', () => {
   assert.equal(store.get().demandas[0].dataAmostras, globalThis.TC.util.hoje());
 });
 
-test('remover cliente também o tira da exigência dos procedimentos', () => {
+test('removing a customer also takes it off the procedures that require it', () => {
   store.restaurarPadrao();
   const alvo = 'CLI-GM';
   const antes = store.get().testes.filter((t) => (t.clientes || []).includes(alvo));
-  assert.ok(antes.length > 0, 'o catálogo de exemplo precisa ter procedimentos deste cliente');
+  assert.ok(antes.length > 0, 'the example catalogue has to have procedures for this customer');
 
   store.removerCliente(alvo);
   const estado = store.get();
@@ -82,22 +82,22 @@ test('remover cliente também o tira da exigência dos procedimentos', () => {
   });
 });
 
-test('salvar cliente novo gera código e editar preserva o existente', () => {
+test('saving a new customer generates a code and editing preserves the existing one', () => {
   store.restaurarPadrao();
   const total = store.get().clientes.length;
 
   const novo = store.salvarCliente({ nome: 'Marelli', segmento: 'Tier 1' });
-  assert.ok(novo.id, 'cliente novo precisa de código');
+  assert.ok(novo.id, 'a new customer needs a code');
   assert.equal(store.get().clientes.length, total + 1);
 
   store.salvarCliente({ id: novo.id, nome: 'Marelli Brasil', segmento: 'Tier 1' });
-  assert.equal(store.get().clientes.length, total + 1, 'editar não pode criar outro registro');
+  assert.equal(store.get().clientes.length, total + 1, 'editing must not create another record');
   assert.equal(globalThis.TC.util.porId(store.get().clientes, novo.id).nome, 'Marelli Brasil');
 });
 
-test('remover uma unidade não desmonta o grupo dos procedimentos', () => {
+test('removing a unit does not dismantle the procedures\' group', () => {
   store.restaurarPadrao();
-  /* O catálogo de partida chega sem bancada definida, então apontamos o grupo aqui. */
+  /* The seed catalogue arrives with no rig defined, so we point at the group here. */
   const primeiro = store.get().testes[0];
   store.salvarTeste(Object.assign({}, primeiro, { equipamentoGrupos: ['Burner'] }));
 
@@ -113,7 +113,7 @@ test('remover uma unidade não desmonta o grupo dos procedimentos', () => {
   assert.equal(estado.equipamentos.filter((e) => e.grupo === 'Burner').length, 2);
 });
 
-test('importar troca a unidade do procedimento pelo grupo dela', () => {
+test('importing swaps the procedure\'s unit for its group', () => {
   const base = dados.seed();
   base.testes[0] = Object.assign({}, base.testes[0], { equipamentoId: 'BURNER-2' });
   delete base.testes[0].equipamentoGrupos;
@@ -121,11 +121,11 @@ test('importar troca a unidade do procedimento pelo grupo dela', () => {
   store.importar(JSON.stringify(base));
   const t = store.get().testes[0];
   assert.deepEqual(t.equipamentoGrupos, ['Burner'], 'BURNER-2 pertence ao grupo Burner');
-  assert.equal(t.equipamentoId, undefined, 'o campo antigo não fica para trás');
+  assert.equal(t.equipamentoId, undefined, 'the old field is not left behind');
   assert.equal(t.equipamentoIds, undefined);
 });
 
-test('importar deduplica grupos quando o procedimento listava unidades irmãs', () => {
+test('importing de-duplicates groups when the procedure listed sibling units', () => {
   const base = dados.seed();
   base.testes[0] = Object.assign({}, base.testes[0], { equipamentoIds: ['MTS-1', 'MTS-3', 'DYNO'] });
   delete base.testes[0].equipamentoGrupos;
@@ -134,7 +134,7 @@ test('importar deduplica grupos quando o procedimento listava unidades irmãs', 
   assert.deepEqual(store.get().testes[0].equipamentoGrupos, ['MTS', 'Dynamometer']);
 });
 
-test('demanda antiga ganha os campos de projeto e part number vazios', () => {
+test('an old request gains empty project and part number fields', () => {
   const base = dados.seed();
   base.demandas = [
     { id: 'D7', testeId: base.testes[0].id, pecaId: base.pecas[0].id, clienteId: 'CLI-VW',
@@ -147,16 +147,16 @@ test('demanda antiga ganha os campos de projeto e part number vazios', () => {
   assert.equal(d.partNumber, '');
 });
 
-/* ---- Substituição do catálogo ---- */
+/* ---- Catalogue replacement ---- */
 
-/* Dados sem a marca de versão do catálogo são de antes da troca: o catálogo antigo sai
-   inteiro e entra o do cliente. */
+/* Data with no catalogue version mark predates the swap: the old catalogue goes out whole
+   and the new one comes in. */
 function comCatalogoAntigo() {
   const base = dados.seed();
   delete base.catalogoVersao;
   base.clientes = [{ id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' }];
   base.testes = [{
-    id: 'TP-VELHO', nome: 'Ensaio que saiu do catálogo', norma: 'X', revisao: 'Rev. 09',
+    id: 'TP-VELHO', nome: 'Test that left the catalogue', norma: 'X', revisao: 'Rev. 09',
     clientes: [], area: 'HOT', equipamentoGrupos: ['Burner'],
     horasSetup: 2, horasEnsaio: 10, horasReport: 1, amostras: 1,
     hourlyRate: 500, custoInsumos: 100, descricao: ''
@@ -169,32 +169,32 @@ function comCatalogoAntigo() {
   return JSON.stringify(base);
 }
 
-test('dados salvos antes da troca recebem o catálogo novo no lugar do antigo', () => {
+test('data saved before the swap receives the new catalogue in place of the old one', () => {
   store.importar(comCatalogoAntigo());
   const estado = store.get();
 
   assert.equal(estado.testes.filter((t) => t.id === 'TP-VELHO').length, 0,
-    'o procedimento do catálogo antigo não fica para trás');
+    'the old catalogue procedure is not left behind');
   assert.deepEqual(estado.testes.map((t) => t.id), dados.seed().testes.map((t) => t.id));
   assert.equal(estado.catalogoVersao, dados.CATALOGO_VERSAO);
 });
 
-test('a troca de catálogo traz o cliente que os novos procedimentos exigem', () => {
+test('the catalogue swap brings in the customer the new procedures require', () => {
   store.importar(comCatalogoAntigo());
   const estado = store.get();
   assert.ok(globalThis.TC.util.porId(estado.clientes, 'CLI-GM'), 'a GM entra no cadastro');
-  assert.ok(globalThis.TC.util.porId(estado.clientes, 'CLI-VW'), 'os clientes já cadastrados ficam');
+  assert.ok(globalThis.TC.util.porId(estado.clientes, 'CLI-VW'), 'customers already registered stay');
 });
 
-test('demanda de procedimento que saiu do catálogo é descartada na troca', () => {
+test('a request for a procedure that left the catalogue is discarded in the swap', () => {
   store.importar(comCatalogoAntigo());
   assert.equal(store.get().demandas.length, 0,
-    'sem procedimento a demanda não teria custo nem bancada');
+    'with no procedure the request would have neither cost nor rig');
 });
 
-test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
-  /* Estado de quem já usava a plataforma na versão 2: só os procedimentos GM, e um
-     deles com horas, bancada e rate já cadastrados. */
+test('new procedures go in without erasing what was already filled in', () => {
+  /* The state of someone already on version 2 of the platform: only the GM procedures, one
+     of them with hours, rig and rate already registered. */
   const base = dados.seed();
   base.catalogoVersao = 2;
   base.testes = base.testes
@@ -215,25 +215,25 @@ test('procedimentos novos entram sem apagar o que já foi preenchido', () => {
   const estado = store.get();
 
   const completado = globalThis.TC.util.porId(estado.testes, 'TP-GM-06');
-  assert.equal(completado.custoInsumos, 1800, 'o cadastro já preenchido não pode ser sobrescrito');
+  assert.equal(completado.custoInsumos, 1800, 'a record already filled in must not be overwritten');
   assert.deepEqual(completado.equipamentoGrupos, ['ColdFlow']);
   assert.equal(estado.testes.filter((t) => t.id.indexOf('TP-STL-') === 0).length, 30,
-    'os procedimentos Stellantis entram no catálogo');
-  assert.equal(estado.demandas.length, 1, 'a demanda existente continua válida');
+    'the Stellantis procedures enter the catalogue');
+  assert.equal(estado.demandas.length, 1, 'the existing request stays valid');
   assert.equal(estado.catalogoVersao, dados.CATALOGO_VERSAO);
 });
 
-test('catálogo já na versão nova não é substituído na carga', () => {
+test('a catalogue already on the new version is not replaced on load', () => {
   const base = dados.seed();
   base.testes[0] = Object.assign({}, base.testes[0], { custoInsumos: 777, horasEnsaio: 40 });
   store.importar(JSON.stringify(base));
 
   const t = store.get().testes[0];
-  assert.equal(t.custoInsumos, 777, 'o que o usuário preencheu no catálogo continua lá');
+  assert.equal(t.custoInsumos, 777, 'what the user filled into the catalogue is still there');
   assert.equal(t.horasEnsaio, 40);
 });
 
-test('importar converte custoBase em custo de insumos e tira o rate do procedimento', () => {
+test('importing converts custoBase into consumables cost and strips the rate from the procedure', () => {
   const base = dados.seed();
   base.testes[0] = {
     id: 'TP-ANTIGO', nome: 'Ensaio antigo', norma: '', revisao: 'Rev. 01', clientes: [],
@@ -258,10 +258,10 @@ test('importar converte custoBase em custo de insumos e tira o rate do procedime
 
 /* ---- Levantamento de horas ---- */
 
-test('procedimento sem horas medidas recebe as horas do catálogo de partida', () => {
+test('a procedure with no measured hours receives the seed catalogue\'s hours', () => {
   const base = dados.seed();
   base.catalogoVersao = 8;
-  /* Estado de antes do levantamento: o mesmo catálogo, com as horas ainda zeradas. */
+  /* The state from before the survey: the same catalogue, hours still at zero. */
   base.testes = base.testes.map((t) =>
     Object.assign({}, t, { horasSetup: 0, horasEnsaio: 0, horasReport: 0 }));
 
@@ -273,7 +273,7 @@ test('procedimento sem horas medidas recebe as horas do catálogo de partida', (
   assert.equal(t.horasReport, 38);
 });
 
-test('horas já preenchidas pelo usuário não são sobrescritas pelo levantamento', () => {
+test('hours already filled in by the user are not overwritten by the survey', () => {
   const base = dados.seed();
   base.catalogoVersao = 8;
   base.testes = base.testes.map((t) =>
@@ -286,7 +286,7 @@ test('horas já preenchidas pelo usuário não são sobrescritas pelo levantamen
 
   const meu = globalThis.TC.util.porId(estado.testes, 'TP-STL-11');
   assert.deepEqual([meu.horasEnsaio, meu.horasSetup, meu.horasReport], [2, 1, 3],
-    'o cadastro de quem preencheu tem precedência');
+    'the record of whoever filled it in takes precedence');
 
   const outro = globalThis.TC.util.porId(estado.testes, 'TP-GM-05');
   assert.equal(outro.horasEnsaio, 700, 'os demais recebem o levantamento normalmente');

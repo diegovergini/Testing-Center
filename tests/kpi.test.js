@@ -1,5 +1,5 @@
-/* Testes dos indicadores do painel: volume do mês, ocupação contra capacidade,
-   certo da primeira vez e os cortes de custo. */
+/* Dashboard indicator tests: volume for the month, utilisation against capacity, right first
+   time and cost by breakdown. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -8,7 +8,7 @@ require('../src/data.js');
 const scheduler = require('../src/scheduler.js');
 const kpi = require('../src/kpi.js');
 
-/* Julho de 2026: 1º é quarta, 31 é sexta. 23 dias úteis de segunda a sexta. */
+/* July 2026: the 1st is a Wednesday, the 31st a Friday. 23 working days, Monday to Friday. */
 const MES = '2026-07';
 const SEGUNDA = '2026-07-06';
 
@@ -44,50 +44,50 @@ function estado(extra) {
     clientes: [{ id: 'CLI-01', nome: 'Cliente Um' }, { id: 'CLI-02', nome: 'Cliente Dois' }],
     equipamentos: [equipamento()],
     testes: [teste()],
-    pecas: [{ id: 'PC-01', nome: 'Peça', custoAmostra: 0 }],
+    pecas: [{ id: 'PC-01', nome: 'Part type', custoAmostra: 0 }],
     demandas: [demanda()]
   }, extra);
 }
 
-/* ---- Recortes de mês ---- */
+/* ---- Month boundaries ---- */
 
-test('o último dia do mês é calculado sem tabela de calendário', () => {
+test('the last day of the month is computed without a calendar table', () => {
   assert.equal(kpi.ultimoDia('2026-07'), '2026-07-31');
   assert.equal(kpi.ultimoDia('2026-02'), '2026-02-28');
   assert.equal(kpi.ultimoDia('2028-02'), '2028-02-29', 'ano bissexto');
   assert.equal(kpi.ultimoDia('2026-12'), '2026-12-31', 'dezembro vira o ano');
 });
 
-/* ---- Capacidade e ocupação ---- */
+/* ---- Capacity and utilisation ---- */
 
-test('capacidade do mês conta só os dias em que a bancada opera', () => {
+test('the month\'s capacity counts only the days the rig operates', () => {
   const c = kpi.capacidadeNoMes(equipamento(), MES);
   assert.equal(c.diasUteis, 23, 'julho de 2026 tem 23 dias de segunda a sexta');
   assert.equal(c.horas, 23 * 8);
 });
 
-test('equipamento contínuo oferece as 24 h de todos os dias', () => {
+test('continuous equipment offers 24 h on every day', () => {
   const c = kpi.capacidadeNoMes(
     equipamento({ continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] }), MES);
   assert.equal(c.diasUteis, 31);
   assert.equal(c.horas, 31 * 24);
 });
 
-test('posições em paralelo multiplicam a capacidade', () => {
+test('parallel positions multiply the capacity', () => {
   assert.equal(kpi.capacidadeNoMes(equipamento({ posicoes: 3 }), MES).horas, 23 * 8 * 3);
 });
 
-test('manutenção sai da capacidade do mês', () => {
+test('maintenance comes off the month\'s capacity', () => {
   const eq = equipamento({
-    manutencao: [{ id: 'MN', inicio: '2026-07-06', fim: '2026-07-10', motivo: 'Calibração' }]
+    manutencao: [{ id: 'MN', inicio: '2026-07-06', fim: '2026-07-10', motivo: 'Calibration' }]
   });
   const c = kpi.capacidadeNoMes(eq, MES);
-  assert.equal(c.diasParados, 5, 'cinco dias úteis parados');
+  assert.equal(c.diasParados, 5, 'five working days down');
   assert.equal(c.diasUteis, 18);
   assert.equal(c.horas, 18 * 8);
 });
 
-test('a ocupação do mês vem das horas que o planejamento reservou', () => {
+test('the month\'s utilisation comes from the hours the schedule reserved', () => {
   const s = estado({
     testes: [teste({ horasEnsaio: 40 })],
     demandas: [demanda({ dataAmostras: SEGUNDA })]
@@ -101,8 +101,8 @@ test('a ocupação do mês vem das horas que o planejamento reservou', () => {
   assert.equal(Math.round(o.ocupacao * 1000) / 1000, Math.round(40 / 184 * 1000) / 1000);
 });
 
-test('ensaio que atravessa o mês rateia as horas entre os dois meses', () => {
-  /* 80 h em bancada de 8 h/dia = 10 dias úteis a partir de 27/07: 5 em julho, 5 em agosto. */
+test('a test spanning a month boundary apportions the hours between the two months', () => {
+  /* 80 h on an 8 h/day rig = 10 working days from 27 Jul: 5 in July, 5 in August. */
   const s = estado({
     testes: [teste({ horasEnsaio: 80 })],
     demandas: [demanda({ dataAmostras: '2026-07-27' })]
@@ -115,10 +115,10 @@ test('ensaio que atravessa o mês rateia as horas entre os dois meses', () => {
   assert.equal(julho.horasPlanejadas, 40);
   assert.equal(agosto.horasPlanejadas, 40);
   assert.equal(julho.horasPlanejadas + agosto.horasPlanejadas, 80,
-    'o total rateado é o total do ensaio');
+    'the apportioned total is the test total');
 });
 
-test('ensaio que ocupa duas bancadas conta as horas nas duas agendas', () => {
+test('a test occupying two rigs counts the hours on both calendars', () => {
   const s = estado({
     equipamentos: [equipamento({ id: 'EQ-01' }), equipamento({ id: 'EQ-02', nome: 'Outra' })],
     testes: [teste({ equipamentoGrupos: ['EQ-01', 'EQ-02'], horasEnsaio: 24 })],
@@ -131,7 +131,7 @@ test('ensaio que ocupa duas bancadas conta as horas nas duas agendas', () => {
   assert.equal(ocup[1].horasPlanejadas, 24, 'a bancada fica presa o mesmo tempo');
 });
 
-test('a ocupação não passa da capacidade, porque o planejamento respeita as posições', () => {
+test('utilisation never exceeds capacity, because the scheduler respects the positions', () => {
   const s = estado({
     equipamentos: [equipamento({ posicoes: 3 })],
     testes: [teste({ horasEnsaio: 160 })],
@@ -142,11 +142,11 @@ test('a ocupação não passa da capacidade, porque o planejamento respeita as p
   const o = kpi.ocupacaoNoMes(s, plano, MES)[0];
 
   assert.ok(o.horasPlanejadas > 0);
-  assert.ok(o.ocupacao <= 1, 'a fila empurra o excedente para o mês seguinte');
+  assert.ok(o.ocupacao <= 1, 'the queue pushes the excess into the next month');
   assert.ok(o.horasPlanejadas <= o.capacidade);
 });
 
-test('demanda concluída não some do custo, mesmo fora do planejamento', () => {
+test('a completed request does not vanish from the cost, even outside the schedule', () => {
   const s = estado({
     demandas: [
       demanda({ id: 'A', projeto: 'Onix' }),
@@ -155,14 +155,14 @@ test('demanda concluída não some do custo, mesmo fora do planejamento', () => 
   });
   const plano = scheduler.planejar(s, SEGUNDA);
 
-  assert.equal(plano.alocacoes.length, 1, 'o planejamento só carrega a demanda ativa');
+  assert.equal(plano.alocacoes.length, 1, 'the scheduler only carries the active request');
   assert.equal(kpi.custoPorProjeto(s, plano)[0].ensaios, 2,
-    'o painel soma o que já foi executado junto com o que está por executar');
+    'the dashboard adds what has already run together with what is still to run');
 });
 
 /* ---- Testes realizados ---- */
 
-test('só conta como realizado no mês o que foi concluído nele', () => {
+test('only what was completed in the month counts as carried out in it', () => {
   const s = estado({
     demandas: [
       demanda({ id: 'A', status: 'CONCLUIDA', dataConclusao: '2026-07-15' }),
@@ -174,10 +174,10 @@ test('só conta como realizado no mês o que foi concluído nele', () => {
   const realizados = kpi.realizadosNoMes(s, plano, MES);
 
   assert.deepEqual(realizados.map((a) => a.demandaId), ['A'],
-    'mês errado e status não concluído ficam de fora');
+    'the wrong month and a non-completed status stay out');
 });
 
-test('concluído sem data de conclusão não é atribuído a mês nenhum, e o painel avisa', () => {
+test('completed without a completion date is assigned to no month, and the dashboard says so', () => {
   const s = estado({
     demandas: [
       demanda({ id: 'A', status: 'CONCLUIDA', dataConclusao: '' }),
@@ -187,12 +187,12 @@ test('concluído sem data de conclusão não é atribuído a mês nenhum, e o pa
   const plano = scheduler.planejar(s, SEGUNDA);
 
   assert.deepEqual(kpi.realizadosNoMes(s, plano, MES).map((a) => a.demandaId), ['B'],
-    'sem data não dá para dizer em que mês entrou — melhor não contar do que contar errado');
+    'with no date there is no telling which month it fell in — better not to count than to count wrong');
   assert.deepEqual(kpi.concluidasSemData(s).map((d) => d.id), ['A'],
     'o painel cobra o preenchimento em vez de esconder o problema');
 });
 
-test('demanda ainda ativa usa o fim planejado como referência de conclusão', () => {
+test('a still-active request uses the planned end as its completion reference', () => {
   const s = estado({ demandas: [demanda({ status: 'EM_EXECUCAO' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(kpi.dataDeConclusao(plano.alocacoes[0]), plano.alocacoes[0].fim);
@@ -200,7 +200,7 @@ test('demanda ainda ativa usa o fim planejado como referência de conclusão', (
 
 /* ---- Certo da primeira vez ---- */
 
-test('certo da primeira vez é o relatório aprovado sem nenhuma correção', () => {
+test('right first time is a report approved with no rework at all', () => {
   const s = estado({
     demandas: [
       demanda({ id: 'A', status: 'VALIDADA', dataConclusao: '2026-07-10',
@@ -216,13 +216,13 @@ test('certo da primeira vez é o relatório aprovado sem nenhuma correção', ()
   const plano = scheduler.planejar(s, SEGUNDA);
   const ftt = kpi.certoDaPrimeiraVez(s, plano, MES);
 
-  assert.equal(ftt.aprovados, 3, 'o que está em análise não entra na conta');
+  assert.equal(ftt.aprovados, 3, 'anything under review stays out of the count');
   assert.equal(ftt.semCorrecao, 2);
   assert.equal(ftt.comCorrecao, 1);
   assert.equal(Math.round(ftt.indice * 100), 67);
 });
 
-test('o índice conta pelo mês da validação, não pelo da execução', () => {
+test('the index counts by the sign-off month, not the execution one', () => {
   const s = estado({
     demandas: [demanda({ status: 'VALIDADA', dataConclusao: '2026-07-10',
       dataRelatorio: '2026-08-05', relatorioCorrecoes: 0 })]
@@ -233,16 +233,16 @@ test('o índice conta pelo mês da validação, não pelo da execução', () => 
   assert.equal(kpi.certoDaPrimeiraVez(s, plano, '2026-08').aprovados, 1);
 });
 
-test('sem relatório validado no mês, o índice é nulo em vez de zero', () => {
+test('with no report signed off in the month, the index is null rather than zero', () => {
   const s = estado();
   const plano = scheduler.planejar(s, SEGUNDA);
   const ftt = kpi.certoDaPrimeiraVez(s, plano, MES);
-  assert.equal(ftt.indice, null, 'zero de zero não é 0% de acerto');
+  assert.equal(ftt.indice, null, 'zero out of zero is not a 0% hit rate');
 });
 
 /* ---- Custo ---- */
 
-test('custo por projeto agrupa e ordena pelo maior', () => {
+test('cost by project groups and sorts by the largest', () => {
   const s = estado({
     testes: [teste({ horasEnsaio: 10 }), teste({ id: 'TP-02', horasEnsaio: 40 })],
     demandas: [
@@ -260,13 +260,13 @@ test('custo por projeto agrupa e ordena pelo maior', () => {
   assert.equal(grupos[1].ensaios, 2);
 });
 
-test('demanda sem projeto não some do custo, cai em "Sem projeto"', () => {
+test('a request with no project does not vanish from the cost, it falls under "No project"', () => {
   const s = estado({ demandas: [demanda({ projeto: '   ' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(kpi.custoPorProjeto(s, plano)[0].chave, 'No project');
 });
 
-test('cotação e demanda cancelada ficam fora dos cortes de custo', () => {
+test('quotes and cancelled requests stay out of the cost breakdowns', () => {
   const s = estado({
     demandas: [
       demanda({ id: 'A', projeto: 'Onix' }),
@@ -278,10 +278,10 @@ test('cotação e demanda cancelada ficam fora dos cortes de custo', () => {
   const grupos = kpi.custoPorProjeto(s, plano);
 
   assert.equal(grupos.length, 1);
-  assert.equal(grupos[0].ensaios, 1, 'orçamento não é serviço confirmado; cancelado saiu');
+  assert.equal(grupos[0].ensaios, 1, 'a budget is not confirmed work; the cancelled one is out');
 });
 
-test('custo por cliente usa o nome cadastrado', () => {
+test('cost by customer uses the registered name', () => {
   const s = estado({
     demandas: [demanda({ id: 'A', clienteId: 'CLI-02' }), demanda({ id: 'B', clienteId: 'CLI-01' })]
   });
@@ -290,7 +290,7 @@ test('custo por cliente usa o nome cadastrado', () => {
   assert.deepEqual(nomes, ['Cliente Dois', 'Cliente Um']);
 });
 
-test('custo planejado no ano soma os ensaios que começam nele', () => {
+test('cost scheduled in the year adds up the tests that start in it', () => {
   const s = estado({
     testes: [teste({ horasEnsaio: 8 })],
     demandas: [
@@ -305,7 +305,7 @@ test('custo planejado no ano soma os ensaios que começam nele', () => {
   assert.equal(kpi.custoPlanejadoNoAno(plano, 2027).ensaios, 1);
 });
 
-test('o seletor de mês lista o mês corrente e os meses com movimento', () => {
+test('the month selector lists the current month and the months with activity', () => {
   const s = estado({
     demandas: [demanda({ status: 'CONCLUIDA', dataConclusao: '2026-03-10',
       dataRelatorio: '2026-04-02', status: 'VALIDADA' })]
@@ -313,8 +313,8 @@ test('o seletor de mês lista o mês corrente e os meses com movimento', () => {
   const plano = scheduler.planejar(s, SEGUNDA);
   const meses = kpi.mesesComMovimento(s, plano, '2026-07-06');
 
-  assert.ok(meses.includes('2026-07'), 'o mês corrente sempre aparece');
-  assert.ok(meses.includes('2026-03'), 'mês da conclusão');
-  assert.ok(meses.includes('2026-04'), 'mês da validação do relatório');
+  assert.ok(meses.includes('2026-07'), 'the current month always shows');
+  assert.ok(meses.includes('2026-03'), 'the completion month');
+  assert.ok(meses.includes('2026-04'), 'the report sign-off month');
   assert.deepEqual(meses, meses.slice().sort().reverse(), 'do mais recente para o mais antigo');
 });

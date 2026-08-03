@@ -1,4 +1,4 @@
-/* Testes de perfil, permissões e cotações. */
+/* Role, permission and quote tests. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -16,13 +16,13 @@ function comPerfil(perfil) {
   return store.get();
 }
 
-test('o padrão separa o que cada perfil enxerga', () => {
+test('the defaults separate what each role sees', () => {
   const produto = comPerfil('PRODUTO');
-  assert.equal(permissoes.podeVer(produto, 'catalogo'), true, 'produto precisa ver o catálogo para pedir teste');
+  assert.equal(permissoes.podeVer(produto, 'catalogo'), true, 'product needs to see the catalogue to ask for a test');
   assert.equal(permissoes.podeVer(produto, 'cotacoes'), true);
   assert.equal(permissoes.podeVer(produto, 'demandas'), true);
   assert.equal(permissoes.podeVer(produto, 'planejamento'), true);
-  assert.equal(permissoes.podeVer(produto, 'painel'), false, 'KPI é do centro de testes');
+  assert.equal(permissoes.podeVer(produto, 'painel'), false, 'KPIs belong to the test centre');
   assert.equal(permissoes.podeVer(produto, 'equipamentos'), false);
   assert.equal(permissoes.podeVer(produto, 'pecas'), false);
   assert.equal(permissoes.podeVer(produto, 'clientes'), false);
@@ -33,7 +33,7 @@ test('o padrão separa o que cada perfil enxerga', () => {
     .forEach((rota) => assert.equal(permissoes.podeVer(testes, rota), true, rota));
 });
 
-test('produto pede teste e cotação, mas não mexe no catálogo nem no planejamento', () => {
+test('product asks for tests and quotes but does not touch the catalogue or the schedule', () => {
   const produto = comPerfil('PRODUTO');
   assert.equal(permissoes.podeEditar(produto, 'cotacoes'), true);
   assert.equal(permissoes.podeEditar(produto, 'demandas'), true);
@@ -41,14 +41,14 @@ test('produto pede teste e cotação, mas não mexe no catálogo nem no planejam
   assert.equal(permissoes.podeEditar(produto, 'planejamento'), false);
 });
 
-test('quem não vê a janela também não edita, mesmo se marcado', () => {
+test('whoever cannot see the screen cannot edit it either, even if ticked', () => {
   const estado = comPerfil('PRODUTO');
   estado.permissoes.painel.editar.push('PRODUTO');
   assert.equal(permissoes.podeVer(estado, 'painel'), false);
-  assert.equal(permissoes.podeEditar(estado, 'painel'), false, 'editar sem ver não vale');
+  assert.equal(permissoes.podeEditar(estado, 'painel'), false, 'editing without viewing does not count');
 });
 
-test('marcar editar liga ver junto, e desmarcar ver desliga editar', () => {
+test('ticking edit turns view on with it, and unticking view turns edit off', () => {
   comPerfil('PRODUTO');
   store.definirPermissao('painel', 'editar', 'PRODUTO', true);
   let regra = store.get().permissoes.painel;
@@ -61,7 +61,7 @@ test('marcar editar liga ver junto, e desmarcar ver desliga editar', () => {
   assert.ok(!regra.editar.includes('PRODUTO'), 'editar caiu junto');
 });
 
-test('restaurar permissões volta à matriz padrão', () => {
+test('restoring permissions goes back to the default matrix', () => {
   comPerfil('TESTES');
   store.definirPermissao('equipamentos', 'ver', 'PRODUTO', true);
   assert.ok(store.get().permissoes.equipamentos.ver.includes('PRODUTO'));
@@ -69,7 +69,7 @@ test('restaurar permissões volta à matriz padrão', () => {
   assert.ok(!store.get().permissoes.equipamentos.ver.includes('PRODUTO'));
 });
 
-test('estado antigo sem permissões nem cotações recebe o padrão', () => {
+test('an old state with no permissions and no quotes receives the defaults', () => {
   const base = dados.seed();
   delete base.permissoes;
   delete base.cotacoes;
@@ -82,22 +82,22 @@ test('estado antigo sem permissões nem cotações recebe o padrão', () => {
   assert.deepEqual(estado.permissoes.painel.ver, ['TESTES']);
 });
 
-test('perfil inválido gravado volta para o de testes', () => {
+test('an invalid saved role falls back to the test one', () => {
   const base = dados.seed();
   base.perfilAtual = 'FANTASMA';
   store.importar(JSON.stringify(base));
   assert.equal(store.get().perfilAtual, 'TESTES');
 });
 
-/* ---- Cotações ---- */
+/* ---- Quotes ---- */
 
-/* A view não exporta módulo: carrega por efeito colateral e registra em TC.views. */
+/* The view exports no module: it loads by side effect and registers itself in TC.views. */
 require('../src/views/cotacoes.js');
 const cotacoes = globalThis.TC.views.cotacoes;
 
-/* O catálogo de partida chega com horas e valores zerados — quem cadastra preenche
-   depois. Cotação com preço zero não prova nada, então completamos um procedimento
-   antes de cotar. */
+/* The seed catalogue arrives with hours and values at zero — whoever registers fills them
+   in later. A quote priced at zero proves nothing, so we complete one procedure to give the
+   arithmetic some numbers. */
 function procedimentoPrecificado() {
   store.restaurarPadrao();
   const base = store.get().testes[0];
@@ -108,12 +108,12 @@ function procedimentoPrecificado() {
   }));
 }
 
-/* O hourly rate é do centro de testes: quem cota passa o rate vigente. */
+/* The hourly rate belongs to the test centre: whoever quotes passes the current rate. */
 function rateVigente() {
   return store.get().hourlyRate;
 }
 
-test('numeração de cotação é sequencial por ano', () => {
+test('quote numbering is sequential within the year', () => {
   store.restaurarPadrao();
   const primeira = store.proximoNumeroCotacao();
   assert.match(primeira, /^COT-\d{4}-0001$/);
@@ -124,7 +124,7 @@ test('numeração de cotação é sequencial por ano', () => {
   assert.match(store.proximoNumeroCotacao(), /-0003$/);
 });
 
-test('o item da cotação congela o preço do procedimento', () => {
+test('the quote line item freezes the procedure price', () => {
   const teste = procedimentoPrecificado();
   const item = cotacoes.montarItem(teste, 2, rateVigente());
 
@@ -132,22 +132,22 @@ test('o item da cotação congela o preço do procedimento', () => {
     (teste.horasSetup + teste.horasEnsaio + teste.horasReport) * rateVigente() +
     teste.custoInsumos;
 
-  assert.equal(item.custoUnitario, esperadoUnitario, 'o unitário é o custo do procedimento');
+  assert.equal(item.custoUnitario, esperadoUnitario, 'the unit price is the procedure cost');
   assert.equal(item.amostras, 2);
-  assert.equal(item.total, esperadoUnitario * 2, 'cada amostra é uma execução');
-  assert.equal(item.revisao, teste.revisao, 'a revisão vigente fica registrada');
+  assert.equal(item.total, esperadoUnitario * 2, 'each sample is one run');
+  assert.equal(item.revisao, teste.revisao, 'the current revision is recorded');
 });
 
-test('quantidade de amostras inválida vira uma', () => {
+test('an invalid sample quantity becomes one', () => {
   const teste = procedimentoPrecificado();
   const rate = rateVigente();
   assert.equal(cotacoes.montarItem(teste, 0, rate).amostras, 1);
   assert.equal(cotacoes.montarItem(teste, '', rate).amostras, 1);
   assert.equal(cotacoes.montarItem(teste, -3, rate).amostras, 1);
-  assert.equal(cotacoes.montarItem(teste, '4', rate).amostras, 4, 'texto de input vira número');
+  assert.equal(cotacoes.montarItem(teste, '4', rate).amostras, 4, 'input text becomes a number');
 });
 
-test('mudar o catálogo depois não reescreve cotação arquivada', () => {
+test('changing the catalogue later does not rewrite an archived quote', () => {
   const teste = procedimentoPrecificado();
   const item = cotacoes.montarItem(teste, 1, rateVigente());
   const cotacao = store.salvarCotacao({ clienteId: 'CLI-VW', itens: [item] });
@@ -157,10 +157,10 @@ test('mudar o catálogo depois não reescreve cotação arquivada', () => {
 
   const arquivada = globalThis.TC.util.porId(store.get().cotacoes, cotacao.id);
   assert.equal(cotacoes.totalDaCotacao(arquivada), totalOriginal,
-    'o orçamento entregue não muda quando o catálogo sobe de preço');
+    'a delivered quote does not change when the catalogue goes up in price');
 });
 
-test('o reajuste anual do hourly rate não reescreve cotação arquivada', () => {
+test('the annual hourly rate revision does not rewrite an archived quote', () => {
   const teste = procedimentoPrecificado();
   const cotacao = store.salvarCotacao({
     clienteId: 'CLI-VW', itens: [cotacoes.montarItem(teste, 2, rateVigente())]
@@ -174,10 +174,10 @@ test('o reajuste anual do hourly rate não reescreve cotação arquivada', () =>
   assert.equal(cotacoes.totalDaCotacao(arquivada), totalOriginal);
   assert.equal(arquivada.itens[0].hourlyRate, rateAntigo,
     'o item guarda o rate do dia em que foi cotado');
-  assert.equal(store.get().hourlyRate, 500, 'o rate novo vale para o catálogo daqui em diante');
+  assert.equal(store.get().hourlyRate, 500, 'the new rate applies to the catalogue from here on');
 });
 
-test('o hourly rate é um campo só, aplicado a todos os procedimentos', () => {
+test('the hourly rate is a single field, applied to every procedure', () => {
   store.restaurarPadrao();
   store.definirHourlyRate(400, '2027');
   const estado = store.get();
@@ -185,28 +185,28 @@ test('o hourly rate é um campo só, aplicado a todos os procedimentos', () => {
   assert.equal(estado.hourlyRate, 400);
   assert.equal(estado.hourlyRateVigencia, '2027');
   estado.testes.forEach((t) => {
-    assert.equal(t.hourlyRate, undefined, t.id + ' não pode ter rate próprio');
+    assert.equal(t.hourlyRate, undefined, t.id + ' cannot have a rate of its own');
   });
   const comHoras = estado.testes.filter((t) => globalThis.TC.scheduler.horasFaturaveis(t) > 0);
   assert.ok(comHoras.length > 0);
   comHoras.forEach((t) => {
     const c = globalThis.TC.scheduler.custoCatalogo(t, estado.hourlyRate);
-    assert.equal(c.hourlyRate, 400, t.id + ' não usou o rate do centro de testes');
+    assert.equal(c.hourlyRate, 400, t.id + ' did not use the test centre rate');
   });
 });
 
-test('o unitário é horas x rate + insumos, sem custo de amostra embutido', () => {
+test('the unit price is hours x rate + consumables, with no sample cost baked in', () => {
   const item = cotacoes.montarItem(procedimentoPrecificado(), 1);
   assert.ok(item.custoUnitario > 0, 'o teste precisa de um procedimento precificado');
   assert.equal(item.custoUnitario, item.custoHoras + item.custoInsumos);
-  assert.equal(item.custoAmostras, undefined, 'a peça de referência saiu do modelo');
+  assert.equal(item.custoAmostras, undefined, 'the reference part type left the model');
 });
 
-test('cotação arquivada no formato antigo é migrada sem mudar o total', () => {
+test('an archived quote in the old format is migrated without changing the total', () => {
   const base = dados.seed();
   base.cotacoes = [{
     id: 'COT-velha', numero: 'COT-2025-0001', clienteId: 'CLI-VW', pecaId: 'PC-HOT',
-    projeto: 'P1', partNumber: 'PN-1', solicitante: 'Alguém', status: 'ENVIADA',
+    projeto: 'P1', partNumber: 'PN-1', solicitante: 'Someone', status: 'ENVIADA',
     criadoEm: '2025-05-10',
     itens: [{
       testeId: 'TP-HOT-01', nome: 'Antigo', revisao: 'Rev. 01', norma: '',
@@ -219,16 +219,16 @@ test('cotação arquivada no formato antigo é migrada sem mudar o total', () =>
   store.importar(JSON.stringify(base));
   const c = store.get().cotacoes[0];
 
-  assert.equal(c.pecaId, undefined, 'a peça de referência sai do cabeçalho');
+  assert.equal(c.pecaId, undefined, 'the reference part type leaves the header');
   assert.equal(c.lti, '');
   assert.equal(c.previsaoExecucao, '');
   assert.equal(c.itens[0].quantidade, undefined, 'quantidade virou amostras');
   assert.equal(c.itens[0].amostras, 3, 'a quantidade antiga passa a ser a de amostras');
   assert.equal(c.itens[0].custoAmostras, 500, 'o custo antigo fica, para o total reconciliar');
-  assert.equal(cotacoes.totalDaCotacao(c), 6000, 'preço congelado não é recalculado');
+  assert.equal(cotacoes.totalDaCotacao(c), 6000, 'a frozen price is not recalculated');
 });
 
-test('total da cotação soma os itens', () => {
+test('the quote total adds up the line items', () => {
   store.restaurarPadrao();
   const testes = store.get().testes;
   const itens = [
@@ -239,50 +239,50 @@ test('total da cotação soma os itens', () => {
   assert.equal(total, itens[0].total + itens[1].total);
 });
 
-/* ---- Cópia publicada para a equipe ---- */
+/* ---- Copy published for the team ---- */
 
-/* O build embute um instantâneo em TC.PUBLICACAO. A aplicação passa a ler dele, não
-   grava nada e ninguém edita — é o compartilhamento possível sem servidor. */
+/* The build embeds a snapshot in TC.PUBLICACAO. The application reads from it, saves nothing
+   and nobody edits — the sharing that is possible without a server. */
 function comPublicacao(dados, fn) {
   globalThis.TC.PUBLICACAO = { atualizadoEm: '2026-07-31', dados: dados };
   try { return fn(); } finally { delete globalThis.TC.PUBLICACAO; }
 }
 
-test('a cópia publicada lê os dados embutidos, ignorando o navegador', () => {
+test('the published copy reads the embedded data, ignoring the browser', () => {
   store.restaurarPadrao();
   const outro = dados.seed();
   outro.testes = outro.testes.slice(0, 3);
 
   comPublicacao(outro, () => {
     store.init();
-    assert.equal(store.get().testes.length, 3, 'os dados vêm do instantâneo embutido');
+    assert.equal(store.get().testes.length, 3, 'the data comes from the embedded snapshot');
   });
 });
 
-test('a cópia publicada não grava alterações', () => {
+test('the published copy saves no changes', () => {
   const embutido = dados.seed();
   comPublicacao(embutido, () => {
     store.init();
-    store.salvarCliente({ nome: 'Só nesta sessão', segmento: 'Teste' });
+    store.salvarCliente({ nome: 'Only in this session', segmento: 'Test' });
   });
 
-  /* Fora da publicação, o estado do navegador continua o que era. */
+  /* Outside the publication, the browser state stays what it was. */
   store.init();
-  assert.equal(store.get().clientes.filter((c) => c.nome === 'Só nesta sessão').length, 0,
-    'a cópia da equipe não pode escrever no navegador de quem abre');
+  assert.equal(store.get().clientes.filter((c) => c.nome === 'Only in this session').length, 0,
+    'the team copy must not write into the browser of whoever opens it');
 });
 
-test('na cópia publicada ninguém edita, mas todos consultam', () => {
+test('in the published copy nobody edits, but everyone reads', () => {
   comPublicacao(dados.seed(), () => {
     store.init();
     const estado = store.get();
     assert.equal(permissoes.publicada(), true);
     ['catalogo', 'demandas', 'cotacoes', 'planejamento', 'equipamentos', 'permissoes']
       .forEach((rota) => {
-        assert.equal(permissoes.podeEditar(estado, rota), false, rota + ' ficou editável');
+        assert.equal(permissoes.podeEditar(estado, rota), false, rota + ' was left editable');
       });
     assert.equal(permissoes.podeVer(estado, 'catalogo'), true, 'consulta continua liberada');
   });
 
-  assert.equal(permissoes.publicada(), false, 'fora da publicação nada muda');
+  assert.equal(permissoes.publicada(), false, 'outside the publication nothing changes');
 });

@@ -1,4 +1,4 @@
-/* Testes dos fluxos: quem pode mover o quê, o que cada passagem exige e o histórico. */
+/* Workflow tests: who can move what, what each move requires and the history. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -16,16 +16,16 @@ function comPerfil(perfil) {
   store.definirPerfil(perfil);
 }
 
-/* O relatório anexado é o que libera "Enviar relatório". Sai daqui para não repetir a
-   colagem do link em cada teste que só quer chegar ao fim do fluxo. */
+/* An attached report is what unlocks "Send report". It lives here so the link paste is not
+   repeated in every test that only wants to reach the end of the workflow. */
 function anexarRelatorio(demandaId) {
   return store.anexarDocumento('demanda', demandaId, {
-    tipo: 'RELATORIO', nome: 'Relatório LTI-1',
+    tipo: 'RELATORIO', nome: 'Report LTI-1',
     link: 'https://empresa.sharepoint.com/testes/LTI-1.pdf'
   });
 }
 
-/* Uma demanda pronta para percorrer o fluxo. */
+/* A request ready to walk the workflow. */
 function novaDemanda() {
   store.restaurarPadrao();
   const teste = store.get().testes[0];
@@ -39,27 +39,27 @@ function novaDemanda() {
   });
 }
 
-/* ---- Desenho do fluxo ---- */
+/* ---- Shape of the workflow ---- */
 
-test('a demanda nasce solicitada pelo cliente interno', () => {
+test('a request is born requested by the internal customer', () => {
   const d = novaDemanda();
   assert.equal(d.status, 'SOLICITADA');
-  assert.deepEqual(d.historico, [], 'nenhuma passagem ainda');
+  assert.deepEqual(d.historico, [], 'no move yet');
 });
 
-test('o fluxo da demanda não tem estado sem saída além dos finais', () => {
+test('the request workflow has no dead-end state other than the final ones', () => {
   const finais = ['VALIDADA', 'CANCELADA'];
   fluxo.estados('demanda').forEach((e) => {
     const saidas = fluxo.transicoesDe('demanda', e.id);
     if (finais.includes(e.id)) {
-      assert.equal(saidas.length, 0, e.id + ' é final e não deveria ter saída');
+      assert.equal(saidas.length, 0, e.id + ' is final and should have no way out');
     } else {
-      assert.ok(saidas.length > 0, e.id + ' ficou sem saída');
+      assert.ok(saidas.length > 0, e.id + ' was left with no way out');
     }
   });
 });
 
-test('toda transição aponta para um estado que existe', () => {
+test('every transition points at a state that exists', () => {
   ['demanda', 'cotacao'].forEach((tipo) => {
     const ids = fluxo.estados(tipo).map((e) => e.id);
     fluxo.fluxo(tipo).transicoes.forEach((t) => {
@@ -69,39 +69,39 @@ test('toda transição aponta para um estado que existe', () => {
   });
 });
 
-test('só disputam bancada os estados anteriores à conclusão', () => {
+test('only the states before completion compete for a rig', () => {
   assert.deepEqual(fluxo.estadosAtivos(), ['SOLICITADA', 'ACEITA', 'EM_EXECUCAO']);
   assert.deepEqual(globalThis.TC.scheduler.STATUS_ATIVOS, fluxo.estadosAtivos(),
     'o planejamento usa exatamente a lista do fluxo');
 });
 
-/* ---- Quem pode o quê ---- */
+/* ---- Who can do what ---- */
 
-test('aceitar a demanda é do centro de testes, validar o relatório é do cliente', () => {
+test('accepting the request belongs to the test centre, signing off the report to the customer', () => {
   assert.ok(fluxo.podeTransicionar('demanda', 'SOLICITADA', 'ACEITA', 'TESTES'));
   assert.ok(!fluxo.podeTransicionar('demanda', 'SOLICITADA', 'ACEITA', 'PRODUTO'));
 
   assert.ok(fluxo.podeTransicionar('demanda', 'RELATORIO_ENVIADO', 'VALIDADA', 'PRODUTO'));
   assert.ok(!fluxo.podeTransicionar('demanda', 'RELATORIO_ENVIADO', 'VALIDADA', 'TESTES'),
-    'quem executa o ensaio não valida o próprio relatório');
+    'whoever runs the test does not sign off their own report');
 });
 
-test('cancelar é de qualquer perfil, enquanto o ensaio não terminou', () => {
+test('cancelling belongs to any role, as long as the test has not finished', () => {
   assert.ok(fluxo.podeTransicionar('demanda', 'ACEITA', 'CANCELADA', 'PRODUTO'));
   assert.ok(fluxo.podeTransicionar('demanda', 'ACEITA', 'CANCELADA', 'TESTES'));
   assert.ok(!fluxo.podeTransicionar('demanda', 'CONCLUIDA', 'CANCELADA', 'TESTES'),
-    'ensaio já executado não se cancela: ele custou bancada');
+    'a test already run is not cancelled: it cost rig time');
 });
 
-test('o centro de testes não aprova a própria cotação em nome do cliente', () => {
+test('the test centre does not approve its own quote on the customer\'s behalf', () => {
   assert.ok(fluxo.podeTransicionar('cotacao', 'EM_ANALISE', 'VALIDADA', 'TESTES'));
   assert.ok(!fluxo.podeTransicionar('cotacao', 'VALIDADA', 'APROVADA', 'TESTES'));
   assert.ok(fluxo.podeTransicionar('cotacao', 'VALIDADA', 'APROVADA', 'PRODUTO'));
 });
 
-/* ---- Passagens de verdade, pelo store ---- */
+/* ---- Real moves, through the store ---- */
 
-test('o caminho completo da demanda, do pedido à validação', () => {
+test('the full path of a request, from the ask to the sign-off', () => {
   const d = novaDemanda();
 
   comPerfil('TESTES');
@@ -118,13 +118,13 @@ test('o caminho completo da demanda, do pedido à validação', () => {
   assert.equal(final.status, 'VALIDADA');
   assert.equal(final.dataConclusao, '2026-08-20');
   assert.equal(final.dataRelatorio, '2026-08-28');
-  assert.equal(final.relatorioCorrecoes, 0, 'certo da primeira vez');
-  assert.equal(final.historico.length, 5, 'uma linha por passagem');
+  assert.equal(final.relatorioCorrecoes, 0, 'right first time');
+  assert.equal(final.historico.length, 5, 'one line per move');
   assert.deepEqual(final.historico.map((h) => h.para),
     ['ACEITA', 'EM_EXECUCAO', 'CONCLUIDA', 'RELATORIO_ENVIADO', 'VALIDADA']);
 });
 
-test('o histórico registra quem fez cada passagem', () => {
+test('the history records who made each move', () => {
   const d = novaDemanda();
   comPerfil('TESTES');
   store.moverDemanda(d.id, 'ACEITA', { nota: 'amostras confirmadas' });
@@ -137,7 +137,7 @@ test('o histórico registra quem fez cada passagem', () => {
   assert.equal(h.em, globalThis.TC.util.hoje());
 });
 
-test('pedir correção conta a rodada e devolve ao centro de testes', () => {
+test('requesting rework counts the round and sends it back to the test centre', () => {
   const d = novaDemanda();
   comPerfil('TESTES');
   store.moverDemanda(d.id, 'ACEITA');
@@ -156,10 +156,10 @@ test('pedir correção conta a rodada e devolve ao centro de testes', () => {
   store.moverDemanda(d.id, 'EM_CORRECAO', { nota: 'ainda falta a foto do corpo de prova' });
 
   const final = globalThis.TC.util.porId(store.get().demandas, d.id);
-  assert.equal(final.relatorioCorrecoes, 2, 'cada devolução conta uma rodada');
+  assert.equal(final.relatorioCorrecoes, 2, 'each return counts one round');
 });
 
-test('a passagem é recusada quando o perfil não é o dono dela', () => {
+test('the move is refused when the role does not own it', () => {
   const d = novaDemanda();
   comPerfil('PRODUTO');
   const r = store.moverDemanda(d.id, 'ACEITA');
@@ -167,10 +167,10 @@ test('a passagem é recusada quando o perfil não é o dono dela', () => {
   assert.equal(r.ok, false);
   assert.match(r.motivo, /Test Engineer/);
   assert.equal(globalThis.TC.util.porId(store.get().demandas, d.id).status, 'SOLICITADA',
-    'nada muda quando a passagem é recusada');
+    'nothing changes when the move is refused');
 });
 
-test('não se pula etapa: da solicitação direto para concluída não existe', () => {
+test('no step is skipped: requested straight to completed does not exist', () => {
   const d = novaDemanda();
   comPerfil('TESTES');
   const r = store.moverDemanda(d.id, 'CONCLUIDA', { dataConclusao: '2026-08-20' });
@@ -179,7 +179,7 @@ test('não se pula etapa: da solicitação direto para concluída não existe', 
   assert.match(r.motivo, /no move from/);
 });
 
-test('concluir sem data de conclusão é recusado', () => {
+test('completing without a completion date is refused', () => {
   const d = novaDemanda();
   comPerfil('TESTES');
   store.moverDemanda(d.id, 'ACEITA');
@@ -187,11 +187,11 @@ test('concluir sem data de conclusão é recusado', () => {
 
   const r = store.moverDemanda(d.id, 'CONCLUIDA', {});
   assert.equal(r.ok, false);
-  assert.match(r.motivo, /dataConclusao/, 'o indicador do mês depende dessa data');
+  assert.match(r.motivo, /dataConclusao/, 'the month indicator depends on this date');
   assert.equal(globalThis.TC.util.porId(store.get().demandas, d.id).status, 'EM_EXECUCAO');
 });
 
-test('devolver e recusar exigem justificativa registrada', () => {
+test('returning and declining require a recorded justification', () => {
   const d = novaDemanda();
   comPerfil('TESTES');
   const r = store.moverDemanda(d.id, 'CANCELADA', {});
@@ -201,9 +201,9 @@ test('devolver e recusar exigem justificativa registrada', () => {
   assert.ok(store.moverDemanda(d.id, 'CANCELADA', { nota: 'programa cancelado' }).ok);
 });
 
-/* ---- Fluxo da cotação ---- */
+/* ---- Quote workflow ---- */
 
-test('o caminho completo da cotação, do pedido à aprovação', () => {
+test('the full path of a quote, from the ask to approval', () => {
   store.restaurarPadrao();
   comPerfil('PRODUTO');
   const c = store.salvarCotacao({ clienteId: 'CLI-GM', projeto: 'Onix', itens: [] });
@@ -224,7 +224,7 @@ test('o caminho completo da cotação, do pedido à aprovação', () => {
     ['PRODUTO', 'TESTES', 'TESTES', 'PRODUTO']);
 });
 
-test('cotação devolvida volta ao solicitante e pode ser reenviada', () => {
+test('a returned quote goes back to the requester and can be resent', () => {
   store.restaurarPadrao();
   comPerfil('PRODUTO');
   const c = store.salvarCotacao({ clienteId: 'CLI-GM', itens: [] });
@@ -233,7 +233,7 @@ test('cotação devolvida volta ao solicitante e pode ser reenviada', () => {
   comPerfil('TESTES');
   store.moverCotacao(c.id, 'EM_ANALISE');
   const semNota = store.moverCotacao(c.id, 'DEVOLVIDA', {});
-  assert.equal(semNota.ok, false, 'devolver sem dizer o que falta não ajuda ninguém');
+  assert.equal(semNota.ok, false, 'returning without saying what is missing helps nobody');
 
   assert.ok(store.moverCotacao(c.id, 'DEVOLVIDA', { nota: 'falta o part number' }).ok);
 
@@ -242,9 +242,9 @@ test('cotação devolvida volta ao solicitante e pode ser reenviada', () => {
   assert.equal(globalThis.TC.util.porId(store.get().cotacoes, c.id).status, 'SOLICITADA');
 });
 
-/* ---- Migração dos status antigos ---- */
+/* ---- Migration of the old statuses ---- */
 
-test('status antigos de demanda viram estados do fluxo', () => {
+test('old request statuses become workflow states', () => {
   const base = dados.seed();
   base.demandas = [
     { id: 'A', testeId: base.testes[0].id, pecaId: 'PC-HOT', clienteId: 'CLI-GM',
@@ -269,7 +269,7 @@ test('status antigos de demanda viram estados do fluxo', () => {
 
   assert.equal(porId('A').status, 'SOLICITADA');
   assert.equal(porId('B').status, 'EM_EXECUCAO');
-  assert.equal(porId('C').status, 'VALIDADA', 'concluído com relatório aprovado já está validado');
+  assert.equal(porId('C').status, 'VALIDADA', 'completed with an approved report is already signed off');
   assert.equal(porId('D').status, 'EM_CORRECAO');
   assert.equal(porId('E').status, 'CANCELADA');
   store.get().demandas.forEach((d) => {
@@ -278,7 +278,7 @@ test('status antigos de demanda viram estados do fluxo', () => {
   });
 });
 
-test('status antigos de cotação viram estados do fluxo', () => {
+test('old quote statuses become workflow states', () => {
   const base = dados.seed();
   base.cotacoes = [
     { id: 'C1', numero: 'COT-2025-0001', clienteId: 'CLI-GM', status: 'ABERTA', itens: [] },

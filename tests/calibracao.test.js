@@ -1,5 +1,5 @@
-/* Testes da gestão de calibração: validade, vencimento, criticidade e o registro do
-   certificado. */
+/* Calibration management tests: validity, due dates, criticality and recording the
+   certificate. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -21,40 +21,40 @@ function instrumento(extra) {
   }, extra);
 }
 
-/* ---- Soma de meses ---- */
+/* ---- Adding months ---- */
 
-test('a validade é somada em meses, respeitando mês curto e virada de ano', () => {
+test('validity is added in months, respecting short months and the year boundary', () => {
   assert.equal(calibracao.somaMeses('2026-03-10', 12), '2027-03-10');
-  assert.equal(calibracao.somaMeses('2026-01-31', 1), '2026-02-28', 'fevereiro não tem dia 31');
-  assert.equal(calibracao.somaMeses('2028-01-31', 1), '2028-02-29', 'ano bissexto');
-  assert.equal(calibracao.somaMeses('2026-11-15', 6), '2027-05-15', 'atravessa o ano');
-  assert.equal(calibracao.somaMeses('', 12), '', 'sem data não há validade');
+  assert.equal(calibracao.somaMeses('2026-01-31', 1), '2026-02-28', 'February has no 31st');
+  assert.equal(calibracao.somaMeses('2028-01-31', 1), '2028-02-29', 'leap year');
+  assert.equal(calibracao.somaMeses('2026-11-15', 6), '2027-05-15', 'crosses the year');
+  assert.equal(calibracao.somaMeses('', 12), '', 'with no date there is no validity');
 });
 
-/* ---- Vencimento ---- */
+/* ---- Due date ---- */
 
-test('sem última calibração o instrumento fica sem plano, não vencido', () => {
+test('with no last calibration the instrument has no plan, it is not expired', () => {
   const e = calibracao.estado(instrumento(), HOJE);
   assert.equal(e.prazo, 'SEM_PLANO');
   assert.equal(e.vencimento, '');
-  assert.equal(e.criticidade, '', 'lacuna de cadastro não é o mesmo que instrumento vencido');
+  assert.equal(e.criticidade, '', 'a gap in the register is not the same as an expired instrument');
 });
 
-test('a validade sai da última calibração mais a periodicidade', () => {
+test('validity comes from the last calibration plus the interval', () => {
   const e = calibracao.estado(
     instrumento({ ultimaCalibracao: '2026-03-10', periodicidadeMeses: 12 }), HOJE);
   assert.equal(e.vencimento, '2027-03-10');
   assert.equal(e.prazo, 'EM_DIA');
 });
 
-test('a data do certificado tem precedência sobre a calculada', () => {
+test('the certificate date wins over the computed one', () => {
   const e = calibracao.estado(instrumento({
     ultimaCalibracao: '2026-03-10', periodicidadeMeses: 12, proximaCalibracao: '2026-09-30'
   }), HOJE);
-  assert.equal(e.vencimento, '2026-09-30', 'o certificado pode trazer validade própria');
+  assert.equal(e.vencimento, '2026-09-30', 'the certificate can carry a validity of its own');
 });
 
-test('vence dentro de 30 dias entra em "a vencer"', () => {
+test('falling due within 30 days counts as "due soon"', () => {
   const emDia = calibracao.estado(instrumento({ proximaCalibracao: '2026-10-01' }), HOJE);
   const aVencer = calibracao.estado(instrumento({ proximaCalibracao: '2026-09-05' }), HOJE);
   const vencido = calibracao.estado(instrumento({ proximaCalibracao: '2026-08-09' }), HOJE);
@@ -65,15 +65,15 @@ test('vence dentro de 30 dias entra em "a vencer"', () => {
   assert.equal(vencido.diasParaVencer, -1);
 });
 
-test('o dia do vencimento ainda conta como dentro da validade', () => {
+test('the due date itself still counts as within validity', () => {
   const e = calibracao.estado(instrumento({ proximaCalibracao: HOJE }), HOJE);
   assert.equal(e.prazo, 'A_VENCER');
   assert.equal(e.diasParaVencer, 0);
 });
 
-/* ---- Criticidade ---- */
+/* ---- Criticality ---- */
 
-test('vencido e em uso é crítico; vencido fora de uso ou back-up é só atenção', () => {
+test('expired and in use is critical; expired but out of service or back-up is only a warning', () => {
   const emUso = calibracao.estado(
     instrumento({ proximaCalibracao: '2026-01-01', situacao: 'EM_USO' }), HOJE);
   const foraDeUso = calibracao.estado(
@@ -81,14 +81,14 @@ test('vencido e em uso é crítico; vencido fora de uso ou back-up é só atenç
   const desativado = calibracao.estado(
     instrumento({ proximaCalibracao: '2026-01-01', situacao: 'EM_USO', ativo: false }), HOJE);
 
-  assert.equal(emUso.criticidade, 'CRITICO', 'ensaio medindo fora da validade');
+  assert.equal(emUso.criticidade, 'CRITICO', 'a test measuring out of validity');
   assert.equal(foraDeUso.criticidade, 'ATENCAO');
   assert.equal(desativado.criticidade, 'ATENCAO');
 });
 
-/* ---- Resumo e agenda ---- */
+/* ---- Summary and queue ---- */
 
-test('o resumo separa vencido, a vencer, em dia e sem plano', () => {
+test('the summary separates expired, due soon, in date and no plan', () => {
   const lista = [
     instrumento({ id: 'A', proximaCalibracao: '2026-01-01' }),
     instrumento({ id: 'B', proximaCalibracao: '2026-08-20' }),
@@ -100,14 +100,14 @@ test('o resumo separa vencido, a vencer, em dia e sem plano', () => {
 
   assert.equal(r.total, 5);
   assert.equal(r.vencidos, 2);
-  assert.equal(r.criticos, 1, 'só o vencido que segue em uso');
+  assert.equal(r.criticos, 1, 'only the expired one still in use');
   assert.equal(r.aVencer, 1);
   assert.equal(r.emDia, 1);
   assert.equal(r.semPlano, 1);
-  assert.equal(r.cobertura, 2 / 4, 'a cobertura só olha quem tem plano');
+  assert.equal(r.cobertura, 2 / 4, 'coverage only looks at what has a plan');
 });
 
-test('a agenda traz o que já venceu e o que vence no horizonte, do mais urgente', () => {
+test('the queue brings what has expired and what falls due within the horizon, most urgent first', () => {
   const lista = [
     instrumento({ id: 'DEPOIS', proximaCalibracao: '2027-06-01' }),
     instrumento({ id: 'PERTO', proximaCalibracao: '2026-09-01' }),
@@ -119,9 +119,9 @@ test('a agenda traz o que já venceu e o que vence no horizonte, do mais urgente
   assert.deepEqual(agenda.map((x) => x.instrumento.id), ['VENCIDO', 'PERTO']);
 });
 
-/* ---- Inventário de partida ---- */
+/* ---- Seed inventory ---- */
 
-test('o inventário de partida traz os instrumentos da planilha, sem código repetido', () => {
+test('the seed inventory carries the spreadsheet instruments, with no repeated code', () => {
   const base = dados.seed();
   assert.equal(base.instrumentos.length, 229);
   assert.equal(new Set(base.instrumentos.map((i) => i.id)).size, base.instrumentos.length);
@@ -135,25 +135,25 @@ test('o inventário de partida traz os instrumentos da planilha, sem código rep
   assert.equal(acelerometro.situacao, 'EM_USO');
 
   const celula = util.porId(base.instrumentos, 'TCL-CC-003');
-  assert.equal(celula.situacao, 'EM_CALIBRACAO', 'a coluna Observações vira situação');
-  assert.equal(celula.backup, true, 'a coluna de back-up vira booleano');
+  assert.equal(celula.situacao, 'EM_CALIBRACAO', 'the Observações column becomes the condition');
+  assert.equal(celula.backup, true, 'the back-up column becomes a boolean');
   assert.equal(celula.local, 'Hydro pulse 1');
 });
 
-test('todo instrumento do inventário vem com a data da última calibração', () => {
+test('every instrument in the inventory comes with its last calibration date', () => {
   dados.seed().instrumentos.forEach((i) => {
-    assert.match(i.ultimaCalibracao, /^\d{4}-\d{2}-\d{2}$/, i.id + ' sem data válida');
+    assert.match(i.ultimaCalibracao, /^\d{4}-\d{2}-\d{2}$/, i.id + ' has no valid date');
     assert.equal(i.periodicidadeMeses, 12);
-    assert.equal(i.proximaCalibracao, '', 'o vencimento é calculado, não transcrito');
+    assert.equal(i.proximaCalibracao, '', 'the due date is computed, not transcribed');
     assert.deepEqual(i.historico, []);
     assert.equal(i.ativo, true);
   });
 });
 
-/* A segunda planilha traz a data por nome, e há nome repetido — 24 canais por burner, dez
-   acelerômetros triaxiais. O que sustenta o casamento é a ordem: cada campanha caiu num dia
-   só, então data errada aqui aparece como um burner com dois dias diferentes. */
-test('a data da última calibração casa com a campanha de cada posto', () => {
+/* The second spreadsheet gives the date by name, and names repeat — 24 channels per burner,
+   ten triaxial accelerometers. What holds the match together is the order: each campaign fell
+   on a single day, so a wrong date here shows up as a burner with two different days. */
+test('the last calibration date matches each station\'s campaign', () => {
   const base = dados.seed();
   const porPosto = {};
   base.instrumentos
@@ -168,25 +168,25 @@ test('a data da última calibração casa com a campanha de cada posto', () => {
   assert.deepEqual([...porPosto['Burner 03']], ['2026-05-05']);
 
   assert.equal(util.porId(base.instrumentos, 'TCL-TKC-B3-001').ultimaCalibracao, '2026-05-05',
-    'o controlador do burner 03 foi junto com os canais dele');
+    'the burner 03 controller went along with its own channels');
   assert.equal(util.porId(base.instrumentos, 'TCL-AC-015').ultimaCalibracao, '2026-05-15');
   assert.equal(util.porId(base.instrumentos, 'TCL-AC-006').ultimaCalibracao, '2026-05-22');
 });
 
-/* Com o inventário datado ninguém mais fica sem plano, e a janela passa a mostrar o que a
-   planilha escondia: o que já venceu está medindo. */
-test('o inventário datado não deixa instrumento sem plano', () => {
+/* With the inventory dated, nothing is left without a plan, and the screen starts showing
+   what the spreadsheet was hiding: what has expired is still measuring. */
+test('the dated inventory leaves no instrument without a plan', () => {
   const resumo = calibracao.resumo(dados.seed().instrumentos, '2026-08-03');
 
   assert.equal(resumo.total, 229);
   assert.equal(resumo.semPlano, 0);
-  assert.ok(resumo.vencidos > 0, 'a planilha traz datas fora da validade de 12 meses');
+  assert.ok(resumo.vencidos > 0, 'the spreadsheet carries dates outside the 12-month validity');
   assert.equal(resumo.vencidos + resumo.aVencer + resumo.emDia, 229);
 });
 
-/* ---- Registro pelo store ---- */
+/* ---- Recording through the store ---- */
 
-test('registrar calibração renova a validade e guarda o certificado', () => {
+test('recording a calibration renews the validity and keeps the certificate', () => {
   store.restaurarPadrao();
   const r = store.registrarCalibracao('TCL-AC-012', {
     data: '2026-03-10', resultado: 'APROVADO',
@@ -203,7 +203,7 @@ test('registrar calibração renova a validade e guarda o certificado', () => {
   assert.equal(i.historico[0].resultado, 'APROVADO');
 });
 
-test('a periodicidade informada no registro passa a valer para o instrumento', () => {
+test('the interval given when recording becomes the instrument\'s', () => {
   store.restaurarPadrao();
   store.registrarCalibracao('TCL-AC-012', {
     data: '2026-03-10', resultado: 'APROVADO', periodicidadeMeses: 24
@@ -214,57 +214,57 @@ test('a periodicidade informada no registro passa a valer para o instrumento', (
   assert.equal(i.proximaCalibracao, '2028-03-10');
 });
 
-test('calibração reprovada não renova a validade e tira o instrumento de uso', () => {
+test('a failed calibration renews nothing and takes the instrument out of service', () => {
   store.restaurarPadrao();
   store.registrarCalibracao('TCL-AC-012', { data: '2026-03-10', resultado: 'APROVADO' });
   store.registrarCalibracao('TCL-AC-012', {
-    data: '2027-03-12', resultado: 'REPROVADO', observacao: 'desvio acima da tolerância'
+    data: '2027-03-12', resultado: 'REPROVADO', observacao: 'deviation above tolerance'
   });
 
   const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
   assert.equal(i.situacao, 'FORA_DE_USO');
-  assert.equal(i.proximaCalibracao, '', 'reprovado não ganha validade nova');
-  assert.equal(i.historico.length, 2, 'a reprovação fica registrada');
+  assert.equal(i.proximaCalibracao, '', 'a failed one gets no new validity');
+  assert.equal(i.historico.length, 2, 'the failure is recorded');
   assert.equal(calibracao.estado(i, '2027-04-01').prazo, 'SEM_PLANO');
 });
 
-test('registrar sem data é recusado', () => {
+test('recording without a date is refused', () => {
   store.restaurarPadrao();
   const r = store.registrarCalibracao('TCL-AC-012', { resultado: 'APROVADO' });
   assert.equal(r.ok, false);
   assert.match(r.motivo, /date/i);
 });
 
-/* ---- Lançamento em lote ---- */
+/* ---- Bulk entry ---- */
 
-test('a data é lida no formato da planilha brasileira e no ISO', () => {
+test('the date is read in the Brazilian spreadsheet format and in ISO', () => {
   assert.equal(calibracao.interpretarData('31/12/2025'), '2025-12-31');
-  assert.equal(calibracao.interpretarData('5/3/26'), '2026-03-05', 'dois dígitos são deste século');
+  assert.equal(calibracao.interpretarData('5/3/26'), '2026-03-05', 'two digits belong to this century');
   assert.equal(calibracao.interpretarData('31.12.2025'), '2025-12-31');
   assert.equal(calibracao.interpretarData('2025-12-31'), '2025-12-31');
   assert.equal(calibracao.interpretarData('29/02/2028'), '2028-02-29', 'ano bissexto existe');
 });
 
-test('data impossível é recusada em vez de virar outro dia', () => {
-  assert.equal(calibracao.interpretarData('31/02/2026'), '', 'fevereiro não tem dia 31');
-  assert.equal(calibracao.interpretarData('10/13/2026'), '', 'não existe mês 13');
-  assert.equal(calibracao.interpretarData('29/02/2026'), '', '2026 não é bissexto');
+test('an impossible date is refused instead of becoming another day', () => {
+  assert.equal(calibracao.interpretarData('31/02/2026'), '', 'February has no 31st');
+  assert.equal(calibracao.interpretarData('10/13/2026'), '', 'there is no month 13');
+  assert.equal(calibracao.interpretarData('29/02/2026'), '', '2026 is not a leap year');
   assert.equal(calibracao.interpretarData('em breve'), '');
   assert.equal(calibracao.interpretarData(''), '');
 });
 
-test('o lote aceita a colagem do Excel, com e sem certificado', () => {
+test('bulk entry accepts an Excel paste, with and without a certificate', () => {
   const instrumentos = [
     instrumento({ id: 'TCL-AC-012' }),
     instrumento({ id: 'TCL-CC-001', periodicidadeMeses: 6 })
   ];
   const leitura = calibracao.interpretarLote(
-    'Código\tData\n' +
+    'Code\tDate\n' +
     'TCL-AC-012\t12/03/2026\n' +
     'TCL-CC-001\t05/11/2025\tRBC-2025-0481\tMetrologia XPTO\n',
     instrumentos);
 
-  assert.equal(leitura.aplicaveis.length, 2, 'o cabeçalho colado junto é ignorado');
+  assert.equal(leitura.aplicaveis.length, 2, 'a header pasted along with it is ignored');
   assert.equal(leitura.problemas.length, 0);
   assert.equal(leitura.aplicaveis[0].instrumento.id, 'TCL-AC-012');
   assert.equal(leitura.aplicaveis[0].data, '2026-03-12');
@@ -272,7 +272,7 @@ test('o lote aceita a colagem do Excel, com e sem certificado', () => {
   assert.equal(leitura.aplicaveis[1].laboratorio, 'Metrologia XPTO');
 });
 
-test('o lote separa por ponto e vírgula, vírgula ou espaço', () => {
+test('bulk entry splits on semicolon, comma or space', () => {
   const instrumentos = [instrumento({ id: 'TCL-AC-012' })];
   ['TCL-AC-012;12/03/2026', 'TCL-AC-012,12/03/2026', 'TCL-AC-012 12/03/2026'].forEach((linha) => {
     const leitura = calibracao.interpretarLote(linha, instrumentos);
@@ -281,7 +281,7 @@ test('o lote separa por ponto e vírgula, vírgula ou espaço', () => {
   });
 });
 
-test('o lote reconhece o código antigo da planilha', () => {
+test('bulk entry recognises the spreadsheet\'s legacy code', () => {
   const instrumentos = [instrumento({ id: 'TCL-AC-012', codigoAntigo: 'INS-0345' })];
   const leitura = calibracao.interpretarLote('INS-0345\t12/03/2026', instrumentos);
 
@@ -289,7 +289,7 @@ test('o lote reconhece o código antigo da planilha', () => {
   assert.equal(leitura.aplicaveis[0].instrumento.id, 'TCL-AC-012');
 });
 
-test('o lote aponta cada linha que não dá para lançar, sem descartar as boas', () => {
+test('bulk entry points out each row it cannot take, without discarding the good ones', () => {
   const instrumentos = [instrumento({ id: 'TCL-AC-012' }), instrumento({ id: 'TCL-CC-001' })];
   const leitura = calibracao.interpretarLote(
     'TCL-AC-012\t12/03/2026\n' +
@@ -298,14 +298,14 @@ test('o lote aponta cada linha que não dá para lançar, sem descartar as boas'
     'TCL-AC-012\t01/01/2026\n',
     instrumentos);
 
-  assert.equal(leitura.aplicaveis.length, 1, 'só a primeira linha sobrevive');
+  assert.equal(leitura.aplicaveis.length, 1, 'only the first row survives');
   assert.deepEqual(leitura.problemas.map((l) => l.situacao),
     ['DESCONHECIDO', 'DATA_INVALIDA', 'REPETIDO']);
   assert.deepEqual(leitura.problemas.map((l) => l.linha), [2, 3, 4],
-    'o número da linha é o da colagem, para o usuário achar o erro');
+    'the row number is the one from the paste, so the user can find the mistake');
 });
 
-test('lançar em lote preenche a última calibração e a validade de 12 meses', () => {
+test('bulk entry fills in the last calibration and the 12-month validity', () => {
   store.restaurarPadrao();
   const antes = store.get().instrumentos.length;
   const r = store.lancarCalibracoesEmLote([
@@ -314,21 +314,21 @@ test('lançar em lote preenche a última calibração e a validade de 12 meses',
   ]);
 
   assert.equal(r.aplicados.length, 2);
-  assert.equal(store.get().instrumentos.length, antes, 'lote não cria instrumento');
+  assert.equal(store.get().instrumentos.length, antes, 'bulk entry creates no instrument');
 
   const a = util.porId(store.get().instrumentos, 'TCL-AC-012');
   assert.equal(a.ultimaCalibracao, '2026-03-10');
-  assert.equal(a.proximaCalibracao, '2027-03-10', '12 meses é o padrão');
-  assert.equal(a.historico.length, 1, 'o lançamento fica no histórico');
+  assert.equal(a.proximaCalibracao, '2027-03-10', '12 months is the default');
+  assert.equal(a.historico.length, 1, 'the entry stays in the history');
 
   const b = util.porId(store.get().instrumentos, 'TCL-AC-014');
   assert.equal(b.certificado, 'RBC-2024-0481');
   assert.equal(b.proximaCalibracao, '2025-11-05');
   assert.equal(calibracao.estado(b, '2026-08-10').prazo, 'VENCIDO',
-    'data antiga entra vencida, que é a informação que interessa');
+    'an old date goes in expired, which is the information that matters');
 });
 
-test('o lote respeita a periodicidade já ajustada no instrumento', () => {
+test('bulk entry respects the interval already adjusted on the instrument', () => {
   store.restaurarPadrao();
   store.salvarInstrumento({ id: 'TCL-AC-012', periodicidadeMeses: 6 });
   store.lancarCalibracoesEmLote([{ instrumentoId: 'TCL-AC-012', data: '2026-03-10' }]);
@@ -338,16 +338,16 @@ test('o lote respeita a periodicidade já ajustada no instrumento', () => {
   assert.equal(i.proximaCalibracao, '2026-09-10');
 });
 
-test('o lote não muda a situação de quem está em calibração', () => {
+test('bulk entry does not change the condition of what is being calibrated', () => {
   store.restaurarPadrao();
   const emCalibracao = store.get().instrumentos.find((i) => i.situacao === 'EM_CALIBRACAO');
   store.lancarCalibracoesEmLote([{ instrumentoId: emCalibracao.id, data: '2026-03-10' }]);
 
   assert.equal(util.porId(store.get().instrumentos, emCalibracao.id).situacao, 'EM_CALIBRACAO',
-    'lançar a data anterior não devolve o instrumento ao uso');
+    'entering the earlier date does not put the instrument back in service');
 });
 
-test('o instrumento cadastrado à mão convive com o inventário de partida', () => {
+test('an instrument added by hand coexists with the seed inventory', () => {
   store.restaurarPadrao();
   const total = store.get().instrumentos.length;
   store.salvarInstrumento({
@@ -357,12 +357,12 @@ test('o instrumento cadastrado à mão convive com o inventário de partida', ()
   assert.equal(store.get().instrumentos.length, total + 1);
 
   store.salvarInstrumento({ id: 'TCL-NV-001', nome: 'Instrumento novo (revisado)' });
-  assert.equal(store.get().instrumentos.length, total + 1, 'editar não duplica');
+  assert.equal(store.get().instrumentos.length, total + 1, 'editing does not duplicate');
   assert.equal(util.porId(store.get().instrumentos, 'TCL-NV-001').nome,
     'Instrumento novo (revisado)');
 });
 
-test('dados salvos sem inventário recebem os instrumentos sem perder o que foi preenchido', () => {
+test('saved data without an inventory receives the instruments without losing what was filled in', () => {
   const base = dados.seed();
   delete base.instrumentosVersao;
   base.instrumentos = [
@@ -374,18 +374,18 @@ test('dados salvos sem inventário recebem os instrumentos sem perder o que foi 
   store.importar(JSON.stringify(base));
   const estado = store.get();
 
-  assert.equal(estado.instrumentos.length, 229, 'os que faltavam entram');
+  assert.equal(estado.instrumentos.length, 229, 'the missing ones go in');
   const meu = util.porId(estado.instrumentos, 'TCL-AC-012');
-  assert.equal(meu.ultimaCalibracao, '2026-02-01', 'o plano preenchido não é sobrescrito');
+  assert.equal(meu.ultimaCalibracao, '2026-02-01', 'the plan already filled in is not overwritten');
   assert.equal(meu.certificado, 'MEU-123');
   assert.equal(meu.periodicidadeMeses, 6);
 });
 
-test('dados salvos antes das datas recebem a última calibração da planilha', () => {
+test('data saved before the dates receives the spreadsheet\'s last calibration', () => {
   const base = dados.seed();
   base.instrumentosVersao = 1;
   base.instrumentos = base.instrumentos.map((i) => Object.assign({}, i, { ultimaCalibracao: '' }));
-  /* Um já foi lançado na plataforma: tem data e histórico, e é ele quem manda. */
+  /* One has already been entered on the platform: it has a date and a history, and it wins. */
   const lancado = util.porId(base.instrumentos, 'TCL-AC-014');
   lancado.ultimaCalibracao = '2026-06-30';
   lancado.historico = [{ data: '2026-06-30', resultado: 'APROVADO' }];
@@ -394,8 +394,8 @@ test('dados salvos antes das datas recebem a última calibração da planilha', 
   const estado = store.get();
 
   assert.equal(util.porId(estado.instrumentos, 'TCL-AC-012').ultimaCalibracao, '2026-05-14',
-    'a lacuna é preenchida pela planilha');
+    'the gap is filled by the spreadsheet');
   assert.equal(util.porId(estado.instrumentos, 'TCL-AC-014').ultimaCalibracao, '2026-06-30',
-    'o que já foi lançado na plataforma não volta atrás');
+    'what was already entered on the platform does not go back');
   assert.equal(calibracao.resumo(estado.instrumentos, '2026-08-03').semPlano, 0);
 });

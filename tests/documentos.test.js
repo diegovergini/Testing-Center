@@ -1,5 +1,5 @@
-/* Testes dos documentos anexados: o que vale como link, o que a plataforma recusa e como
-   o anexo entra na demanda, no instrumento e no fluxo. */
+/* Tests for attached documents: what counts as a link, what the platform refuses and how an
+   attachment gets onto a request, an instrument and the workflow. */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -16,9 +16,9 @@ const util = globalThis.TC.util;
 
 const SHAREPOINT = 'https://empresa.sharepoint.com/sites/testes/Relatorios/LTI-482.pdf';
 
-/* ---- Leitura do link ---- */
+/* ---- Reading the link ---- */
 
-test('link do SharePoint, do OneDrive e da rede entram', () => {
+test('SharePoint, OneDrive and network links get in', () => {
   assert.deepEqual(documentos.interpretarLink(SHAREPOINT),
     { ok: true, link: SHAREPOINT, local: 'WEB' });
 
@@ -28,36 +28,36 @@ test('link do SharePoint, do OneDrive e da rede entram', () => {
   assert.equal(documentos.interpretarLink('file:///C:/testes/report.pdf').local, 'REDE');
 });
 
-test('endereço colado sem https ganha o esquema', () => {
+test('an address pasted without https gains the scheme', () => {
   const lido = documentos.interpretarLink('empresa.sharepoint.com/sites/testes/a.pdf');
   assert.equal(lido.ok, true);
   assert.equal(lido.link, 'https://empresa.sharepoint.com/sites/testes/a.pdf');
 });
 
-test('o link colado do Outlook vem entre < > e é limpo', () => {
+test('a link pasted from Outlook comes wrapped in < > and is cleaned up', () => {
   assert.equal(documentos.interpretarLink('<' + SHAREPOINT + '>').link, SHAREPOINT);
 });
 
-/* O link vira href numa tela que outra pessoa abre: um "javascript:" gravado aqui
-   executaria código no navegador dela em vez de abrir documento. */
-test('esquema que executa código é recusado, não sanitizado', () => {
+/* The link becomes an href on a screen someone else opens: a "javascript:" saved here would
+   run code in their browser instead of opening a document. */
+test('a scheme that runs code is refused, not sanitised', () => {
   ['javascript:alert(1)', 'data:text/html;base64,PHNjcmlwdD4=', 'vbscript:msgbox'].forEach((link) => {
     const lido = documentos.interpretarLink(link);
-    assert.equal(lido.ok, false, link + ' deveria ser recusado');
+    assert.equal(lido.ok, false, link + ' should have been refused');
     assert.equal(lido.motivo, 'ESQUEMA_RECUSADO');
   });
 });
 
-test('nome de arquivo solto não vira link', () => {
+test('a bare file name does not become a link', () => {
   assert.equal(documentos.interpretarLink('relatorio final.pdf').ok, false);
-  /* Tem ponto e uma extensão, igualzinho a um domínio — e não leva a lugar nenhum. */
+  /* It has a dot and an extension, exactly like a domain — and leads nowhere. */
   assert.equal(documentos.interpretarLink('certificado.pdf').ok, false);
-  assert.equal(documentos.interpretarLink('empresa.sharepoint.com').ok, false, 'sem caminho');
+  assert.equal(documentos.interpretarLink('empresa.sharepoint.com').ok, false, 'no path');
   assert.equal(documentos.interpretarLink('https://').ok, false);
   assert.equal(documentos.interpretarLink('   ').motivo, 'SEM_LINK');
 });
 
-test('o nome sai do fim do link quando ninguém digita um', () => {
+test('the name comes from the end of the link when nobody types one', () => {
   const criado = documentos.criar({ tipo: 'RELATORIO', link: SHAREPOINT }, 'TESTES', '2026-08-03');
   assert.equal(criado.ok, true);
   assert.equal(criado.documento.nome, 'LTI-482.pdf');
@@ -65,25 +65,25 @@ test('o nome sai do fim do link quando ninguém digita um', () => {
   assert.equal(criado.documento.anexadoEm, '2026-08-03');
 });
 
-test('caminho de rede não abre por clique — a tela mostra para copiar', () => {
+test('a network path does not open on click — the screen shows it to be copied', () => {
   const rede = documentos.criar({ link: '\\\\servidor\\pasta\\a.pdf' }, 'TESTES').documento;
   const web = documentos.criar({ link: SHAREPOINT }, 'TESTES').documento;
   assert.equal(documentos.abrePorClique(rede), false);
   assert.equal(documentos.abrePorClique(web), true);
 });
 
-test('cada janela oferece os tipos que fazem sentido nela', () => {
+test('each screen offers the types that make sense on it', () => {
   const daDemanda = documentos.tipos('demanda').map((t) => t.id);
   assert.deepEqual(daDemanda, ['ENTRADA', 'RELATORIO', 'EVIDENCIA', 'OUTRO']);
   assert.deepEqual(documentos.tipos('instrumento').map((t) => t.id), ['CERTIFICADO', 'OUTRO']);
 
   assert.equal(documentos.tipoSugerido('demanda', 'PRODUTO'), 'ENTRADA',
-    'quem pede o teste anexa test input');
+    'whoever asks for the test attaches the test input');
   assert.equal(documentos.tipoSugerido('demanda', 'TESTES'), 'RELATORIO',
-    'quem executa anexa o relatório');
+    'whoever runs it attaches the report');
 });
 
-/* ---- Anexar pelo store ---- */
+/* ---- Attaching through the store ---- */
 
 function novaDemanda() {
   store.restaurarPadrao();
@@ -94,7 +94,7 @@ function novaDemanda() {
   });
 }
 
-test('o solicitante anexa o test input e ele fica na demanda', () => {
+test('the requester attaches the test input and it stays on the request', () => {
   const d = novaDemanda();
   store.definirPerfil('PRODUTO');
   const r = store.anexarDocumento('demanda', d.id, {
@@ -105,26 +105,26 @@ test('o solicitante anexa o test input e ele fica na demanda', () => {
   const salva = util.porId(store.get().demandas, d.id);
   assert.equal(salva.documentos.length, 1);
   assert.equal(salva.documentos[0].tipo, 'ENTRADA');
-  assert.equal(salva.documentos[0].perfil, 'PRODUTO', 'fica registrado quem anexou');
+  assert.equal(salva.documentos[0].perfil, 'PRODUTO', 'who attached it is recorded');
 });
 
-test('link inválido não entra na demanda', () => {
+test('an invalid link does not get onto the request', () => {
   const d = novaDemanda();
   const r = store.anexarDocumento('demanda', d.id, { tipo: 'ENTRADA', link: 'javascript:alert(1)' });
   assert.equal(r.ok, false);
   assert.equal(util.porId(store.get().demandas, d.id).documentos.length, 0);
 });
 
-test('remover o anexo tira a referência, e só ela', () => {
+test('removing the attachment takes away the reference, and only that', () => {
   const d = novaDemanda();
   const doc = store.anexarDocumento('demanda', d.id, { tipo: 'ENTRADA', link: SHAREPOINT }).documento;
   store.removerDocumento('demanda', d.id, doc.id);
   assert.equal(util.porId(store.get().demandas, d.id).documentos.length, 0);
 });
 
-/* ---- O relatório e o fluxo ---- */
+/* ---- The report and the workflow ---- */
 
-test('relatório só é enviado depois de anexado', () => {
+test('the report is only sent once it is attached', () => {
   const d = novaDemanda();
   store.definirPerfil('TESTES');
   store.moverDemanda(d.id, 'ACEITA');
@@ -134,9 +134,9 @@ test('relatório só é enviado depois de anexado', () => {
   const semRelatorio = store.moverDemanda(d.id, 'RELATORIO_ENVIADO');
   assert.equal(semRelatorio.ok, false);
   assert.match(semRelatorio.motivo, /Test report/);
-  assert.equal(util.porId(store.get().demandas, d.id).status, 'CONCLUIDA', 'não passou');
+  assert.equal(util.porId(store.get().demandas, d.id).status, 'CONCLUIDA', 'it did not move');
 
-  /* Test input anexado não serve: o que a passagem exige é o relatório. */
+  /* An attached test input is not enough: what the move requires is the report. */
   store.anexarDocumento('demanda', d.id, { tipo: 'ENTRADA', link: SHAREPOINT });
   assert.equal(store.moverDemanda(d.id, 'RELATORIO_ENVIADO').ok, false);
 
@@ -144,9 +144,9 @@ test('relatório só é enviado depois de anexado', () => {
   assert.equal(store.moverDemanda(d.id, 'RELATORIO_ENVIADO').ok, true);
 });
 
-/* ---- Certificado de calibração ---- */
+/* ---- Calibration certificate ---- */
 
-test('o link do certificado vira documento amarrado à calibração', () => {
+test('the certificate link becomes a document tied to the calibration', () => {
   store.restaurarPadrao();
   store.definirPerfil('TESTES');
   const r = store.registrarCalibracao('TCL-AC-012', {
@@ -160,13 +160,13 @@ test('o link do certificado vira documento amarrado à calibração', () => {
   assert.equal(i.documentos.length, 1);
   assert.equal(i.documentos[0].tipo, 'CERTIFICADO');
   assert.equal(i.documentos[0].nome, 'Certificate RBC-2026-0481');
-  assert.equal(i.documentos[0].refId, r.registro.id, 'aponta para a calibração que comprova');
+  assert.equal(i.documentos[0].refId, r.registro.id, 'it points at the calibration it evidences');
   assert.equal(r.registro.documentoId, i.documentos[0].id);
 });
 
-/* A calibração aconteceu — recusar o registro inteiro por causa de um link mal colado
-   perderia o dado que importa. */
-test('link ruim não derruba o registro da calibração', () => {
+/* The calibration happened — refusing the whole record because of a badly pasted link would
+   lose the data that matters. */
+test('a bad link does not bring down the calibration record', () => {
   store.restaurarPadrao();
   const r = store.registrarCalibracao('TCL-AC-012', {
     data: '2026-07-10', resultado: 'APROVADO', certificadoLink: 'certificado.pdf'
@@ -179,9 +179,9 @@ test('link ruim não derruba o registro da calibração', () => {
   assert.match(r.registro.observacao, /certificate link not saved/);
 });
 
-/* ---- Dados salvos antes dos documentos ---- */
+/* ---- Data saved before documents ---- */
 
-test('dados salvos antes dos anexos recebem a lista vazia', () => {
+test('data saved before attachments receives the empty list', () => {
   const base = dados.seed();
   base.demandas = [{ id: 'DM-1', testeId: 'TP-1', status: 'SOLICITADA', historico: [] }];
   base.instrumentos.forEach((i) => { delete i.documentos; });

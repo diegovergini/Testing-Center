@@ -1,4 +1,4 @@
-/* Testes do motor de planejamento: node --test tests/ */
+/* Scheduling engine tests: node --test tests/ */
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -6,7 +6,7 @@ const util = require('../src/util.js');
 require('../src/data.js');
 const scheduler = require('../src/scheduler.js');
 
-/* 2026-07-06 é uma segunda-feira — facilita conferir os saltos de fim de semana. */
+/* 2026-07-06 is a Monday — it makes the weekend jumps easy to check. */
 const SEGUNDA = '2026-07-06';
 
 function equipamento(extra) {
@@ -15,7 +15,7 @@ function equipamento(extra) {
     diasUteis: [1, 2, 3, 4, 5], custoHora: 100, manutencao: []
   };
   const eq = Object.assign(base, extra);
-  /* sem grupo explícito, cada unidade é o próprio grupo, nomeado pelo id */
+  /* with no explicit group, each unit is its own group, named by its id */
   if (!eq.grupo) eq.grupo = eq.id;
   return eq;
 }
@@ -30,7 +30,7 @@ function teste(extra) {
 
 function peca(extra) {
   return Object.assign({
-    id: 'PC-01', nome: 'Peça', custoAmostra: 500
+    id: 'PC-01', nome: 'Part type', custoAmostra: 500
   }, extra);
 }
 
@@ -45,7 +45,7 @@ function demanda(extra) {
 
 function estado(extra) {
   return Object.assign({
-    /* O hourly rate é do centro de testes, um valor só para todo o catálogo. */
+    /* The hourly rate belongs to the test centre, a single value for the whole catalogue. */
     hourlyRate: 100,
     clientes: [{ id: 'CLI-01', nome: 'Cliente' }],
     equipamentos: [equipamento()],
@@ -59,7 +59,7 @@ function alocacaoDe(plano, id) {
   return plano.alocacoes.find((a) => a.demandaId === id);
 }
 
-test('duração converte horas em dias conforme o regime do equipamento', () => {
+test('duration converts hours into days according to the equipment regime', () => {
   assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 8 }), [equipamento()]), 1);
   assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 24 }), [equipamento()]), 3);
   assert.equal(scheduler.diasDeOperacao(teste({ horasSetup: 4, horasEnsaio: 20 }), [equipamento()]), 3);
@@ -67,7 +67,7 @@ test('duração converte horas em dias conforme o regime do equipamento', () => 
   assert.equal(scheduler.diasDeOperacao(teste({ horasEnsaio: 1 }), [equipamento()]), 1, 'nunca menos de um dia');
 });
 
-test('nenhum ensaio começa antes da chegada das amostras', () => {
+test('no test starts before the samples arrive', () => {
   const s = estado({ demandas: [demanda({ dataAmostras: '2026-08-10' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   const a = alocacaoDe(plano, 'DM-01');
@@ -75,14 +75,14 @@ test('nenhum ensaio começa antes da chegada das amostras', () => {
   assert.equal(a.esperaAmostra, util.diffDias(SEGUNDA, '2026-08-10'));
 });
 
-test('amostra já disponível no passado não puxa o ensaio para trás', () => {
+test('a sample already available in the past does not pull the test backwards', () => {
   const s = estado({ demandas: [demanda({ dataAmostras: '2026-01-05' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(alocacaoDe(plano, 'DM-01').inicio, SEGUNDA);
 });
 
-test('a janela atravessa o fim de semana quando o equipamento só opera em dias úteis', () => {
-  /* 3 dias de operação começando numa quinta -> qui, sex, seg. */
+test('the slot spans the weekend when the machine only operates on working days', () => {
+  /* 3 operating days starting on a Thursday -> Thu, Fri, Mon. */
   const s = estado({
     testes: [teste({ horasEnsaio: 24 })],
     demandas: [demanda({ dataAmostras: '2026-07-09' })]
@@ -93,7 +93,7 @@ test('a janela atravessa o fim de semana quando o equipamento só opera em dias 
   assert.equal(a.fim, '2026-07-13');
 });
 
-test('equipamento contínuo ocupa dias corridos, inclusive fim de semana', () => {
+test('continuous equipment occupies calendar days, weekend included', () => {
   const s = estado({
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 120 })],
@@ -105,7 +105,7 @@ test('equipamento contínuo ocupa dias corridos, inclusive fim de semana', () =>
   assert.equal(a.fim, '2026-07-13');
 });
 
-test('posições em paralelo são usadas antes de empurrar a fila', () => {
+test('parallel positions are used before pushing the queue out', () => {
   const s = estado({
     equipamentos: [equipamento({ posicoes: 2, continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 48 })],
@@ -115,11 +115,11 @@ test('posições em paralelo são usadas antes de empurrar a fila', () => {
   const a = alocacaoDe(plano, 'A'), b = alocacaoDe(plano, 'B'), c = alocacaoDe(plano, 'C');
   assert.equal(a.inicio, SEGUNDA);
   assert.equal(b.inicio, SEGUNDA);
-  assert.notEqual(a.posicoes['EQ-01'], b.posicoes['EQ-01'], 'cada uma numa posição diferente');
-  assert.equal(c.inicio, '2026-07-08', 'a terceira só entra quando a primeira posição vaga');
+  assert.notEqual(a.posicoes['EQ-01'], b.posicoes['EQ-01'], 'each one on a different position');
+  assert.equal(c.inicio, '2026-07-08', 'the third only gets in when the first position frees up');
 });
 
-test('duas demandas nunca dividem a mesma posição no mesmo dia', () => {
+test('two requests never share the same position on the same day', () => {
   const s = estado({
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 72 })],
@@ -133,20 +133,20 @@ test('duas demandas nunca dividem a mesma posição no mesmo dia', () => {
   }
 });
 
-test('manutenção bloqueia a janela e empurra o ensaio para depois da parada', () => {
+test('maintenance blocks the slot and pushes the test past the downtime', () => {
   const s = estado({
     equipamentos: [equipamento({
       continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6],
-      manutencao: [{ id: 'MN-1', inicio: '2026-07-07', fim: '2026-07-10', motivo: 'Calibração' }]
+      manutencao: [{ id: 'MN-1', inicio: '2026-07-07', fim: '2026-07-10', motivo: 'Calibration' }]
     })],
     testes: [teste({ horasEnsaio: 48 })]
   });
   const plano = scheduler.planejar(s, SEGUNDA);
   const a = alocacaoDe(plano, 'DM-01');
-  assert.equal(a.inicio, '2026-07-11', 'não cabe antes da parada nem a atravessa');
+  assert.equal(a.inicio, '2026-07-11', 'it does not fit before the downtime and does not cross it');
 });
 
-test('prioridade alta pega a janela antes da baixa, mesmo criada depois', () => {
+test('high priority takes the slot ahead of low, even when created later', () => {
   const s = estado({
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 72 })],
@@ -160,7 +160,7 @@ test('prioridade alta pega a janela antes da baixa, mesmo criada depois', () => 
   assert.ok(util.diffDias(alocacaoDe(plano, 'ALTA').fim, alocacaoDe(plano, 'BAIXA').inicio) > 0);
 });
 
-test('entre a mesma prioridade, ganha o prazo mais curto', () => {
+test('within the same priority, the shortest due date wins', () => {
   const s = estado({
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 72 })],
@@ -173,7 +173,7 @@ test('entre a mesma prioridade, ganha o prazo mais curto', () => {
   assert.equal(alocacaoDe(plano, 'APERTADO').inicio, SEGUNDA);
 });
 
-test('folga e atraso são calculados contra o prazo do cliente', () => {
+test('spare time and lateness are computed against the customer due date', () => {
   const s = estado({
     testes: [teste({ horasEnsaio: 8 })],
     demandas: [demanda({ id: 'NO_PRAZO', prazo: '2026-07-20' })]
@@ -188,13 +188,13 @@ test('folga e atraso são calculados contra o prazo do cliente', () => {
   assert.ok(atrasado.folga < 0);
 });
 
-test('início forçado é respeitado mesmo com o equipamento livre antes', () => {
+test('a forced start is respected even with the machine free earlier', () => {
   const s = estado({ demandas: [demanda({ inicioFixo: '2026-07-15' })] });
   const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
   assert.equal(a.inicio, '2026-07-15');
 });
 
-test('demanda fixada reserva a posição antes das demais', () => {
+test('a pinned request reserves the position ahead of the others', () => {
   const s = estado({
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 72 })],
@@ -208,7 +208,7 @@ test('demanda fixada reserva a posição antes das demais', () => {
   assert.equal(alocacaoDe(plano, 'LIVRE').inicio, '2026-07-09');
 });
 
-test('demandas concluídas e canceladas não ocupam bancada', () => {
+test('completed and cancelled requests occupy no rig', () => {
   const s = estado({
     equipamentos: [equipamento({ continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] })],
     testes: [teste({ horasEnsaio: 72 })],
@@ -224,14 +224,14 @@ test('demandas concluídas e canceladas não ocupam bancada', () => {
   assert.equal(alocacaoDe(plano, 'FEITA'), undefined);
 });
 
-test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
+test('a request with no equipment registered comes out blocked, it does not vanish', () => {
   const s = estado({ testes: [teste({ equipamentoGrupos: ['GRUPO-INEXISTENTE'] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
   assert.match(plano.bloqueadas[0].motivo, /has no unit registered/);
 });
 
-test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () => {
+test('procedure cost is (setup + test + reporting) x rate + consumables', () => {
   const t = teste({ horasSetup: 2, horasEnsaio: 8, horasReport: 5, custoInsumos: 1000 });
   const c = scheduler.custoDemanda({ quantidade: 3 }, t, null, peca({ custoAmostra: 500 }), 200);
 
@@ -244,32 +244,32 @@ test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () =
   assert.equal(c.total, 4000 + 1500);
 });
 
-test('a hora do equipamento não entra mais no custo', () => {
+test('the equipment hour no longer enters the cost', () => {
   const t = teste({ horasSetup: 0, horasEnsaio: 10, horasReport: 0, custoInsumos: 0 });
   const semBancada = scheduler.custoDemanda({ quantidade: 1 }, t, null, null, 100);
   const comDuas = scheduler.custoDemanda({ quantidade: 1 }, t,
     [equipamento({ custoHora: 900 }), equipamento({ custoHora: 900 })], null, 100);
-  assert.equal(semBancada.total, comDuas.total, 'o custo sai do hourly rate, não da bancada');
+  assert.equal(semBancada.total, comDuas.total, 'the cost comes from the hourly rate, not from the rig');
   assert.equal(comDuas.total, 1000);
 });
 
-test('horas de report entram no custo, mas não ocupam bancada', () => {
+test('reporting hours enter the cost but occupy no rig', () => {
   const t = teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 40, custoInsumos: 0 });
   const eq = equipamento({ horasDia: 8 });
-  assert.equal(scheduler.diasDeOperacao(t, [eq]), 1, 'só as 8 h de ensaio prendem a bancada');
+  assert.equal(scheduler.diasDeOperacao(t, [eq]), 1, 'only the 8 test hours hold the rig');
   assert.equal(scheduler.custoDemanda(null, t, [eq], null, 100).custoHoras, 48 * 100);
 });
 
-test('custo de catálogo usa a quantidade padrão do procedimento e ignora amostras', () => {
+test('catalogue cost uses the procedure\'s default quantity and ignores samples', () => {
   const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, horasReport: 2, custoInsumos: 500 }), 200);
   assert.equal(c.quantidade, 4);
   assert.equal(c.custoAmostras, 0);
   assert.equal(c.total, 500 + 10 * 200);
 });
 
-/* O catálogo de partida chega sem bancada e sem horas — quem cadastra preenche depois.
-   Para exercitar o planejamento de ponta a ponta, completamos aqui o que o engenheiro
-   de testes preencheria, distribuindo os procedimentos pelos grupos do parque. */
+/* The seed catalogue arrives with no rig and no hours — whoever registers fills them in
+   later. To exercise scheduling end to end, we complete here what the test engineer would
+   fill in, spreading the procedures across the fleet's groups. */
 function catalogoCompletado(base) {
   const grupos = scheduler.agruparEquipamentos(base.equipamentos).map((g) => g.id);
   base.testes.forEach((t, i) => {
@@ -282,9 +282,9 @@ function catalogoCompletado(base) {
   return base;
 }
 
-test('o catálogo de exemplo é planejável de ponta a ponta', () => {
+test('the example catalogue is schedulable end to end', () => {
   const base = catalogoCompletado(require('../src/data.js').seed());
-  /* Qualquer peça serve para qualquer procedimento: não há mais amarração por área. */
+  /* Any part type serves any procedure: there is no longer a tie by system end. */
   base.demandas = base.testes.map((t, i) => demanda({
     id: 'D' + i,
     testeId: t.id,
@@ -297,26 +297,26 @@ test('o catálogo de exemplo é planejável de ponta a ponta', () => {
   assert.equal(plano.bloqueadas.length, 0, 'todo procedimento aponta para um equipamento cadastrado');
   assert.equal(plano.agendadas.length, base.testes.length);
   plano.agendadas.forEach((a) => {
-    assert.ok(util.diffDias(a.demanda.dataAmostras, a.inicio) >= 0, a.teste.id + ' começa antes da amostra');
+    assert.ok(util.diffDias(a.demanda.dataAmostras, a.inicio) >= 0, a.teste.id + ' starts before the sample');
     assert.ok(util.diffDias(a.inicio, a.fim) >= 0);
   });
 });
 
-test('as fases são apenas DV, PV e VAVE, e PV é Process Validation', () => {
+test('the phases are only DV, PV and VAVE, and PV is Process Validation', () => {
   const dados = require('../src/data.js');
   assert.deepEqual(dados.FASES.map((f) => f.id), ['DV', 'PV', 'VAVE']);
   assert.match(util.porId(dados.FASES, 'PV').nome, /Process Validation/);
 });
 
-test('o catálogo não amarra procedimento a fase e sempre traz a revisão', () => {
+test('the catalogue does not tie a procedure to a phase and always carries the revision', () => {
   const dados = require('../src/data.js');
   dados.seed().testes.forEach((t) => {
     assert.equal(t.fases, undefined, t.id + ' ainda tem fase amarrada');
-    assert.ok(t.revisao && t.revisao.trim(), t.id + ' está sem revisão');
+    assert.ok(t.revisao && t.revisao.trim(), t.id + ' has no revision');
   });
 });
 
-test('o parque está cadastrado e nenhum procedimento aponta para grupo inexistente', () => {
+test('the fleet is registered and no procedure points at a group that does not exist', () => {
   const base = require('../src/data.js').seed();
   const grupos = scheduler.agruparEquipamentos(base.equipamentos).map((g) => g.id);
 
@@ -324,9 +324,9 @@ test('o parque está cadastrado e nenhum procedimento aponta para grupo inexiste
     'Burner 1', 'Burner 2', 'Burner 3', 'Shaker', 'MTS 1', 'MTS 2', 'MTS 3', 'MTS 4',
     'LMS / PTA', 'ColdFlow', 'Dynamometer'
   ]);
-  /* O catálogo de partida vem sem bancada definida: o equipamento é preenchido no
-     cadastro de cada procedimento. O que não pode acontecer é apontar para um grupo
-     que não existe no parque. */
+  /* The seed catalogue comes with no rig defined: the equipment is filled in when each
+     procedure is registered. What must not happen is pointing at a group that does not exist
+     in the fleet. */
   base.testes.forEach((t) => {
     scheduler.gruposDoTeste(t).forEach(function (id) {
       assert.ok(grupos.includes(id), t.id + ' aponta para grupo ' + id);
@@ -334,8 +334,8 @@ test('o parque está cadastrado e nenhum procedimento aponta para grupo inexiste
   });
 });
 
-/* O catálogo de partida é a especificação de cada cliente transcrita: o que os testes
-   abaixo guardam é o par nome/norma e o vínculo com o cliente certo. */
+/* The seed catalogue is each customer's specification transcribed: what the tests below
+   guard is the name/standard pair and the link to the right customer. */
 const CATALOGO_GM = [
   ['TP-GM-01', 'Resonance Durability', 'Appx C'],
   ['TP-GM-02', 'Physical Durability Aging Cycle', 'Appx C'],
@@ -435,81 +435,81 @@ function conferirCatalogo(base, clienteId, esperado) {
   const doCliente = base.testes.filter((t) => (t.clientes || []).indexOf(clienteId) !== -1);
   assert.deepEqual(doCliente.map((t) => [t.id, t.nome, t.norma]), esperado);
   doCliente.forEach((t) => {
-    assert.equal(t.revisao, 'Rev. 01', t.id + ' não está na revisão 1');
-    assert.deepEqual(t.clientes, [clienteId], t.id + ' está exigido por mais de um cliente');
+    assert.equal(t.revisao, 'Rev. 01', t.id + ' is not on revision 1');
+    assert.deepEqual(t.clientes, [clienteId], t.id + ' is required by more than one customer');
   });
 }
 
-test('o catálogo de partida traz os procedimentos GM com norma e revisão 1', () => {
+test('the seed catalogue carries the GM procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-GM', CATALOGO_GM);
 });
 
-test('o catálogo de partida traz os procedimentos Stellantis com norma e revisão 1', () => {
+test('the seed catalogue carries the Stellantis procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-STL', CATALOGO_STELLANTIS);
 });
 
-test('o catálogo de partida traz os procedimentos Ford com norma e revisão 1', () => {
+test('the seed catalogue carries the Ford procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-FRD', CATALOGO_FORD);
 });
 
-test('o catálogo de partida traz os procedimentos VW com norma e revisão 1', () => {
+test('the seed catalogue carries the VW procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-VW', CATALOGO_VW);
 });
 
-test('o catálogo de partida traz os procedimentos Hyundai com norma e revisão 1', () => {
+test('the seed catalogue carries the Hyundai procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-HYU', CATALOGO_HYUNDAI);
 });
 
-test('o catálogo de partida traz os procedimentos RSA com norma e revisão 1', () => {
+test('the seed catalogue carries the RSA procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-RSA', CATALOGO_RSA);
 });
 
-test('o catálogo de partida traz os procedimentos Nissan com norma e revisão 1', () => {
+test('the seed catalogue carries the Nissan procedures with standard and revision 1', () => {
   conferirCatalogo(require('../src/data.js').seed(), 'CLI-NIS', CATALOGO_NISSAN);
 });
 
-test('Ford e Forvia Faurecia são clientes distintos', () => {
+test('Ford and Forvia Faurecia are different customers', () => {
   const base = require('../src/data.js').seed();
   assert.equal(util.porId(base.clientes, 'CLI-FRD').nome, 'Ford');
   assert.equal(util.porId(base.clientes, 'CLI-FOR').nome, 'Forvia Faurecia');
   assert.equal(base.testes.filter((t) => (t.clientes || []).indexOf('CLI-FOR') !== -1).length, 0,
-    'nenhum procedimento do catálogo de partida é da Forvia');
+    'no seed catalogue procedure belongs to Forvia');
 });
 
-test('o catálogo de partida tem só os clientes esperados, sem código repetido', () => {
+test('the seed catalogue has only the expected customers, with no repeated code', () => {
   const base = require('../src/data.js').seed();
   assert.equal(base.testes.length, CATALOGO_GM.length + CATALOGO_STELLANTIS.length +
     CATALOGO_FORD.length + CATALOGO_VW.length + CATALOGO_HYUNDAI.length +
     CATALOGO_RSA.length + CATALOGO_NISSAN.length);
   assert.equal(new Set(base.testes.map((t) => t.id)).size, base.testes.length,
-    'código de procedimento repetido');
+    'repeated procedure code');
 });
 
-test('as peças são tipos genéricos, sem cliente nem área', () => {
+test('part types are generic, with no customer and no system end', () => {
   const base = require('../src/data.js').seed();
   assert.deepEqual(base.pecas.map((p) => p.nome),
     ['Hot End', 'Canning', 'Cold End', 'Muffler', 'Component']);
   base.pecas.forEach((p) => {
-    assert.equal(p.clienteId, undefined, p.nome + ' ainda está preso a um cliente');
-    assert.equal(p.area, undefined, p.nome + ' ainda está preso a uma área');
+    assert.equal(p.clienteId, undefined, p.nome + ' is still tied to a customer');
+    assert.equal(p.area, undefined, p.nome + ' is still tied to a system end');
     assert.equal(p.dataAmostras, undefined, p.nome + ' ainda guarda data de amostras');
   });
 });
 
-test('demanda de cotação não reserva bancada, mas entra no custo', () => {
+test('a quote request reserves no rig but still enters the cost', () => {
   const s = estado({ demandas: [demanda({ id: 'COT', tipoLti: 'COTACAO', lti: '' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   const a = alocacaoDe(plano, 'COT');
 
   assert.equal(a.cotacao, true);
-  assert.equal(a.inicio, null, 'cotação não recebe janela');
-  assert.ok(a.custo.total > 0, 'o custo ainda é calculado para orçamento');
+  assert.equal(a.inicio, null, 'a quote gets no slot');
+  assert.ok(a.custo.total > 0, 'the cost is still computed for the budget');
   assert.equal(plano.agendadas.length, 0);
-  assert.equal(plano.bloqueadas.length, 0, 'cotação não conta como bloqueada');
+  assert.equal(plano.bloqueadas.length, 0, 'a quote does not count as blocked');
   assert.equal(plano.cotacoes.length, 1);
 });
 
-test('cotação não disputa nem ocupa a posição de demandas planejáveis', () => {
+test('a quote neither competes for nor occupies the position of schedulable requests', () => {
   const s = estado({
     demandas: [
       demanda({ id: 'COT', tipoLti: 'COTACAO', lti: '' }),
@@ -521,7 +521,7 @@ test('cotação não disputa nem ocupa a posição de demandas planejáveis', ()
   assert.equal(alocacaoDe(plano, 'COT').inicio, null);
 });
 
-test('ehCotacao reconhece a classificação COTACAO e só ela', () => {
+test('ehCotacao recognises the COTACAO classification and only that', () => {
   assert.equal(scheduler.ehCotacao({ tipoLti: 'COTACAO' }), true);
   assert.equal(scheduler.ehCotacao({ tipoLti: 'DV' }), false);
   assert.equal(scheduler.ehCotacao({ tipoLti: 'PV' }), false);
@@ -529,7 +529,7 @@ test('ehCotacao reconhece a classificação COTACAO e só ela', () => {
   assert.equal(scheduler.ehCotacao({ tipoLti: 'ALGO_INEXISTENTE' }), false);
 });
 
-test('ensaio em duas bancadas reserva posição nas duas ao mesmo tempo', () => {
+test('a test on two rigs reserves a position on both at the same time', () => {
   const s = estado({
     equipamentos: [
       equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
@@ -544,8 +544,8 @@ test('ensaio em duas bancadas reserva posição nas duas ao mesmo tempo', () => 
   assert.equal(a.posicoes['EQ-02'], 0);
 });
 
-test('bancada compartilhada empurra o outro ensaio, mesmo com a dela livre', () => {
-  /* DUPLO usa EQ-01 + EQ-02; SIMPLES usa só EQ-02, que fica preso pelo primeiro. */
+test('a shared rig pushes the other test out, even with its own rig free', () => {
+  /* DUPLO uses EQ-01 + EQ-02; SIMPLES uses only EQ-02, which is held by the first one. */
   const s = estado({
     equipamentos: [
       equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
@@ -566,10 +566,10 @@ test('bancada compartilhada empurra o outro ensaio, mesmo com a dela livre', () 
   assert.equal(duplo.inicio, SEGUNDA);
   assert.equal(duplo.fim, '2026-07-08');
   assert.ok(util.diffDias(duplo.fim, simples.inicio) > 0,
-    'o ensaio simples não pode entrar enquanto a bancada estiver presa pelo duplo');
+    'the single test cannot get in while the rig is held by the double one');
 });
 
-test('o ritmo é ditado pela bancada de turno mais curto', () => {
+test('the pace is set by the rig with the shortest shift', () => {
   /* 48 h numa bancada 24 h/dia dariam 2 dias; com uma de 8 h/dia junto, viram 6. */
   const s = estado({
     equipamentos: [
@@ -582,18 +582,18 @@ test('o ritmo é ditado pela bancada de turno mais curto', () => {
   assert.equal(scheduler.diasDeOperacao(s.testes[0], eqs), 6);
 
   const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
-  /* Só conta dia útil da interseção: seg-sex. 6 dias úteis a partir de 06/07 -> 13/07. */
+  /* Only working days in the intersection count: Mon-Fri. 6 working days from 06 Jul -> 13 Jul. */
   assert.equal(a.inicio, SEGUNDA);
   assert.equal(a.fim, '2026-07-13');
 });
 
-test('manutenção em qualquer uma das bancadas bloqueia a janela', () => {
+test('maintenance on any of the rigs blocks the slot', () => {
   const s = estado({
     equipamentos: [
       equipamento({ id: 'EQ-01', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
       equipamento({
         id: 'EQ-02', continuo: true, diasUteis: [0, 1, 2, 3, 4, 5, 6],
-        manutencao: [{ id: 'MN-1', inicio: '2026-07-07', fim: '2026-07-10', motivo: 'Calibração' }]
+        manutencao: [{ id: 'MN-1', inicio: '2026-07-07', fim: '2026-07-10', motivo: 'Calibration' }]
       })
     ],
     testes: [teste({ equipamentoGrupos: ['EQ-01', 'EQ-02'], horasEnsaio: 48 })]
@@ -602,15 +602,15 @@ test('manutenção em qualquer uma das bancadas bloqueia a janela', () => {
   assert.equal(a.inicio, '2026-07-11', 'a parada da segunda bancada empurra o ensaio');
 });
 
-test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () => {
+test('a procedure with no equipment at all is blocked with a clear reason', () => {
   const s = estado({ testes: [teste({ equipamentoGrupos: [] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
   assert.match(plano.bloqueadas[0].motivo, /no equipment/i);
 });
 
-/* Horas levantadas pelo centro de testes: [ensaio, setup, report]. O que não está aqui
-   ainda não foi medido e continua zerado no catálogo de partida. */
+/* Hours measured by the test centre: [test, setup, reporting]. Whatever is not here has not
+   been measured yet and stays at zero in the seed catalogue. */
 const HORAS_LEVANTADAS = {
   'TP-GM-02': [300, 20, 14],
   'TP-GM-03': [150, 16, 16],
@@ -637,11 +637,11 @@ const HORAS_LEVANTADAS = {
   'TP-NIS-01': [375, 11, 6]
 };
 
-test('as horas levantadas estão no catálogo, procedimento a procedimento', () => {
+test('the measured hours are in the catalogue, procedure by procedure', () => {
   const base = require('../src/data.js').seed();
   Object.keys(HORAS_LEVANTADAS).forEach((id) => {
     const t = util.porId(base.testes, id);
-    assert.ok(t, id + ' não existe no catálogo');
+    assert.ok(t, id + ' does not exist in the catalogue');
     const [ensaio, setup, report] = HORAS_LEVANTADAS[id];
     assert.equal(t.horasEnsaio, ensaio, id + ' com horas de ensaio erradas');
     assert.equal(t.horasSetup, setup, id + ' com horas de setup erradas');
@@ -649,14 +649,14 @@ test('as horas levantadas estão no catálogo, procedimento a procedimento', () 
   });
 });
 
-test('o que ainda não foi medido continua zerado', () => {
+test('whatever has not been measured yet stays at zero', () => {
   const base = require('../src/data.js').seed();
   base.testes.forEach((t) => {
     ['horasSetup', 'horasEnsaio', 'horasReport', 'custoInsumos'].forEach((campo) => {
       assert.equal(typeof t[campo], 'number', t.id + ' sem o campo ' + campo);
     });
     assert.equal(t.custoBase, undefined, t.id + ' ainda usa custoBase');
-    /* O custo de insumos ainda não foi informado para nenhum procedimento. */
+    /* The consumables cost has not been given for any procedure yet. */
     assert.equal(t.custoInsumos, 0, t.id + ' com custo de insumos inesperado');
 
     if (!HORAS_LEVANTADAS[t.id]) {
@@ -666,7 +666,7 @@ test('o que ainda não foi medido continua zerado', () => {
   });
 });
 
-test('o custo do catálogo bate com a fórmula, procedimento a procedimento', () => {
+test('the catalogue cost matches the formula, procedure by procedure', () => {
   const base = catalogoCompletado(require('../src/data.js').seed());
   base.testes.forEach((t) => {
     const c = scheduler.custoCatalogo(t, base.hourlyRate);
@@ -678,17 +678,17 @@ test('o custo do catálogo bate com a fórmula, procedimento a procedimento', ()
 
 /* ---- Hourly rate do centro de testes ---- */
 
-test('o hourly rate é um valor só do estado, não campo do procedimento', () => {
+test('the hourly rate is a single value in the state, not a procedure field', () => {
   const base = require('../src/data.js').seed();
   assert.equal(base.hourlyRate, 368.75);
   assert.equal(base.hourlyRateVigencia, '2026');
   base.testes.forEach((t) => {
-    assert.equal(t.hourlyRate, undefined, t.id + ' ainda carrega hourly rate próprio');
+    assert.equal(t.hourlyRate, undefined, t.id + ' still carries an hourly rate of its own');
   });
   assert.equal(scheduler.taxaHoraria(base), 368.75);
 });
 
-test('mudar o rate reprecifica todo o catálogo de uma vez', () => {
+test('changing the rate reprices the whole catalogue at once', () => {
   const base = catalogoCompletado(require('../src/data.js').seed());
   const soma = (rate) => base.testes.reduce(
     (t, p) => t + scheduler.custoCatalogo(p, rate).custoHoras, 0);
@@ -697,7 +697,7 @@ test('mudar o rate reprecifica todo o catálogo de uma vez', () => {
     'dobrar o rate dobra o custo de horas de todos os procedimentos');
 });
 
-test('o custo usa o rate do estado planejado, não uma constante', () => {
+test('the cost uses the rate from the state being scheduled, not a constant', () => {
   const s = estado({
     hourlyRate: 368.75,
     testes: [teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 0, custoInsumos: 0 })]
@@ -707,7 +707,7 @@ test('o custo usa o rate do estado planejado, não uma constante', () => {
   assert.equal(alocacaoDe(plano, 'DM-01').custo.custoHoras, 8 * 368.75);
 });
 
-/* ---- Grupos de bancada intercambiáveis ---- */
+/* ---- Interchangeable rig groups ---- */
 
 function pool(qtd, extra) {
   const lista = [];
@@ -720,7 +720,7 @@ function pool(qtd, extra) {
   return lista;
 }
 
-test('agrupar reúne unidades pelo grupo e mantém a ordem do cadastro', () => {
+test('grouping gathers units by group and keeps the register order', () => {
   const grupos = scheduler.agruparEquipamentos(pool(3).concat([
     equipamento({ id: 'SHK', nome: 'Shaker', grupo: 'Shaker' })
   ]));
@@ -729,12 +729,12 @@ test('agrupar reúne unidades pelo grupo e mantém a ordem do cadastro', () => {
   assert.equal(grupos[1].membros.length, 1);
 });
 
-test('unidade sem grupo definido forma um grupo só dela', () => {
+test('a unit with no group defined forms a group of its own', () => {
   const grupos = scheduler.agruparEquipamentos([{ id: 'X1', nome: 'Bancada X' }]);
   assert.deepEqual(grupos.map((g) => g.id), ['Bancada X']);
 });
 
-test('três demandas no mesmo grupo ocupam as três unidades em paralelo', () => {
+test('three requests in the same group occupy the three units in parallel', () => {
   const s = estado({
     equipamentos: pool(3),
     testes: [teste({ equipamentoGrupos: ['Burner'], horasEnsaio: 72 })],
@@ -743,13 +743,13 @@ test('três demandas no mesmo grupo ocupam as três unidades em paralelo', () =>
   const plano = scheduler.planejar(s, SEGUNDA);
   const usadas = ['A', 'B', 'C'].map((id) => alocacaoDe(plano, id));
 
-  usadas.forEach((a) => assert.equal(a.inicio, SEGUNDA, 'todas começam no mesmo dia'));
+  usadas.forEach((a) => assert.equal(a.inicio, SEGUNDA, 'they all start on the same day'));
   const unidades = usadas.map((a) => a.equipamentos[0].id).sort();
   assert.deepEqual(unidades, ['BRN-1', 'BRN-2', 'BRN-3'], 'uma unidade distinta para cada');
 });
 
-test('a quarta demanda cai na unidade que libera mais cedo', () => {
-  /* A e B pegam 3 dias; C pega 9. A quarta deve ir para BRN-1 ou BRN-2, não para a longa. */
+test('the fourth request lands on the unit that frees up first', () => {
+  /* A and B take 3 days; C takes 9. The fourth should go to BRN-1 or BRN-2, not the long one. */
   const s = estado({
     equipamentos: pool(3),
     testes: [
@@ -769,23 +769,23 @@ test('a quarta demanda cai na unidade que libera mais cedo', () => {
 
   assert.equal(d.inicio, '2026-07-09', 'entra assim que a primeira curta desocupa');
   assert.notEqual(d.equipamentos[0].id, longa.equipamentos[0].id,
-    'não espera a unidade presa pelo ensaio longo');
+    'it does not wait for the unit held by the long test');
 });
 
-test('manutenção numa unidade joga a demanda para a irmã livre', () => {
+test('maintenance on one unit throws the request onto the free sibling', () => {
   const unidades = pool(2);
-  unidades[0].manutencao = [{ id: 'MN-1', inicio: SEGUNDA, fim: '2026-07-20', motivo: 'Calibração' }];
+  unidades[0].manutencao = [{ id: 'MN-1', inicio: SEGUNDA, fim: '2026-07-20', motivo: 'Calibration' }];
   const s = estado({
     equipamentos: unidades,
     testes: [teste({ equipamentoGrupos: ['Burner'], horasEnsaio: 48 })]
   });
   const a = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DM-01');
-  assert.equal(a.equipamentos[0].id, 'BRN-2', 'usa a que não está parada');
-  assert.equal(a.inicio, SEGUNDA, 'sem esperar o fim da manutenção da outra');
+  assert.equal(a.equipamentos[0].id, 'BRN-2', 'it uses the one that is not down');
+  assert.equal(a.inicio, SEGUNDA, 'without waiting for the other one to come back');
 });
 
-test('entre unidades livres no mesmo dia, ganha a que termina antes', () => {
-  /* BRN-1 roda 24 h/dia e BRN-2 só 8 h: o mesmo ensaio acaba antes na primeira. */
+test('among units free on the same day, the one that finishes earlier wins', () => {
+  /* BRN-1 runs 24 h/day and BRN-2 only 8 h: the same test finishes earlier on the first. */
   const s = estado({
     equipamentos: [
       equipamento({ id: 'BRN-1', nome: 'Burner 1', grupo: 'Burner', continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
@@ -798,12 +798,12 @@ test('entre unidades livres no mesmo dia, ganha a que termina antes', () => {
   assert.equal(a.diasOperacao, 2);
 });
 
-test('dois grupos juntos escolhem a melhor combinação de unidades', () => {
+test('two groups together pick the best combination of units', () => {
   const unidades = pool(2).concat([
     equipamento({ id: 'MTS-1', nome: 'MTS 1', grupo: 'MTS', continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] }),
     equipamento({ id: 'MTS-2', nome: 'MTS 2', grupo: 'MTS', continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6] })
   ]);
-  /* BRN-1 e MTS-1 já estão presos por um ensaio longo de prioridade alta. */
+  /* BRN-1 and MTS-1 are already held by a long, high-priority test. */
   const s = estado({
     equipamentos: unidades,
     testes: [
@@ -818,11 +818,11 @@ test('dois grupos juntos escolhem a melhor combinação de unidades', () => {
     ]
   });
   const duplo = alocacaoDe(scheduler.planejar(s, SEGUNDA), 'DUPLO');
-  assert.equal(duplo.inicio, SEGUNDA, 'há um par livre, então não precisa esperar');
+  assert.equal(duplo.inicio, SEGUNDA, 'there is a free pair, so there is no need to wait');
   assert.deepEqual(duplo.equipamentos.map((eq) => eq.id).sort(), ['BRN-2', 'MTS-2']);
 });
 
-test('grupo sem unidade cadastrada vira bloqueio com motivo claro', () => {
+test('a group with no unit registered becomes a block with a clear reason', () => {
   const s = estado({ testes: [teste({ equipamentoGrupos: ['Camara'] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
@@ -830,7 +830,7 @@ test('grupo sem unidade cadastrada vira bloqueio com motivo claro', () => {
   assert.match(plano.bloqueadas[0].motivo, /has no unit registered/);
 });
 
-test('o parque tem Burner e MTS como grupos com várias unidades', () => {
+test('the fleet has Burner and MTS as groups with several units', () => {
   const base = require('../src/data.js').seed();
   const grupos = scheduler.agruparEquipamentos(base.equipamentos);
   const porId = (id) => grupos.find((g) => g.id === id);
@@ -845,7 +845,7 @@ test('o parque tem Burner e MTS como grupos com várias unidades', () => {
   });
 });
 
-test('o cadastro de clientes tem a GM e não tem Tenneco nem Eberspächer', () => {
+test('the customer register has GM and has neither Tenneco nor Eberspächer', () => {
   const base = require('../src/data.js').seed();
   const ids = base.clientes.map((c) => c.id);
   assert.deepEqual(ids,
