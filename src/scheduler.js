@@ -1,7 +1,7 @@
 /* Motor de planejamento.
-   Recebe as demandas confirmadas e devolve a alocação em equipamento/posição,
-   respeitando: data de chegada das amostras, calendário e manutenção do equipamento,
-   número de posições em paralelo, prioridade e prazo. */
+   It takes the confirmed requests and returns the allocation to equipment/position,
+   respecting: sample arrival date, equipment calendar and maintenance, number of parallel
+   positions, priority and due date. */
 (function (global) {
   'use strict';
 
@@ -9,7 +9,7 @@
   var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
   var dados = TC.data || (typeof require !== 'undefined' ? require('./data.js') : null);
 
-  var HORIZONTE_DIAS = 1095; /* 3 anos: além disso consideramos a demanda impossível de alocar. */
+  var HORIZONTE_DIAS = 1095; /* 3 years: past that we treat the request as impossible to place. */
 
   function ehDiaUtil(equipamento, iso) {
     return equipamento.diasUteis.indexOf(util.diaDaSemana(iso)) !== -1;
@@ -23,13 +23,13 @@
     return false;
   }
 
-  /* Grupo do equipamento: família de unidades intercambiáveis. Sem grupo definido,
-     a própria unidade é o grupo. */
+  /* Equipment group: a family of interchangeable units. With no group defined, the unit is
+     its own group. */
   function grupoDe(equipamento) {
     return equipamento.grupo || equipamento.nome || equipamento.id;
   }
 
-  /* Agrupa o parque em famílias, preservando a ordem do cadastro. */
+  /* Groups the fleet into families, preserving the register order. */
   function agruparEquipamentos(equipamentos) {
     var ordem = [];
     var mapa = {};
@@ -51,8 +51,8 @@
     return [];
   }
 
-  /* Um ensaio só avança quando TODAS as bancadas que ele ocupa estão operando:
-     o turno mais curto e a interseção dos dias úteis mandam no ritmo. */
+  /* A test only advances when EVERY rig it occupies is operating: the shortest shift and
+     the intersection of working days set the pace. */
   function horasPorDiaCombinadas(lista) {
     return lista.reduce(function (menor, eq) {
       var horas = eq.continuo ? 24 : (eq.horasDia || 8);
@@ -70,26 +70,26 @@
     return false;
   }
 
-  /* Horas que realmente prendem a bancada. O report é feito depois, na mesa. */
+  /* Hours that actually hold the rig. Reporting is done afterwards, at a desk. */
   function horasDeBancada(teste) {
     return (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
   }
 
-  /* Horas faturadas ao cliente: bancada + elaboração do relatório. */
+  /* Hours billed to the customer: rig time + writing the report. */
   function horasFaturaveis(teste) {
     return horasDeBancada(teste) + (teste.horasReport || 0);
   }
 
-  /* Quantos dias de operação o ensaio consome no conjunto de bancadas. */
+  /* How many operating days the test consumes across the set of rigs. */
   function diasDeOperacao(teste, equipamentos) {
     var lista = [].concat(equipamentos || []);
     var horasPorDia = lista.length ? horasPorDiaCombinadas(lista) : 8;
     return Math.max(1, Math.ceil(horasDeBancada(teste) / horasPorDia));
   }
 
-  /* A partir de uma data de início, devolve a janela de calendário que o ensaio ocupa.
-     Dias não úteis dentro da janela continuam ocupando as posições (a peça segue montada).
-     Devolve null se a janela atravessar uma parada de manutenção de qualquer bancada. */
+  /* From a start date, returns the calendar window the test occupies.
+     Non-working days inside the window still hold the positions (the part stays mounted).
+     Returns null if the window crosses maintenance downtime on any of the rigs. */
   function calcularJanela(equipamentos, inicio, diasNecessarios) {
     var lista = [].concat(equipamentos || []);
     var cursor = inicio;
@@ -114,8 +114,8 @@
     return null;
   }
 
-  /* Primeira posição livre do equipamento para a janela.
-     Devolve o índice, ou -1 e a data em que a posição mais cedo se libera. */
+  /* First free position on the machine for the window.
+     Returns the index, or -1 plus the date the earliest position frees up. */
   function posicaoLivre(posicoes, janela) {
     var liberaEm = null;
     for (var p = 0; p < posicoes.length; p++) {
@@ -126,7 +126,7 @@
     return { posicao: -1, liberaEm: liberaEm };
   }
 
-  /* Procura a primeira janela em que TODAS as bancadas têm uma posição livre. */
+  /* Looks for the first window in which EVERY rig has a free position. */
   function buscarJanela(equipamentos, reservasPorEquipamento, dataMinima, diasNecessarios) {
     var lista = [].concat(equipamentos || []);
     if (!lista.length) return null;
@@ -144,8 +144,8 @@
 
       var escolhidas = {};
       var ocupado = false;
-      /* Como todas as bancadas precisam estar livres juntas, a próxima tentativa só
-         faz sentido depois que a última delas se liberar. */
+      /* Since every rig has to be free at the same time, the next attempt only makes sense
+         after the last of them frees up. */
       var proximaTentativa = null;
       for (var i = 0; i < lista.length; i++) {
         var r = posicaoLivre(reservasPorEquipamento[lista[i].id], janela);
@@ -166,8 +166,8 @@
 
   var MAX_COMBINACOES = 400;
 
-  /* Uma unidade de cada grupo. Com poucos grupos e poucas unidades o produto é pequeno;
-     acima do teto caímos na primeira unidade de cada grupo para não travar o recálculo. */
+  /* One unit from each group. With few groups and few units the product is small; above the
+     ceiling we fall back to the first unit of each group so the recalculation never hangs. */
   function combinacoesDeUnidades(grupos) {
     var total = grupos.reduce(function (n, g) { return n * g.membros.length; }, 1);
     if (!total) return [];
@@ -185,9 +185,9 @@
     return combinacoes;
   }
 
-  /* Procura, entre todas as unidades possíveis, a que começa mais cedo.
-     Empate no início é desempatado por quem termina antes — uma bancada de turno
-     mais longo entrega o mesmo ensaio em menos dias. */
+  /* Among every possible unit, looks for the one that starts earliest.
+     A tie on the start is broken by whichever finishes first — a rig with a longer shift
+     delivers the same test in fewer days. */
   function melhorEntreGrupos(grupos, teste, reservasPorEquipamento, dataMinima, inicioFixo) {
     var melhor = null;
     combinacoesDeUnidades(grupos).forEach(function (unidades) {
@@ -225,8 +225,8 @@
     return p ? p.peso : 9;
   }
 
-  /* Hourly rate do estado, com a constante do centro de testes como último recurso.
-     O rate é um valor só para todo o catálogo, atualizado uma vez por ano. */
+  /* Hourly rate from the state, with the test centre constant as a last resort.
+     The rate is a single value for the whole catalogue, updated once a year. */
   function taxaHoraria(estado) {
     if (estado && typeof estado.hourlyRate === 'number') return estado.hourlyRate;
     return dados.HOURLY_RATE;
@@ -234,8 +234,9 @@
 
   /* Custo do procedimento:
        (horas de setup + ensaio + report) x hourly rate + insumos
-     O hourly rate vem de fora porque não pertence ao procedimento: é do centro de testes.
-     A demanda soma ainda as amostras consumidas, que dependem da peça escolhida. */
+     The hourly rate comes from outside because it does not belong to the procedure: it
+     belongs to the test centre. A request also adds the samples consumed, which depend on the
+     part type chosen. */
   function custoDemanda(demanda, teste, equipamentos, peca, hourlyRate) {
     if (!teste) {
       return {
@@ -264,27 +265,27 @@
     };
   }
 
-  /* Custo de referência do catálogo, sem peça associada. */
+  /* Reference cost for the catalogue, with no part type attached. */
   function custoCatalogo(teste, hourlyRate) {
     return custoDemanda(null, teste, null, null, hourlyRate);
   }
 
-  /* Estados em que a demanda ainda disputa bancada. A lista vem do fluxo, para não haver
-     duas verdades sobre o que está ativo. */
+  /* States in which a request still competes for a rig. The list comes from the workflow, so
+     there are never two truths about what is active. */
   var fluxo = TC.fluxo || (typeof require !== 'undefined' ? require('./fluxo.js') : null);
   var ATIVAS = fluxo.estadosAtivos();
 
-  /* Uma LTI de cotação é orçamento: calcula custo e duração, mas não reserva bancada. */
+  /* A quote LTI is a budget: it works out cost and duration but reserves no rig. */
   function ehCotacao(demanda) {
     var tipo = util.porId(dados.TIPOS_LTI, demanda.tipoLti);
     return !!tipo && tipo.planeja === false;
   }
 
-  /* Planeja todas as demandas ativas. Não altera o estado recebido. */
+  /* Schedules every active request. It does not modify the state it receives. */
   function planejar(estado, dataBase) {
     var hoje = dataBase || util.hoje();
     var equipamentos = estado.equipamentos;
-    var reservas = {}; /* equipamentoId -> array por posição */
+    var reservas = {}; /* equipamentoId -> array indexed by position */
 
     equipamentos.forEach(function (eq) {
       reservas[eq.id] = [];
@@ -332,11 +333,11 @@
         peca: peca,
         grupos: grupos,
         gruposFaltando: faltando,
-        /* equipamentos: as unidades efetivamente escolhidas; vazio até alocar. */
+        /* equipamentos: the units actually chosen; empty until it is placed. */
         equipamentos: [],
         custo: custoDemanda(demanda, teste, null, peca, taxaHoraria(estado)),
         cotacao: false,
-        /* posicoes: { equipamentoId: índice da posição ocupada } */
+        /* posicoes: { equipamentoId: index of the position taken } */
         posicoes: null,
         inicio: null,
         fim: null,
@@ -344,13 +345,13 @@
       };
     }
 
-    /* Cotação: custo e duração estimados, sem reservar posição. */
+    /* Quote: estimated cost and duration, with no position reserved. */
     function processarCotacao(demanda) {
       var base = montarBase(demanda);
       base.cotacao = true;
       base.motivo = 'Quote — takes no rig.';
       if (base.teste && base.grupos.length) {
-        /* Estimativa pela primeira unidade de cada grupo, só para dar a duração. */
+        /* Estimated from the first unit of each group, only to give the duration. */
         base.diasOperacao = diasDeOperacao(base.teste, base.grupos.map(function (g) { return g.membros[0]; }));
       }
       alocacoes.push(base);
@@ -380,8 +381,8 @@
         return;
       }
 
-      /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
-         datas diferentes conforme o cliente e o programa. */
+      /* Sample arrival is given on the request: the same part type arrives on different
+         dates depending on the customer and the programme. */
       var disponibilidadePeca = demanda.dataAmostras || hoje;
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
@@ -429,7 +430,7 @@
     return {
       alocacoes: alocacoes,
       agendadas: alocacoes.filter(function (a) { return !!a.inicio; }),
-      /* Só é bloqueio o que deveria ter entrado na bancada e não entrou. */
+      /* Only what should have made it onto a rig and did not counts as blocked. */
       bloqueadas: alocacoes.filter(function (a) { return !a.inicio && !a.cotacao; }),
       cotacoes: alocacoes.filter(function (a) { return a.cotacao; })
     };

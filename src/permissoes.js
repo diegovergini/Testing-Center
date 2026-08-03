@@ -1,6 +1,7 @@
-/* Perfil em uso e o que ele pode ver/editar em cada janela.
-   Sem servidor, isto guia a interface — não é controle de acesso. Quem abrir o console
-   ou o backup JSON alcança tudo. Vale como organização do trabalho, não como segurança. */
+/* The role in use and what it can view/edit on each screen.
+   With no server this guides the interface — it is not access control. Anyone who opens the
+   console or the JSON backup reaches everything. It counts as organising the work, not as
+   security. */
 (function (global) {
   'use strict';
 
@@ -19,13 +20,13 @@
     return regra(estado, rota).ver.indexOf(perfilAtual(estado)) !== -1;
   }
 
-  /* Cópia publicada para a equipe: dados embutidos no arquivo, iguais para todos e sem
-     onde gravar. Consulta-se tudo, não se edita nada. */
+  /* The copy published for the team: data embedded in the file, the same for everyone and
+     with nowhere to write. Everything can be read, nothing can be edited. */
   function publicada() {
     return !!(TC.PUBLICACAO && TC.PUBLICACAO.dados);
   }
 
-  /* Editar exige também poder ver: uma janela invisível não é editável. */
+  /* Editing also requires being able to view: an invisible screen is not editable. */
   function podeEditar(estado, rota) {
     if (publicada()) return false;
     return podeVer(estado, rota) && regra(estado, rota).editar.indexOf(perfilAtual(estado)) !== -1;

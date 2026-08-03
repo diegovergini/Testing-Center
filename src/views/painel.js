@@ -72,7 +72,7 @@
     var custoRealizado = realizados.reduce(function (s, a) { return s + a.custo.total; }, 0);
     var semData = kpi.concluidasSemData(estado);
 
-    /* Riscos continuam no painel: são o que exige decisão nesta semana. */
+    /* Risks stay on the dashboard: they are what needs a decision this week. */
     var atrasadas = 0, semJanela = 0;
     plano.alocacoes.forEach(function (a) {
       if (a.demanda.status === 'CANCELADA') return;

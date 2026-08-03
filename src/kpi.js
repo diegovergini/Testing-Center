@@ -1,7 +1,7 @@
-/* Indicadores do centro de testes.
-   Módulo puro: recebe estado e plano, devolve números. Roda no Node, é testado, e não
-   toca em interface — é aqui que mora a definição de cada KPI, para o painel não virar
-   um amontoado de contas escondidas em HTML. */
+/* Test centre indicators.
+   A pure module: it takes state and plan, returns numbers. It runs on Node, is tested, and
+   never touches the interface — this is where each KPI definition lives, so the dashboard
+   never becomes a pile of arithmetic hidden inside HTML. */
 (function (global) {
   'use strict';
 
@@ -22,7 +22,7 @@
     return mes + '-01';
   }
 
-  /* Último dia do mês, sem depender de tabela de dias por mês: dia 1 do mês seguinte -1. */
+  /* Last day of the month, with no days-per-month table: day 1 of the next month, -1. */
   function ultimoDia(mes) {
     var ano = Number(mes.slice(0, 4));
     var m = Number(mes.slice(5, 7));
@@ -34,7 +34,7 @@
     return !!iso && mesDe(iso) === mes;
   }
 
-  /* Percorre os dias do mês uma vez só. */
+  /* Walks the days of the month exactly once. */
   function porDiaDoMes(mes, fn) {
     var dia = primeiroDia(mes);
     var fim = ultimoDia(mes);
@@ -44,9 +44,9 @@
     }
   }
 
-  /* Horas que o equipamento tem para oferecer no mês: dias em que ele opera, descontada
-     a manutenção, vezes o turno, vezes as posições em paralelo. É a capacidade contra a
-     qual a ocupação é medida. */
+  /* Hours the machine has to offer in the month: the days it operates, minus maintenance,
+     times the shift, times the parallel positions. This is the capacity utilisation is
+     measured against. */
   function capacidadeNoMes(equipamento, mes) {
     var horasDia = equipamento.continuo ? 24 : (equipamento.horasDia || 8);
     var horas = 0, diasUteis = 0, diasParados = 0;
@@ -59,9 +59,9 @@
     return { horas: horas, diasUteis: diasUteis, diasParados: diasParados, horasDia: horasDia };
   }
 
-  /* Dias de operação da janela de um ensaio que caem dentro do mês.
-     Dia de operação é dia em que todas as bancadas do ensaio trabalham — o mesmo critério
-     que o planejamento usou para montar a janela. */
+  /* Operating days of a test's slot that fall inside the month.
+     An operating day is a day when every rig the test uses works — the same criterion the
+     scheduler used to build the slot. */
   function diasDeOperacaoNoMes(alocacao, mes) {
     if (!alocacao.inicio || !alocacao.fim) return 0;
     var lista = alocacao.equipamentos || [];
@@ -77,8 +77,8 @@
     return dias;
   }
 
-  /* Horas de bancada do ensaio que caem no mês. Um ensaio de 47 dias atravessa meses, então
-     as horas são rateadas pelos dias de operação: o mês só recebe o que roda nele. */
+  /* Rig hours of the test that fall in the month. A 47-day test spans months, so the hours
+     are apportioned by operating day: the month only gets what actually runs in it. */
   function horasNoMes(alocacao, mes) {
     if (!alocacao.teste) return 0;
     var totalDias = alocacao.diasOperacao || 0;
@@ -88,9 +88,9 @@
     return scheduler.horasDeBancada(alocacao.teste) * (noMes / totalDias);
   }
 
-  /* Ocupação de cada unidade no mês: o que o planejamento reservou contra o que existe.
-     O ensaio que ocupa duas bancadas ao mesmo tempo conta as horas nas duas — é isso que
-     acontece de fato com a agenda delas. */
+  /* Each unit's utilisation in the month: what the schedule reserved against what exists.
+     A test occupying two rigs at once counts its hours on both — that is what actually
+     happens to their calendars. */
   function ocupacaoNoMes(estado, plano, mes) {
     var porEquipamento = {};
     estado.equipamentos.forEach(function (eq) {
@@ -124,9 +124,10 @@
     });
   }
 
-  /* O planejamento só devolve demanda ativa: concluída e cancelada saem dele, porque não
-     disputam mais bancada. Só que o painel precisa justamente das concluídas — daí esta
-     visão, que percorre todas as demandas e reaproveita a alocação quando existe. */
+  /* The scheduler only returns active requests: completed and cancelled ones leave it,
+     because they no longer compete for a rig. But the dashboard needs precisely the completed
+     ones — hence this view, which walks every request and reuses the allocation when one
+     exists. */
   function demandasComCusto(estado, plano) {
     var porDemanda = {};
     plano.alocacoes.forEach(function (a) { porDemanda[a.demandaId] = a; });
@@ -145,18 +146,18 @@
     });
   }
 
-  /* Testes realizados no mês: demanda concluída, pela data em que de fato terminou.
-     Quem ainda está ativo tem fim planejado e serve de referência; quem já foi concluído
-     saiu do planejamento e só tem a data informada. Sem ela o ensaio não pode ser
-     atribuído a mês nenhum — por isso concluidasSemData() existe: em vez de chutar um
-     mês, o painel mostra o que falta preencher. */
+  /* Tests carried out in the month: completed requests, by the date they actually finished.
+     Whatever is still active has a planned end and serves as a reference; whatever has been
+     completed left the schedule and only has the date that was entered. Without it the test
+     cannot be assigned to any month — which is why concluidasSemData() exists: rather than
+     guessing a month, the dashboard shows what is still to be filled in. */
   function dataDeConclusao(alocacao) {
     if (alocacao.demanda.dataConclusao) return alocacao.demanda.dataConclusao;
     return alocacao.fim || '';
   }
 
-  /* O ensaio foi executado a partir do momento em que é concluído: o que vem depois
-     (relatório enviado, em correção, validado) já rodou na bancada e conta como realizado. */
+  /* The test counts as run from the moment it is completed: everything after that (report
+     sent, in rework, signed off) has already been on the rig and counts as carried out. */
   var EXECUTADOS = ['CONCLUIDA', 'RELATORIO_ENVIADO', 'EM_CORRECAO', 'VALIDADA'];
 
   function jaExecutada(demanda) {
@@ -175,9 +176,9 @@
     });
   }
 
-  /* Certo da primeira vez: relatório validado pelo cliente sem nenhuma rodada de correção.
-     Mede-se sobre os relatórios aprovados no mês — o que ainda está em análise não conta
-     nem a favor nem contra, porque o veredito não saiu. */
+  /* Right first time: a report signed off by the customer with no rework round at all. It is
+     measured over the reports approved in the month — anything still under review counts
+     neither for nor against, because the verdict is not in. */
   function certoDaPrimeiraVez(estado, plano, mes) {
     var aprovados = demandasComCusto(estado, plano).filter(function (a) {
       return a.demanda.status === 'VALIDADA' &&
@@ -195,7 +196,7 @@
     };
   }
 
-  /* Agrupamento de custo. Cotação fica de fora: é orçamento, não serviço confirmado. */
+  /* Cost grouping. Quotes stay out: they are budgets, not confirmed work. */
   function agruparCusto(alocacoes, chave) {
     var mapa = {};
     alocacoes.forEach(function (a) {
@@ -222,17 +223,18 @@
     });
   }
 
-  /* Serviço confirmado: cotação é orçamento e fica de fora; cancelada não é serviço.
-     Concluída entra — o custo do que já foi executado é o que mais importa no acumulado. */
+  /* Confirmed work: a quote is a budget and stays out; a cancelled one is not work.
+     A completed one goes in — the cost of what has already run is what matters most in the
+     running total. */
   function confirmadas(estado, plano) {
     return demandasComCusto(estado, plano).filter(function (a) {
       return !a.cotacao && a.demanda.status !== 'CANCELADA';
     });
   }
 
-  /* Custo de tudo que está planejado para o ano: soma dos ensaios cuja janela cai no ano.
-     Um ensaio que atravessa o réveillon conta no ano em que começa, que é quando o
-     compromisso foi assumido. */
+  /* Cost of everything scheduled for the year: the sum of the tests whose slot falls in the
+     year. A test that runs across New Year counts in the year it starts, which is when the
+     commitment was made. */
   function custoPlanejadoNoAno(plano, ano) {
     var doAno = plano.agendadas.filter(function (a) { return anoDe(a.inicio) === String(ano); });
     var custo = 0, horas = 0;
@@ -243,7 +245,8 @@
     return { ensaios: doAno.length, custo: custo, horas: horas, lista: doAno };
   }
 
-  /* Meses que aparecem no seletor: os que têm algo planejado ou concluído, mais o corrente. */
+  /* Months that show in the selector: the ones with something scheduled or completed, plus
+     the current one. */
   function mesesComMovimento(estado, plano, hoje) {
     var meses = {};
     meses[mesDe(hoje)] = true;

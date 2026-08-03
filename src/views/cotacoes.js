@@ -301,7 +301,7 @@
       return itens;
     }
 
-    /* Um procedimento sem cliente marcado é padrão do laboratório: vale para todos. */
+    /* A procedure with no customer ticked is a lab standard: it applies to everyone. */
     function atendeCliente(teste, clienteId) {
       if (!clienteId) return true;
       return !teste.clientes || !teste.clientes.length || teste.clientes.indexOf(clienteId) !== -1;
@@ -326,7 +326,8 @@
         if (passa && cliente) passa = atendeCliente(teste, cliente);
         if (passa && lti) passa = !!(testesPorLti[lti] && testesPorLti[lti][teste.id]);
 
-        /* O que já foi marcado continua visível, para não sumir da conta sem aviso. */
+        /* Whatever is already ticked stays visible, so it never drops out of the total
+           without warning. */
         linha.style.display = (passa || marcado) ? '' : 'none';
         if (passa || marcado) visiveis++;
       });
@@ -363,9 +364,9 @@
       qtd.addEventListener('input', atualizarResumo);
     });
 
-    /* Os filtros começam neutros e só mudam quando o usuário mexe neles. Herdar o cliente
-       da cotação escondia procedimentos sem pedido e, combinado com o filtro de LTI,
-       chegava a esvaziar a lista sem explicação. */
+    /* The filters start neutral and only change when the user touches them. Inheriting the
+       quote's customer used to hide procedures nobody had asked for and, combined with the
+       LTI filter, could empty the list with no explanation. */
     campoBusca.addEventListener('input', aplicarFiltros);
     filtroCliente.addEventListener('change', aplicarFiltros);
     filtroLti.addEventListener('change', aplicarFiltros);

@@ -18,8 +18,8 @@
       var inicio = util.maiorData(a.inicio, hoje);
       var dias = util.diffDias(inicio, a.fim) + 1;
       if (dias <= 0) return;
-      /* Ensaio que prende duas bancadas conta ocupação nas duas; o custo-máquina de
-         cada uma é a hora dela, não o total do ensaio. */
+      /* A test holding two rigs counts utilisation on both; each one's machine cost is its
+         own hour, not the test total. */
       a.equipamentos.forEach(function (eq) {
         var m = mapa[eq.id] = mapa[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
         m.dias += Math.min(dias, horizonte);

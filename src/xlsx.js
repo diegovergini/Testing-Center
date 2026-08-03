@@ -1,14 +1,14 @@
-/* Gerador mínimo de .xlsx (Office Open XML).
-   Um .xlsx é um ZIP com alguns XML dentro. Como não há dependências no projeto, o ZIP é
-   escrito à mão pelo método "store" (sem compressão), que é válido e dispensa deflate.
-   Isso entrega um arquivo que o Excel abre sem o aviso de "formato não confere" que
-   apareceria ao renomear um CSV ou um XML de .xls. */
+/* Minimal .xlsx generator (Office Open XML).
+   An .xlsx is a ZIP with a few XML files inside. Since the project has no dependencies, the
+   ZIP is written by hand using the "store" method (no compression), which is valid and needs
+   no deflate. That produces a file Excel opens without the "format mismatch" warning it would
+   show for a renamed CSV or .xls XML. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
 
-  /* ---------- CRC32, exigido no cabeçalho de cada entrada do ZIP ---------- */
+  /* ---------- CRC32, required in the header of every ZIP entry ---------- */
 
   var TABELA_CRC = (function () {
     var tabela = new Int32Array(256);
@@ -61,10 +61,10 @@
     var pos = 0;
     entradas.forEach(function (e) {
       e.offset = pos;
-      escrever32(saida, pos, 0x04034B50);      /* assinatura do cabeçalho local */
-      escrever16(saida, pos + 4, 20);          /* versão necessária */
+      escrever32(saida, pos, 0x04034B50);      /* local header signature */
+      escrever16(saida, pos + 4, 20);          /* version needed */
       escrever16(saida, pos + 6, 0x0800);      /* nomes em UTF-8 */
-      escrever16(saida, pos + 8, 0);           /* método 0 = store */
+      escrever16(saida, pos + 8, 0);           /* method 0 = store */
       escrever16(saida, pos + 10, 0);          /* hora */
       escrever16(saida, pos + 12, 0x21);       /* data: 1980-01-01 */
       escrever32(saida, pos + 14, e.crc);
@@ -79,7 +79,7 @@
 
     var inicioCentral = pos;
     entradas.forEach(function (e) {
-      escrever32(saida, pos, 0x02014B50);      /* assinatura do diretório central */
+      escrever32(saida, pos, 0x02014B50);      /* central directory signature */
       escrever16(saida, pos + 4, 20);
       escrever16(saida, pos + 6, 20);
       escrever16(saida, pos + 8, 0x0800);
@@ -100,7 +100,7 @@
       saida.set(e.nome, pos); pos += e.nome.length;
     });
 
-    escrever32(saida, pos, 0x06054B50);        /* fim do diretório central */
+    escrever32(saida, pos, 0x06054B50);        /* end of central directory */
     escrever16(saida, pos + 4, 0);
     escrever16(saida, pos + 6, 0);
     escrever16(saida, pos + 8, entradas.length);
@@ -133,7 +133,8 @@
     return nome;
   }
 
-  /* Célula: número vira <v>, o resto vira texto embutido. Booleano/null viram texto. */
+  /* Cell: a number becomes <v>, everything else becomes inline text. Boolean/null become
+     text too. */
   function celula(referencia, valor, estilo) {
     var atributoEstilo = estilo ? ' s="' + estilo + '"' : '';
     if (typeof valor === 'number' && isFinite(valor)) {
@@ -145,7 +146,7 @@
       '<is><t xml:space="preserve">' + escaparXml(texto) + '</t></is></c>';
   }
 
-  /* linhas: matriz de valores. A primeira linha é tratada como cabeçalho (negrito). */
+  /* linhas: a matrix of values. The first row is treated as a header (bold). */
   function folha(linhas, larguras) {
     var colunas = larguras && larguras.length
       ? '<cols>' + larguras.map(function (largura, i) {
@@ -166,7 +167,7 @@
       colunas + '<sheetData>' + corpo + '</sheetData></worksheet>';
   }
 
-  /* Dois formatos: cabeçalho em negrito e número com separador de milhar. */
+  /* Two formats: bold header and number with a thousands separator. */
   var ESTILOS =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +

@@ -61,9 +61,9 @@
       ultima: ultima,
       proxima: proxima,
       atrasadas: emAtraso,
-      /* Dias desde a última: quanto tempo a bancada roda sem intervenção. */
+      /* Days since the last one: how long the rig has run untouched. */
       diasDesdeUltima: ultima ? util.diffDias(ultima.fim, hoje) : null,
-      /* Negativo não acontece: proximaPlanejada já descarta o que ficou para trás. */
+      /* Negative cannot happen: proximaPlanejada already drops what is behind us. */
       diasParaProxima: proxima ? util.diffDias(hoje, proxima.inicio) : null,
       emManutencaoHoje: paradas(equipamento).some(function (m) {
         return util.diffDias(m.inicio, hoje) >= 0 && util.diffDias(hoje, m.fim) >= 0;

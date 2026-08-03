@@ -35,8 +35,8 @@
     return { inicio: inicio, fim: fim, dias: dias };
   }
 
-  /* A faixa começa sempre numa segunda-feira, então o fim de semana e as linhas de dia
-     podem ser desenhados com dois gradientes que se repetem, em vez de milhares de divs. */
+  /* The band always starts on a Monday, so the weekend and the day lines can be drawn with
+     two repeating gradients instead of thousands of divs. */
   function fundoDaFaixa(largura) {
     var semana = largura * 7;
     return 'background-image:' +

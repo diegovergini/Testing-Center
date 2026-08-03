@@ -1530,9 +1530,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   </script>
   <script>
 /* Motor de planejamento.
-   Recebe as demandas confirmadas e devolve a alocação em equipamento/posição,
-   respeitando: data de chegada das amostras, calendário e manutenção do equipamento,
-   número de posições em paralelo, prioridade e prazo. */
+   It takes the confirmed requests and returns the allocation to equipment/position,
+   respecting: sample arrival date, equipment calendar and maintenance, number of parallel
+   positions, priority and due date. */
 (function (global) {
   'use strict';
 
@@ -1540,7 +1540,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
   var dados = TC.data || (typeof require !== 'undefined' ? require('./data.js') : null);
 
-  var HORIZONTE_DIAS = 1095; /* 3 anos: além disso consideramos a demanda impossível de alocar. */
+  var HORIZONTE_DIAS = 1095; /* 3 years: past that we treat the request as impossible to place. */
 
   function ehDiaUtil(equipamento, iso) {
     return equipamento.diasUteis.indexOf(util.diaDaSemana(iso)) !== -1;
@@ -1554,13 +1554,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return false;
   }
 
-  /* Grupo do equipamento: família de unidades intercambiáveis. Sem grupo definido,
-     a própria unidade é o grupo. */
+  /* Equipment group: a family of interchangeable units. With no group defined, the unit is
+     its own group. */
   function grupoDe(equipamento) {
     return equipamento.grupo || equipamento.nome || equipamento.id;
   }
 
-  /* Agrupa o parque em famílias, preservando a ordem do cadastro. */
+  /* Groups the fleet into families, preserving the register order. */
   function agruparEquipamentos(equipamentos) {
     var ordem = [];
     var mapa = {};
@@ -1582,8 +1582,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return [];
   }
 
-  /* Um ensaio só avança quando TODAS as bancadas que ele ocupa estão operando:
-     o turno mais curto e a interseção dos dias úteis mandam no ritmo. */
+  /* A test only advances when EVERY rig it occupies is operating: the shortest shift and
+     the intersection of working days set the pace. */
   function horasPorDiaCombinadas(lista) {
     return lista.reduce(function (menor, eq) {
       var horas = eq.continuo ? 24 : (eq.horasDia || 8);
@@ -1601,26 +1601,26 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return false;
   }
 
-  /* Horas que realmente prendem a bancada. O report é feito depois, na mesa. */
+  /* Hours that actually hold the rig. Reporting is done afterwards, at a desk. */
   function horasDeBancada(teste) {
     return (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
   }
 
-  /* Horas faturadas ao cliente: bancada + elaboração do relatório. */
+  /* Hours billed to the customer: rig time + writing the report. */
   function horasFaturaveis(teste) {
     return horasDeBancada(teste) + (teste.horasReport || 0);
   }
 
-  /* Quantos dias de operação o ensaio consome no conjunto de bancadas. */
+  /* How many operating days the test consumes across the set of rigs. */
   function diasDeOperacao(teste, equipamentos) {
     var lista = [].concat(equipamentos || []);
     var horasPorDia = lista.length ? horasPorDiaCombinadas(lista) : 8;
     return Math.max(1, Math.ceil(horasDeBancada(teste) / horasPorDia));
   }
 
-  /* A partir de uma data de início, devolve a janela de calendário que o ensaio ocupa.
-     Dias não úteis dentro da janela continuam ocupando as posições (a peça segue montada).
-     Devolve null se a janela atravessar uma parada de manutenção de qualquer bancada. */
+  /* From a start date, returns the calendar window the test occupies.
+     Non-working days inside the window still hold the positions (the part stays mounted).
+     Returns null if the window crosses maintenance downtime on any of the rigs. */
   function calcularJanela(equipamentos, inicio, diasNecessarios) {
     var lista = [].concat(equipamentos || []);
     var cursor = inicio;
@@ -1645,8 +1645,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return null;
   }
 
-  /* Primeira posição livre do equipamento para a janela.
-     Devolve o índice, ou -1 e a data em que a posição mais cedo se libera. */
+  /* First free position on the machine for the window.
+     Returns the index, or -1 plus the date the earliest position frees up. */
   function posicaoLivre(posicoes, janela) {
     var liberaEm = null;
     for (var p = 0; p < posicoes.length; p++) {
@@ -1657,7 +1657,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return { posicao: -1, liberaEm: liberaEm };
   }
 
-  /* Procura a primeira janela em que TODAS as bancadas têm uma posição livre. */
+  /* Looks for the first window in which EVERY rig has a free position. */
   function buscarJanela(equipamentos, reservasPorEquipamento, dataMinima, diasNecessarios) {
     var lista = [].concat(equipamentos || []);
     if (!lista.length) return null;
@@ -1675,8 +1675,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
       var escolhidas = {};
       var ocupado = false;
-      /* Como todas as bancadas precisam estar livres juntas, a próxima tentativa só
-         faz sentido depois que a última delas se liberar. */
+      /* Since every rig has to be free at the same time, the next attempt only makes sense
+         after the last of them frees up. */
       var proximaTentativa = null;
       for (var i = 0; i < lista.length; i++) {
         var r = posicaoLivre(reservasPorEquipamento[lista[i].id], janela);
@@ -1697,8 +1697,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   var MAX_COMBINACOES = 400;
 
-  /* Uma unidade de cada grupo. Com poucos grupos e poucas unidades o produto é pequeno;
-     acima do teto caímos na primeira unidade de cada grupo para não travar o recálculo. */
+  /* One unit from each group. With few groups and few units the product is small; above the
+     ceiling we fall back to the first unit of each group so the recalculation never hangs. */
   function combinacoesDeUnidades(grupos) {
     var total = grupos.reduce(function (n, g) { return n * g.membros.length; }, 1);
     if (!total) return [];
@@ -1716,9 +1716,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return combinacoes;
   }
 
-  /* Procura, entre todas as unidades possíveis, a que começa mais cedo.
-     Empate no início é desempatado por quem termina antes — uma bancada de turno
-     mais longo entrega o mesmo ensaio em menos dias. */
+  /* Among every possible unit, looks for the one that starts earliest.
+     A tie on the start is broken by whichever finishes first — a rig with a longer shift
+     delivers the same test in fewer days. */
   function melhorEntreGrupos(grupos, teste, reservasPorEquipamento, dataMinima, inicioFixo) {
     var melhor = null;
     combinacoesDeUnidades(grupos).forEach(function (unidades) {
@@ -1756,8 +1756,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return p ? p.peso : 9;
   }
 
-  /* Hourly rate do estado, com a constante do centro de testes como último recurso.
-     O rate é um valor só para todo o catálogo, atualizado uma vez por ano. */
+  /* Hourly rate from the state, with the test centre constant as a last resort.
+     The rate is a single value for the whole catalogue, updated once a year. */
   function taxaHoraria(estado) {
     if (estado && typeof estado.hourlyRate === 'number') return estado.hourlyRate;
     return dados.HOURLY_RATE;
@@ -1765,8 +1765,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   /* Custo do procedimento:
        (horas de setup + ensaio + report) x hourly rate + insumos
-     O hourly rate vem de fora porque não pertence ao procedimento: é do centro de testes.
-     A demanda soma ainda as amostras consumidas, que dependem da peça escolhida. */
+     The hourly rate comes from outside because it does not belong to the procedure: it
+     belongs to the test centre. A request also adds the samples consumed, which depend on the
+     part type chosen. */
   function custoDemanda(demanda, teste, equipamentos, peca, hourlyRate) {
     if (!teste) {
       return {
@@ -1795,27 +1796,27 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     };
   }
 
-  /* Custo de referência do catálogo, sem peça associada. */
+  /* Reference cost for the catalogue, with no part type attached. */
   function custoCatalogo(teste, hourlyRate) {
     return custoDemanda(null, teste, null, null, hourlyRate);
   }
 
-  /* Estados em que a demanda ainda disputa bancada. A lista vem do fluxo, para não haver
-     duas verdades sobre o que está ativo. */
+  /* States in which a request still competes for a rig. The list comes from the workflow, so
+     there are never two truths about what is active. */
   var fluxo = TC.fluxo || (typeof require !== 'undefined' ? require('./fluxo.js') : null);
   var ATIVAS = fluxo.estadosAtivos();
 
-  /* Uma LTI de cotação é orçamento: calcula custo e duração, mas não reserva bancada. */
+  /* A quote LTI is a budget: it works out cost and duration but reserves no rig. */
   function ehCotacao(demanda) {
     var tipo = util.porId(dados.TIPOS_LTI, demanda.tipoLti);
     return !!tipo && tipo.planeja === false;
   }
 
-  /* Planeja todas as demandas ativas. Não altera o estado recebido. */
+  /* Schedules every active request. It does not modify the state it receives. */
   function planejar(estado, dataBase) {
     var hoje = dataBase || util.hoje();
     var equipamentos = estado.equipamentos;
-    var reservas = {}; /* equipamentoId -> array por posição */
+    var reservas = {}; /* equipamentoId -> array indexed by position */
 
     equipamentos.forEach(function (eq) {
       reservas[eq.id] = [];
@@ -1863,11 +1864,11 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         peca: peca,
         grupos: grupos,
         gruposFaltando: faltando,
-        /* equipamentos: as unidades efetivamente escolhidas; vazio até alocar. */
+        /* equipamentos: the units actually chosen; empty until it is placed. */
         equipamentos: [],
         custo: custoDemanda(demanda, teste, null, peca, taxaHoraria(estado)),
         cotacao: false,
-        /* posicoes: { equipamentoId: índice da posição ocupada } */
+        /* posicoes: { equipamentoId: index of the position taken } */
         posicoes: null,
         inicio: null,
         fim: null,
@@ -1875,13 +1876,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       };
     }
 
-    /* Cotação: custo e duração estimados, sem reservar posição. */
+    /* Quote: estimated cost and duration, with no position reserved. */
     function processarCotacao(demanda) {
       var base = montarBase(demanda);
       base.cotacao = true;
       base.motivo = 'Quote — takes no rig.';
       if (base.teste && base.grupos.length) {
-        /* Estimativa pela primeira unidade de cada grupo, só para dar a duração. */
+        /* Estimated from the first unit of each group, only to give the duration. */
         base.diasOperacao = diasDeOperacao(base.teste, base.grupos.map(function (g) { return g.membros[0]; }));
       }
       alocacoes.push(base);
@@ -1911,8 +1912,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         return;
       }
 
-      /* A chegada das amostras é informada na demanda: o mesmo tipo de peça chega em
-         datas diferentes conforme o cliente e o programa. */
+      /* Sample arrival is given on the request: the same part type arrives on different
+         dates depending on the customer and the programme. */
       var disponibilidadePeca = demanda.dataAmostras || hoje;
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
@@ -1960,7 +1961,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return {
       alocacoes: alocacoes,
       agendadas: alocacoes.filter(function (a) { return !!a.inicio; }),
-      /* Só é bloqueio o que deveria ter entrado na bancada e não entrou. */
+      /* Only what should have made it onto a rig and did not counts as blocked. */
       bloqueadas: alocacoes.filter(function (a) { return !a.inicio && !a.cotacao; }),
       cotacoes: alocacoes.filter(function (a) { return a.cotacao; })
     };
@@ -2052,9 +2053,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       ultima: ultima,
       proxima: proxima,
       atrasadas: emAtraso,
-      /* Dias desde a última: quanto tempo a bancada roda sem intervenção. */
+      /* Days since the last one: how long the rig has run untouched. */
       diasDesdeUltima: ultima ? util.diffDias(ultima.fim, hoje) : null,
-      /* Negativo não acontece: proximaPlanejada já descarta o que ficou para trás. */
+      /* Negative cannot happen: proximaPlanejada already drops what is behind us. */
       diasParaProxima: proxima ? util.diffDias(hoje, proxima.inicio) : null,
       emManutencaoHoje: paradas(equipamento).some(function (m) {
         return util.diffDias(m.inicio, hoje) >= 0 && util.diffDias(hoje, m.fim) >= 0;
@@ -2382,10 +2383,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Indicadores do centro de testes.
-   Módulo puro: recebe estado e plano, devolve números. Roda no Node, é testado, e não
-   toca em interface — é aqui que mora a definição de cada KPI, para o painel não virar
-   um amontoado de contas escondidas em HTML. */
+/* Test centre indicators.
+   A pure module: it takes state and plan, returns numbers. It runs on Node, is tested, and
+   never touches the interface — this is where each KPI definition lives, so the dashboard
+   never becomes a pile of arithmetic hidden inside HTML. */
 (function (global) {
   'use strict';
 
@@ -2406,7 +2407,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return mes + '-01';
   }
 
-  /* Último dia do mês, sem depender de tabela de dias por mês: dia 1 do mês seguinte -1. */
+  /* Last day of the month, with no days-per-month table: day 1 of the next month, -1. */
   function ultimoDia(mes) {
     var ano = Number(mes.slice(0, 4));
     var m = Number(mes.slice(5, 7));
@@ -2418,7 +2419,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return !!iso && mesDe(iso) === mes;
   }
 
-  /* Percorre os dias do mês uma vez só. */
+  /* Walks the days of the month exactly once. */
   function porDiaDoMes(mes, fn) {
     var dia = primeiroDia(mes);
     var fim = ultimoDia(mes);
@@ -2428,9 +2429,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     }
   }
 
-  /* Horas que o equipamento tem para oferecer no mês: dias em que ele opera, descontada
-     a manutenção, vezes o turno, vezes as posições em paralelo. É a capacidade contra a
-     qual a ocupação é medida. */
+  /* Hours the machine has to offer in the month: the days it operates, minus maintenance,
+     times the shift, times the parallel positions. This is the capacity utilisation is
+     measured against. */
   function capacidadeNoMes(equipamento, mes) {
     var horasDia = equipamento.continuo ? 24 : (equipamento.horasDia || 8);
     var horas = 0, diasUteis = 0, diasParados = 0;
@@ -2443,9 +2444,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return { horas: horas, diasUteis: diasUteis, diasParados: diasParados, horasDia: horasDia };
   }
 
-  /* Dias de operação da janela de um ensaio que caem dentro do mês.
-     Dia de operação é dia em que todas as bancadas do ensaio trabalham — o mesmo critério
-     que o planejamento usou para montar a janela. */
+  /* Operating days of a test's slot that fall inside the month.
+     An operating day is a day when every rig the test uses works — the same criterion the
+     scheduler used to build the slot. */
   function diasDeOperacaoNoMes(alocacao, mes) {
     if (!alocacao.inicio || !alocacao.fim) return 0;
     var lista = alocacao.equipamentos || [];
@@ -2461,8 +2462,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return dias;
   }
 
-  /* Horas de bancada do ensaio que caem no mês. Um ensaio de 47 dias atravessa meses, então
-     as horas são rateadas pelos dias de operação: o mês só recebe o que roda nele. */
+  /* Rig hours of the test that fall in the month. A 47-day test spans months, so the hours
+     are apportioned by operating day: the month only gets what actually runs in it. */
   function horasNoMes(alocacao, mes) {
     if (!alocacao.teste) return 0;
     var totalDias = alocacao.diasOperacao || 0;
@@ -2472,9 +2473,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return scheduler.horasDeBancada(alocacao.teste) * (noMes / totalDias);
   }
 
-  /* Ocupação de cada unidade no mês: o que o planejamento reservou contra o que existe.
-     O ensaio que ocupa duas bancadas ao mesmo tempo conta as horas nas duas — é isso que
-     acontece de fato com a agenda delas. */
+  /* Each unit's utilisation in the month: what the schedule reserved against what exists.
+     A test occupying two rigs at once counts its hours on both — that is what actually
+     happens to their calendars. */
   function ocupacaoNoMes(estado, plano, mes) {
     var porEquipamento = {};
     estado.equipamentos.forEach(function (eq) {
@@ -2508,9 +2509,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     });
   }
 
-  /* O planejamento só devolve demanda ativa: concluída e cancelada saem dele, porque não
-     disputam mais bancada. Só que o painel precisa justamente das concluídas — daí esta
-     visão, que percorre todas as demandas e reaproveita a alocação quando existe. */
+  /* The scheduler only returns active requests: completed and cancelled ones leave it,
+     because they no longer compete for a rig. But the dashboard needs precisely the completed
+     ones — hence this view, which walks every request and reuses the allocation when one
+     exists. */
   function demandasComCusto(estado, plano) {
     var porDemanda = {};
     plano.alocacoes.forEach(function (a) { porDemanda[a.demandaId] = a; });
@@ -2529,18 +2531,18 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     });
   }
 
-  /* Testes realizados no mês: demanda concluída, pela data em que de fato terminou.
-     Quem ainda está ativo tem fim planejado e serve de referência; quem já foi concluído
-     saiu do planejamento e só tem a data informada. Sem ela o ensaio não pode ser
-     atribuído a mês nenhum — por isso concluidasSemData() existe: em vez de chutar um
-     mês, o painel mostra o que falta preencher. */
+  /* Tests carried out in the month: completed requests, by the date they actually finished.
+     Whatever is still active has a planned end and serves as a reference; whatever has been
+     completed left the schedule and only has the date that was entered. Without it the test
+     cannot be assigned to any month — which is why concluidasSemData() exists: rather than
+     guessing a month, the dashboard shows what is still to be filled in. */
   function dataDeConclusao(alocacao) {
     if (alocacao.demanda.dataConclusao) return alocacao.demanda.dataConclusao;
     return alocacao.fim || '';
   }
 
-  /* O ensaio foi executado a partir do momento em que é concluído: o que vem depois
-     (relatório enviado, em correção, validado) já rodou na bancada e conta como realizado. */
+  /* The test counts as run from the moment it is completed: everything after that (report
+     sent, in rework, signed off) has already been on the rig and counts as carried out. */
   var EXECUTADOS = ['CONCLUIDA', 'RELATORIO_ENVIADO', 'EM_CORRECAO', 'VALIDADA'];
 
   function jaExecutada(demanda) {
@@ -2559,9 +2561,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     });
   }
 
-  /* Certo da primeira vez: relatório validado pelo cliente sem nenhuma rodada de correção.
-     Mede-se sobre os relatórios aprovados no mês — o que ainda está em análise não conta
-     nem a favor nem contra, porque o veredito não saiu. */
+  /* Right first time: a report signed off by the customer with no rework round at all. It is
+     measured over the reports approved in the month — anything still under review counts
+     neither for nor against, because the verdict is not in. */
   function certoDaPrimeiraVez(estado, plano, mes) {
     var aprovados = demandasComCusto(estado, plano).filter(function (a) {
       return a.demanda.status === 'VALIDADA' &&
@@ -2579,7 +2581,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     };
   }
 
-  /* Agrupamento de custo. Cotação fica de fora: é orçamento, não serviço confirmado. */
+  /* Cost grouping. Quotes stay out: they are budgets, not confirmed work. */
   function agruparCusto(alocacoes, chave) {
     var mapa = {};
     alocacoes.forEach(function (a) {
@@ -2606,17 +2608,18 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     });
   }
 
-  /* Serviço confirmado: cotação é orçamento e fica de fora; cancelada não é serviço.
-     Concluída entra — o custo do que já foi executado é o que mais importa no acumulado. */
+  /* Confirmed work: a quote is a budget and stays out; a cancelled one is not work.
+     A completed one goes in — the cost of what has already run is what matters most in the
+     running total. */
   function confirmadas(estado, plano) {
     return demandasComCusto(estado, plano).filter(function (a) {
       return !a.cotacao && a.demanda.status !== 'CANCELADA';
     });
   }
 
-  /* Custo de tudo que está planejado para o ano: soma dos ensaios cuja janela cai no ano.
-     Um ensaio que atravessa o réveillon conta no ano em que começa, que é quando o
-     compromisso foi assumido. */
+  /* Cost of everything scheduled for the year: the sum of the tests whose slot falls in the
+     year. A test that runs across New Year counts in the year it starts, which is when the
+     commitment was made. */
   function custoPlanejadoNoAno(plano, ano) {
     var doAno = plano.agendadas.filter(function (a) { return anoDe(a.inicio) === String(ano); });
     var custo = 0, horas = 0;
@@ -2627,7 +2630,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return { ensaios: doAno.length, custo: custo, horas: horas, lista: doAno };
   }
 
-  /* Meses que aparecem no seletor: os que têm algo planejado ou concluído, mais o corrente. */
+  /* Months that show in the selector: the ones with something scheduled or completed, plus
+     the current one. */
   function mesesComMovimento(estado, plano, hoje) {
     var meses = {};
     meses[mesDe(hoje)] = true;
@@ -2667,9 +2671,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Perfil em uso e o que ele pode ver/editar em cada janela.
-   Sem servidor, isto guia a interface — não é controle de acesso. Quem abrir o console
-   ou o backup JSON alcança tudo. Vale como organização do trabalho, não como segurança. */
+/* The role in use and what it can view/edit on each screen.
+   With no server this guides the interface — it is not access control. Anyone who opens the
+   console or the JSON backup reaches everything. It counts as organising the work, not as
+   security. */
 (function (global) {
   'use strict';
 
@@ -2688,13 +2693,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return regra(estado, rota).ver.indexOf(perfilAtual(estado)) !== -1;
   }
 
-  /* Cópia publicada para a equipe: dados embutidos no arquivo, iguais para todos e sem
-     onde gravar. Consulta-se tudo, não se edita nada. */
+  /* The copy published for the team: data embedded in the file, the same for everyone and
+     with nowhere to write. Everything can be read, nothing can be edited. */
   function publicada() {
     return !!(TC.PUBLICACAO && TC.PUBLICACAO.dados);
   }
 
-  /* Editar exige também poder ver: uma janela invisível não é editável. */
+  /* Editing also requires being able to view: an invisible screen is not editable. */
   function podeEditar(estado, rota) {
     if (publicada()) return false;
     return podeVer(estado, rota) && regra(estado, rota).editar.indexOf(perfilAtual(estado)) !== -1;
@@ -2718,17 +2723,17 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Gerador mínimo de .xlsx (Office Open XML).
-   Um .xlsx é um ZIP com alguns XML dentro. Como não há dependências no projeto, o ZIP é
-   escrito à mão pelo método "store" (sem compressão), que é válido e dispensa deflate.
-   Isso entrega um arquivo que o Excel abre sem o aviso de "formato não confere" que
-   apareceria ao renomear um CSV ou um XML de .xls. */
+/* Minimal .xlsx generator (Office Open XML).
+   An .xlsx is a ZIP with a few XML files inside. Since the project has no dependencies, the
+   ZIP is written by hand using the "store" method (no compression), which is valid and needs
+   no deflate. That produces a file Excel opens without the "format mismatch" warning it would
+   show for a renamed CSV or .xls XML. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
 
-  /* ---------- CRC32, exigido no cabeçalho de cada entrada do ZIP ---------- */
+  /* ---------- CRC32, required in the header of every ZIP entry ---------- */
 
   var TABELA_CRC = (function () {
     var tabela = new Int32Array(256);
@@ -2781,10 +2786,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     var pos = 0;
     entradas.forEach(function (e) {
       e.offset = pos;
-      escrever32(saida, pos, 0x04034B50);      /* assinatura do cabeçalho local */
-      escrever16(saida, pos + 4, 20);          /* versão necessária */
+      escrever32(saida, pos, 0x04034B50);      /* local header signature */
+      escrever16(saida, pos + 4, 20);          /* version needed */
       escrever16(saida, pos + 6, 0x0800);      /* nomes em UTF-8 */
-      escrever16(saida, pos + 8, 0);           /* método 0 = store */
+      escrever16(saida, pos + 8, 0);           /* method 0 = store */
       escrever16(saida, pos + 10, 0);          /* hora */
       escrever16(saida, pos + 12, 0x21);       /* data: 1980-01-01 */
       escrever32(saida, pos + 14, e.crc);
@@ -2799,7 +2804,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     var inicioCentral = pos;
     entradas.forEach(function (e) {
-      escrever32(saida, pos, 0x02014B50);      /* assinatura do diretório central */
+      escrever32(saida, pos, 0x02014B50);      /* central directory signature */
       escrever16(saida, pos + 4, 20);
       escrever16(saida, pos + 6, 20);
       escrever16(saida, pos + 8, 0x0800);
@@ -2820,7 +2825,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       saida.set(e.nome, pos); pos += e.nome.length;
     });
 
-    escrever32(saida, pos, 0x06054B50);        /* fim do diretório central */
+    escrever32(saida, pos, 0x06054B50);        /* end of central directory */
     escrever16(saida, pos + 4, 0);
     escrever16(saida, pos + 6, 0);
     escrever16(saida, pos + 8, entradas.length);
@@ -2853,7 +2858,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return nome;
   }
 
-  /* Célula: número vira <v>, o resto vira texto embutido. Booleano/null viram texto. */
+  /* Cell: a number becomes <v>, everything else becomes inline text. Boolean/null become
+     text too. */
   function celula(referencia, valor, estilo) {
     var atributoEstilo = estilo ? ' s="' + estilo + '"' : '';
     if (typeof valor === 'number' && isFinite(valor)) {
@@ -2865,7 +2871,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       '<is><t xml:space="preserve">' + escaparXml(texto) + '</t></is></c>';
   }
 
-  /* linhas: matriz de valores. A primeira linha é tratada como cabeçalho (negrito). */
+  /* linhas: a matrix of values. The first row is treated as a header (bold). */
   function folha(linhas, larguras) {
     var colunas = larguras && larguras.length
       ? '<cols>' + larguras.map(function (largura, i) {
@@ -2886,7 +2892,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       colunas + '<sheetData>' + corpo + '</sheetData></worksheet>';
   }
 
-  /* Dois formatos: cabeçalho em negrito e número com separador de milhar. */
+  /* Two formats: bold header and number with a thousands separator. */
   var ESTILOS =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
@@ -2983,13 +2989,13 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Estado da aplicação: persistência em localStorage, CRUD e exportação/importação. */
+/* Application state: localStorage persistence, CRUD and export/import. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util;
-  /* No navegador estes módulos já foram carregados; no Node (testes) resolvemos na hora. */
+  /* In the browser these modules are already loaded; on Node (tests) we resolve them here. */
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
   if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
   if (!TC.manutencao && typeof require !== 'undefined') require('./manutencao.js');
@@ -3000,7 +3006,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var estado = null;
   var ouvintes = [];
 
-  /* Converte dados gravados por versões anteriores. */
+  /* Converts data saved by earlier versions. */
   function migrar(estado) {
     var antigas = TC.data.FASES_ANTIGAS;
     var validas = TC.data.FASES.map(function (f) { return f.id; });
@@ -3012,18 +3018,19 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     estado.clientes = estado.clientes || [];
 
-    /* Hourly rate do centro de testes: um valor só, para todo o catálogo. Dados salvos
-       antes desta mudança traziam o rate em cada procedimento; adotamos o valor vigente
-       do centro de testes, que é o que passa a valer para todos. */
+    /* Test centre hourly rate: a single value for the whole catalogue. Data saved before
+       this change carried the rate on each procedure; we take the test centre's current
+       value, which is what now applies to all of them. */
     if (typeof estado.hourlyRate !== 'number') estado.hourlyRate = TC.data.HOURLY_RATE;
     if (typeof estado.hourlyRateVigencia !== 'string') {
       estado.hourlyRateVigencia = TC.data.HOURLY_RATE_VIGENCIA;
     }
 
-    /* Mudança de catálogo em dados já salvos no navegador.
-       Até a versão 2 o catálogo era o de exemplo, de vários clientes: ele sai inteiro.
-       Daí para frente a atualização é aditiva — procedimentos novos entram e os que já
-       existem ficam como estão, com as horas e a bancada que já foram preenchidas. Cotações arquivadas nunca são tocadas: têm preço congelado. */
+    /* Catalogue change on data already saved in the browser.
+       Up to version 2 the catalogue was the multi-customer example: it goes out whole. From
+       there on the update is additive — new procedures go in and the existing ones stay as
+       they are, with the hours and rig already filled in. Archived quotes are never touched:
+       they have frozen prices. */
     var versaoSalva = Number(estado.catalogoVersao) || 0;
     if (versaoSalva < TC.data.CATALOGO_VERSAO) {
       var padraoNovo = TC.data.seed();
@@ -3033,9 +3040,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         var salvo = util.porId(estado.testes, t.id);
         if (!salvo) { estado.testes.push(t); return; }
 
-        /* Levantamento de horas do centro de testes: um procedimento que ainda não tem
-           nenhuma hora medida herda as do catálogo de partida. Se alguém já preencheu
-           qualquer uma das três, o cadastro é dele e fica como está. */
+        /* Test centre hours survey: a procedure with no hours measured yet inherits the ones
+           from the seed catalogue. If anyone has already filled in any of the three, the
+           record is theirs and stays as it is. */
         var semHoras = !salvo.horasSetup && !salvo.horasEnsaio && !salvo.horasReport;
         var padraoTemHoras = t.horasSetup || t.horasEnsaio || t.horasReport;
         if (semHoras && padraoTemHoras) {
@@ -3045,8 +3052,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         }
       });
 
-      /* Os clientes que o novo catálogo exige precisam existir no cadastro salvo,
-         senão o catálogo aponta para um cliente que não está na lista. */
+      /* The customers the new catalogue requires have to exist in the saved register, or the
+         catalogue points at a customer that is not on the list. */
       var exigidos = {};
       estado.testes.forEach(function (t) {
         (t.clientes || []).forEach(function (id) { exigidos[id] = true; });
@@ -3055,8 +3062,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         if (exigidos[c.id] && !util.porId(estado.clientes, c.id)) estado.clientes.push(c);
       });
 
-      /* O procedimento é a referência da demanda: sem ele a demanda não tem custo nem
-         bancada. Só descarta algo quando o catálogo perdeu procedimentos. */
+      /* The procedure is the request's reference: without it the request has neither cost nor
+         rig. It only discards something when the catalogue has lost procedures. */
       var idsDoCatalogo = estado.testes.map(function (t) { return t.id; });
       estado.demandas = (estado.demandas || []).filter(function (d) {
         return idsDoCatalogo.indexOf(d.testeId) !== -1;
@@ -3064,12 +3071,12 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       estado.catalogoVersao = TC.data.CATALOGO_VERSAO;
     }
 
-    /* A data de chegada das amostras saiu da peça e foi para a demanda; guardamos a
-       data antiga de cada peça para não perder o que já estava planejado. */
+    /* The sample arrival date moved from the part type to the request; we keep each part
+       type's old date so nothing already scheduled is lost. */
     var dataAntigaDaPeca = {};
     (estado.pecas || []).forEach(function (p) {
       if (p.dataAmostras) dataAntigaDaPeca[p.id] = p.dataAmostras;
-      /* Peça deixou de ser de um cliente e de uma área: é um tipo de peça. */
+      /* A part stopped belonging to a customer and a system end: it is a part type. */
       delete p.clienteId;
       delete p.area;
       delete p.programa;
@@ -3077,14 +3084,14 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       delete p.quantidade;
     });
 
-    /* O procedimento não é mais amarrado a fase de projeto, e pode ocupar
-       mais de uma bancada ao mesmo tempo. */
+    /* The procedure is no longer tied to a project phase, and it can occupy more than one
+       rig at the same time. */
     (estado.testes || []).forEach(function (t) {
       delete t.fases;
       if (typeof t.revisao !== 'string') t.revisao = '';
       var unidadesAntigas = t.equipamentoIds || (t.equipamentoId ? [t.equipamentoId] : []);
 
-      /* O procedimento passou a pedir o grupo de bancada, não a unidade. */
+      /* The procedure now asks for the rig group, not the unit. */
       if (!t.equipamentoGrupos) {
         var grupos = [];
         unidadesAntigas.forEach(function (id) {
@@ -3097,17 +3104,17 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       delete t.equipamentoIds;
       delete t.equipamentoId;
 
-      /* O hourly rate deixou de ser campo do procedimento: virou um valor único do
-         centro de testes, guardado no estado e atualizado uma vez por ano. */
+      /* The hourly rate stopped being a procedure field: it became a single test centre
+         value, kept in the state and updated once a year. */
       if (typeof t.horasReport !== 'number') t.horasReport = 0;
       delete t.hourlyRate;
       if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
       delete t.custoBase;
     });
 
-    /* Inventário de instrumentos sujeitos a calibração. Mesma mecânica do catálogo:
-       instrumento novo entra, e o que já existe fica com o plano de calibração que o
-       laboratório preencheu. */
+    /* Inventory of instruments subject to calibration. Same mechanics as the catalogue: a
+       new instrument goes in, and an existing one keeps the calibration plan the lab filled
+       in. */
     estado.instrumentos = estado.instrumentos || [];
     if ((Number(estado.instrumentosVersao) || 0) < TC.data.INSTRUMENTOS_VERSAO) {
       TC.instrumentosPadrao().forEach(function (i) {
@@ -3116,17 +3123,17 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
           estado.instrumentos.push(i);
           return;
         }
-        /* A versão 2 trouxe a última calibração de cada instrumento, que o inventário
-           original não tinha. Ela só preenche lacuna: quem já lançou a data pela janela
-           sabe mais do que a planilha, e o histórico de calibração nunca é reescrito. */
+        /* Version 2 brought each instrument's last calibration, which the original inventory
+           did not have. It only fills gaps: whoever entered the date through the screen knows
+           more than the spreadsheet, and the calibration history is never rewritten. */
         if (!salvo.ultimaCalibracao && i.ultimaCalibracao && !(salvo.historico || []).length) {
           salvo.ultimaCalibracao = i.ultimaCalibracao;
         }
       });
       estado.instrumentosVersao = TC.data.INSTRUMENTOS_VERSAO;
     }
-    /* Documentos entraram depois: demanda e instrumento passam a ter a lista de anexos,
-       vazia para quem já tinha dados salvos. */
+    /* Documents came later: requests and instruments gain the attachment list, empty for
+       whoever already had saved data. */
     (estado.demandas || []).forEach(function (d) {
       if (!Array.isArray(d.documentos)) d.documentos = [];
     });
@@ -3145,9 +3152,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       if (!Array.isArray(i.historico)) i.historico = [];
     });
 
-    /* As paradas de manutenção passaram a ter duas vidas: planejada e realizada, com o
-       registro do que foi feito. Parada antiga que já terminou entra como realizada — ela
-       aconteceu —, e a que ainda está por vir fica planejada. */
+    /* Maintenance downtime gained two lives: planned and carried out, with the record of
+       what was done. An old downtime that has already ended goes in as carried out — it
+       happened — and one still to come stays planned. */
     (estado.equipamentos || []).forEach(function (eq) {
       (eq.manutencao || []).forEach(function (m) {
         if (typeof m.tipo !== 'string') m.tipo = 'PREVENTIVA';
@@ -3161,8 +3168,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     });
 
     /* Status antigo (PENDENTE/EM_ANDAMENTO/CONCLUIDO/CANCELADO) mais o campo separado de
-       situação do relatório viraram um fluxo só. A conversão junta os dois: quem estava
-       concluído com relatório aprovado passa direto a validado. */
+       report status became a single workflow. The conversion merges the two: whatever was
+       completed with an approved report goes straight to signed off. */
     var STATUS_ANTIGO = {
       PENDENTE: 'SOLICITADA', EM_ANDAMENTO: 'EM_EXECUCAO',
       CONCLUIDO: 'CONCLUIDA', CANCELADO: 'CANCELADA'
@@ -3174,7 +3181,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     (estado.demandas || []).forEach(function (d) {
       if (estadosDemanda.indexOf(d.status) === -1) {
         d.status = STATUS_ANTIGO[d.status] || 'SOLICITADA';
-        /* Só quem já terminou o ensaio pode ter avançado no ciclo do relatório. */
+        /* Only something that has finished testing can have moved on in the report cycle. */
         if (d.status === 'CONCLUIDA' && RELATORIO_ANTIGO[d.relatorioStatus]) {
           d.status = RELATORIO_ANTIGO[d.relatorioStatus];
         }
@@ -3183,8 +3190,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       if (!Array.isArray(d.historico)) d.historico = [];
     });
 
-    /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
-       de serviço, e o número fica em branco para ser preenchido. */
+    /* Before the LTI, a request only kept the phase; it becomes the work order
+       classification, and the number is left blank to be filled in. */
     (estado.demandas || []).forEach(function (d) {
       var tipos = TC.data.TIPOS_LTI.map(function (t) { return t.id; });
       if (!d.tipoLti || tipos.indexOf(d.tipoLti) === -1) {
@@ -3193,8 +3200,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       if (typeof d.lti !== 'string') d.lti = '';
       if (typeof d.projeto !== 'string') d.projeto = '';
       if (typeof d.partNumber !== 'string') d.partNumber = '';
-      /* Execução real e ciclo do relatório: alimentam os indicadores do painel
-         (testes realizados no mês e certo da primeira vez). */
+      /* Actual execution and report cycle: they feed the dashboard indicators (tests carried
+         out in the month and right first time). */
       if (typeof d.dataConclusao !== 'string') d.dataConclusao = '';
       if (typeof d.dataRelatorio !== 'string') d.dataRelatorio = '';
       if (typeof d.relatorioCorrecoes !== 'number') d.relatorioCorrecoes = 0;
@@ -3202,7 +3209,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       delete d.fase;
     });
 
-    /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
+    /* Roles, permissions and quotes came later; older states get the defaults. */
     if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
     var COTACAO_ANTIGA = {
       ABERTA: 'RASCUNHO', ENVIADA: 'SOLICITADA', APROVADA: 'APROVADA', RECUSADA: 'RECUSADA'
@@ -3215,8 +3222,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       if (!Array.isArray(c.historico)) c.historico = [];
       if (typeof c.lti !== 'string') c.lti = '';
       if (typeof c.previsaoExecucao !== 'string') c.previsaoExecucao = '';
-      /* A peça de referência saiu; o item passou a guardar a quantidade em "amostras".
-         Os totais gravados não são recalculados: cotação arquivada tem preço congelado. */
+      /* The reference part type is gone; the line item now keeps the quantity in "amostras".
+         Saved totals are not recalculated: an archived quote has frozen prices. */
       delete c.pecaId;
       (c.itens || []).forEach(function (i) {
         if (typeof i.amostras !== 'number' || i.quantidade !== undefined) {
@@ -3242,10 +3249,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return estado;
   }
 
-  /* Cópia publicada para a equipe: o build embute um instantâneo dos dados em
-     TC.PUBLICACAO e a aplicação passa a ler dele, sem gravar nada. Todo mundo que abrir
-     o arquivo vê exatamente os mesmos dados — é o compartilhamento possível enquanto não
-     existe servidor. Ver publicada() em permissoes.js: nesta cópia ninguém edita. */
+  /* The copy published for the team: the build embeds a snapshot of the data in
+     TC.PUBLICACAO and the application reads from it, writing nothing. Everyone who opens the
+     file sees exactly the same data — the sharing that is possible while there is no server.
+     See publicada() in permissoes.js: nobody edits in this copy. */
   function publicacao() {
     return TC.PUBLICACAO && TC.PUBLICACAO.dados ? TC.PUBLICACAO : null;
   }
@@ -3266,8 +3273,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   }
 
   function salvar() {
-    /* Na cópia publicada não há onde gravar: o dado de origem está na máquina de quem
-       mantém o centro de testes, e gravar aqui só criaria uma divergência silenciosa. */
+    /* In the published copy there is nowhere to write: the source data is on the machine of
+       whoever keeps the test centre, and writing here would only create a silent
+       divergence. */
     if (publicacao()) return;
     try {
       if (global.localStorage) global.localStorage.setItem(CHAVE, JSON.stringify(estado));
@@ -3276,9 +3284,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     }
   }
 
-  /* Aplica uma passagem de estado, gravando o histórico. Os campos que a transição exige
-     (data de conclusão, data de validação) são gravados junto, na mesma operação — não
-     adianta mudar o estado e deixar a data para depois. */
+  /* Applies a state move, saving the history. The fields the transition requires (completion
+     date, sign-off date) are saved along with it, in the same operation — there is no point
+     changing the state and leaving the date for later. */
   function mover(tipo, registro, para, dados) {
     var valores = dados || {};
     var perfil = TC.permissoes.perfilAtual(estado);
@@ -3331,7 +3339,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
         dataAmostras: dados.dataAmostras || util.hoje(),
-        /* Preenchidos depois, conforme o ensaio roda e o relatório vai ao cliente. */
+        /* Filled in later, as the test runs and the report goes to the customer. */
         dataConclusao: '',
         dataRelatorio: '',
         relatorioCorrecoes: 0,
@@ -3359,7 +3367,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       commit();
     },
 
-    /* ---- Catálogo de testes ---- */
+    /* ---- Test catalogue ---- */
     salvarTeste: function (teste) {
       var existente = teste.id ? util.porId(estado.testes, teste.id) : null;
       if (existente) {
@@ -3393,7 +3401,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       estado.equipamentos = estado.equipamentos.filter(function (e) { return e.id !== id; });
       commit();
     },
-    /* A parada nasce planejada — e já bloqueia a agenda do equipamento a partir daí. */
+    /* Downtime starts planned — and blocks the machine's calendar from then on. */
     adicionarManutencao: function (equipamentoId, janela) {
       var eq = util.porId(estado.equipamentos, equipamentoId);
       if (!eq) return null;
@@ -3412,8 +3420,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       return parada;
     },
 
-    /* Registro do que foi feito: a parada passa a realizada e guarda a execução.
-       As datas podem mudar aqui — manutenção raramente termina no dia previsto. */
+    /* Record of what was done: the downtime becomes carried out and keeps the execution.
+       The dates can change here — maintenance rarely ends on the day it was planned to. */
     registrarManutencao: function (equipamentoId, paradaId, dados) {
       var eq = util.porId(estado.equipamentos, equipamentoId);
       if (!eq) return null;
@@ -3436,7 +3444,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       commit();
     },
 
-    /* ---- Instrumentos e calibração ---- */
+    /* ---- Instruments and calibration ---- */
     salvarInstrumento: function (instrumento) {
       var existente = instrumento.id ? util.porId(estado.instrumentos, instrumento.id) : null;
       if (existente) {
@@ -3455,10 +3463,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       commit();
     },
 
-    /* Registro de uma calibração: entra no histórico e passa a ser a vigente. O vencimento
-       vem do certificado quando informado; senão sai da periodicidade do instrumento.
-       Reprovado não renova a validade — o instrumento não pode voltar a medir por decurso
-       de prazo, então ele sai de uso até alguém decidir o que fazer. */
+    /* Recording a calibration: it goes into the history and becomes the current one. The due
+       date comes from the certificate when given; otherwise from the instrument's interval.
+       A failed one renews nothing — the instrument cannot go back to measuring just because
+       time passed, so it leaves service until someone decides what to do. */
     registrarCalibracao: function (instrumentoId, dados) {
       var i = util.porId(estado.instrumentos, instrumentoId);
       if (!i) return { ok: false, motivo: 'Instrument not found.' };
@@ -3478,9 +3486,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       i.historico = i.historico || [];
       i.historico.push(registro);
 
-      /* O link do certificado, quando informado, vira documento do instrumento amarrado a
-         este registro — assim o histórico aponta para o PDF que o comprova. Link recusado
-         não derruba o registro da calibração: a calibração aconteceu de todo jeito. */
+      /* The certificate link, when given, becomes a document of the instrument tied to this
+         record — so the history points at the PDF that evidences it. A refused link does not
+         bring down the calibration record: the calibration happened anyway. */
       if ((dados.certificadoLink || '').trim()) {
         var anexo = TC.documentos.criar({
           tipo: 'CERTIFICADO', link: dados.certificadoLink, refId: registro.id,
@@ -3517,11 +3525,11 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       return { ok: true, instrumento: i, registro: registro };
     },
 
-    /* Lançamento em lote das datas que já estavam em planilha. Grava tudo de uma vez —
-       229 commits seguidos redesenhariam a tela 229 vezes — e reaproveita a mesma regra
-       de validade do registro individual, para não haver dois jeitos de calcular a mesma
-       coisa. Linhas com problema são responsabilidade de quem chama: a tela só manda as
-       que interpretarLote() aprovou. */
+    /* Bulk entry of dates that were already on a spreadsheet. It saves everything at once —
+       229 commits in a row would redraw the screen 229 times — and reuses the same validity
+       rule as the individual record, so there are never two ways of computing the same thing.
+       Problem rows are the caller's responsibility: the screen only sends the ones
+       interpretarLote() approved. */
     lancarCalibracoesEmLote: function (linhas) {
       var aplicados = [];
       (linhas || []).forEach(function (l) {
@@ -3546,8 +3554,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         if (registro.laboratorio) i.laboratorio = registro.laboratorio;
         i.periodicidadeMeses = i.periodicidadeMeses || 12;
         i.proximaCalibracao = TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
-        /* A situação não muda no lote, ao contrário do registro individual: quem está
-           "being calibrated" hoje continua em calibração, mesmo lançando a data anterior. */
+        /* The condition does not change in bulk, unlike the individual record: whatever is
+           "being calibrated" today stays that way, even when entering the earlier date. */
         aplicados.push(i.id);
       });
 
@@ -3557,8 +3565,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     /* ---- Documentos ----
 
-       O anexo é um link para onde o arquivo já está — SharePoint, OneDrive, rede. Vale
-       para demanda e para instrumento; o resto da regra está em src/documentos.js. */
+       An attachment is a link to where the file already is — SharePoint, OneDrive, network.
+       It works for requests and for instruments; the rest of the rule is in
+       src/documentos.js. */
     anexarDocumento: function (alvo, registroId, dados) {
       var lista = alvo === 'instrumento' ? estado.instrumentos : estado.demandas;
       var registro = util.porId(lista || [], registroId);
@@ -3584,7 +3593,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       return { ok: true, registro: registro };
     },
 
-    /* ---- Peças ---- */
+    /* ---- Part types ---- */
     salvarPeca: function (peca) {
       var existente = peca.id ? util.porId(estado.pecas, peca.id) : null;
       if (existente) {
@@ -3615,17 +3624,17 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     },
     removerCliente: function (id) {
       estado.clientes = estado.clientes.filter(function (c) { return c.id !== id; });
-      /* O cliente sai também das listas de exigência dos procedimentos, senão o
-         catálogo passa a filtrar por um cliente que não existe mais. */
+      /* The customer also leaves the procedures that require it, or the catalogue starts
+         filtering by a customer that no longer exists. */
       estado.testes.forEach(function (t) {
         if (t.clientes) t.clientes = t.clientes.filter(function (c) { return c !== id; });
       });
       commit();
     },
 
-    /* ---- Perfil e permissões ---- */
-    /* Hourly rate do centro de testes: um campo só, aplicado a todo o catálogo.
-       Cotações já arquivadas guardam o rate do dia e não são afetadas. */
+    /* ---- Role and permissions ---- */
+    /* Test centre hourly rate: a single field, applied to the whole catalogue. Archived
+       quotes keep the rate of their day and are not affected. */
     definirHourlyRate: function (valor, vigencia) {
       estado.hourlyRate = Number(valor) || 0;
       if (typeof vigencia === 'string') estado.hourlyRateVigencia = vigencia.trim();
@@ -3655,7 +3664,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       commit();
     },
 
-    /* ---- Cotações ---- */
+    /* ---- Quotes ---- */
     proximoNumeroCotacao: function () {
       var ano = util.hoje().slice(0, 4);
       var prefixo = 'COT-' + ano + '-';
@@ -3689,10 +3698,10 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       commit();
     },
 
-    /* ---- Fluxos ----
-       Uma passagem de estado só acontece por aqui: o fluxo valida perfil, transição e
-       campos exigidos, e cada passagem deixa uma linha no histórico do registro.
-       Devolve { ok: true, registro } ou { ok: false, motivo }. */
+    /* ---- Workflows ----
+       A state move only happens through here: the workflow validates role, transition and
+       required fields, and every move leaves a line in the record's history.
+       Returns { ok: true, registro } or { ok: false, motivo }. */
     moverDemanda: function (id, para, dados) {
       var demanda = util.porId(estado.demandas, id);
       if (!demanda) return { ok: false, motivo: 'Request not found.' };
@@ -4924,7 +4933,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       return itens;
     }
 
-    /* Um procedimento sem cliente marcado é padrão do laboratório: vale para todos. */
+    /* A procedure with no customer ticked is a lab standard: it applies to everyone. */
     function atendeCliente(teste, clienteId) {
       if (!clienteId) return true;
       return !teste.clientes || !teste.clientes.length || teste.clientes.indexOf(clienteId) !== -1;
@@ -4949,7 +4958,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
         if (passa && cliente) passa = atendeCliente(teste, cliente);
         if (passa && lti) passa = !!(testesPorLti[lti] && testesPorLti[lti][teste.id]);
 
-        /* O que já foi marcado continua visível, para não sumir da conta sem aviso. */
+        /* Whatever is already ticked stays visible, so it never drops out of the total
+           without warning. */
         linha.style.display = (passa || marcado) ? '' : 'none';
         if (passa || marcado) visiveis++;
       });
@@ -4986,9 +4996,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       qtd.addEventListener('input', atualizarResumo);
     });
 
-    /* Os filtros começam neutros e só mudam quando o usuário mexe neles. Herdar o cliente
-       da cotação escondia procedimentos sem pedido e, combinado com o filtro de LTI,
-       chegava a esvaziar a lista sem explicação. */
+    /* The filters start neutral and only change when the user touches them. Inheriting the
+       quote's customer used to hide procedures nobody had asked for and, combined with the
+       LTI filter, could empty the list with no explanation. */
     campoBusca.addEventListener('input', aplicarFiltros);
     filtroCliente.addEventListener('change', aplicarFiltros);
     filtroLti.addEventListener('change', aplicarFiltros);
@@ -5478,8 +5488,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     return { inicio: inicio, fim: fim, dias: dias };
   }
 
-  /* A faixa começa sempre numa segunda-feira, então o fim de semana e as linhas de dia
-     podem ser desenhados com dois gradientes que se repetem, em vez de milhares de divs. */
+  /* The band always starts on a Monday, so the weekend and the day lines can be drawn with
+     two repeating gradients instead of thousands of divs. */
   function fundoDaFaixa(largura) {
     var semana = largura * 7;
     return 'background-image:' +
@@ -5823,8 +5833,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       var inicio = util.maiorData(a.inicio, hoje);
       var dias = util.diffDias(inicio, a.fim) + 1;
       if (dias <= 0) return;
-      /* Ensaio que prende duas bancadas conta ocupação nas duas; o custo-máquina de
-         cada uma é a hora dela, não o total do ensaio. */
+      /* A test holding two rigs counts utilisation on both; each one's machine cost is its
+         own hour, not the test total. */
       a.equipamentos.forEach(function (eq) {
         var m = mapa[eq.id] = mapa[eq.id] || { dias: 0, ensaios: 0, horas: 0, custo: 0 };
         m.dias += Math.min(dias, horizonte);
@@ -6936,7 +6946,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     var custoRealizado = realizados.reduce(function (s, a) { return s + a.custo.total; }, 0);
     var semData = kpi.concluidasSemData(estado);
 
-    /* Riscos continuam no painel: são o que exige decisão nesta semana. */
+    /* Risks stay on the dashboard: they are what needs a decision this week. */
     var atrasadas = 0, semJanela = 0;
     plano.alocacoes.forEach(function (a) {
       if (a.demanda.status === 'CANCELADA') return;
@@ -7086,7 +7096,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
-  /* As ações continuam "ver"/"editar" no estado salvo; aqui só o rótulo é traduzido. */
+  /* The actions stay "ver"/"editar" in the saved state; only the label is translated. */
   var ROTULO_ACAO = { ver: 'view', editar: 'edit' };
 
   function render(container, ctx) {
@@ -7157,7 +7167,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
-/* Montagem da aplicação: navegação, recálculo do planejamento e backup dos dados. */
+/* Application shell: navigation, schedule recalculation and data backup. */
 (function (global) {
   'use strict';
 
@@ -7177,23 +7187,23 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     { id: 'permissoes', nome: 'Roles and permissions', icone: '🔐', grupo: 'Administration' }
   ];
 
-  /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
-     demandas e planejamento pela classificação da LTI (inclui Cotação). */
+  /* fase filters the catalogue by the procedure's application phase; tipoLti filters
+     requests and schedule by the LTI classification (Quote included). */
   var filtros = {
     busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '',
-    /* Filtros da janela de calibração. */
+    /* Calibration screen filters. */
     buscaCal: '', localCal: '', marcaCal: '', situacaoCal: '', prazoCal: ''
   };
   var rotaAtual = 'catalogo';
 
   function contadores(estado, plano) {
-    /* O contador da calibração mostra o que exige ação: vencido ou a vencer. */
+    /* The calibration counter shows what needs action: expired or due soon. */
     var cal = TC.calibracao.resumo(estado.instrumentos, util.hoje());
     var calibracaoPendente = cal.vencidos + cal.aVencer;
     return {
       catalogo: estado.testes.length,
-      /* O contador mostra o que está em aberto no fluxo: ainda há algo a fazer enquanto
-         a demanda não foi validada pelo cliente nem cancelada. */
+      /* The counter shows what is still open in the workflow: there is something left to do
+         until the request has been signed off by the customer or cancelled. */
       demandas: estado.demandas.filter(function (d) {
         return ['VALIDADA', 'CANCELADA'].indexOf(d.status) === -1;
       }).length,
@@ -7317,7 +7327,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     var hoje = util.hoje();
     var plano = TC.scheduler.planejar(estado, hoje);
 
-    /* Uma mudança de permissão pode tornar a janela aberta invisível. */
+    /* A permission change can make the screen currently open invisible. */
     if (!TC.permissoes.podeVer(estado, rotaAtual)) rotaAtual = primeiraRotaVisivel();
 
     var ctx = {
@@ -7333,7 +7343,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     desenharNavegacao(estado, plano);
     TC.views[rotaAtual].render(document.getElementById('conteudo'), ctx);
 
-    /* Aviso discreto de somente leitura, para ninguém procurar um botão que não existe. */
+    /* A discreet read-only badge, so nobody hunts for a button that is not there. */
     if (!ctx.podeEditar && rotaAtual !== 'painel') {
       var cabecalho = document.querySelector('#conteudo .cabecalho');
       if (cabecalho) {
@@ -7364,7 +7374,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
   TC.app = { iniciar: iniciar, ir: ir, ROTAS: ROTAS };
 
-  /* Em página embutida o documento já pode estar pronto quando este script roda. */
+  /* On an embedded page the document may already be ready when this script runs. */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', iniciar);
   } else {

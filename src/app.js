@@ -1,4 +1,4 @@
-/* Montagem da aplicação: navegação, recálculo do planejamento e backup dos dados. */
+/* Application shell: navigation, schedule recalculation and data backup. */
 (function (global) {
   'use strict';
 
@@ -18,23 +18,23 @@
     { id: 'permissoes', nome: 'Roles and permissions', icone: '🔐', grupo: 'Administration' }
   ];
 
-  /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
-     demandas e planejamento pela classificação da LTI (inclui Cotação). */
+  /* fase filters the catalogue by the procedure's application phase; tipoLti filters
+     requests and schedule by the LTI classification (Quote included). */
   var filtros = {
     busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '',
-    /* Filtros da janela de calibração. */
+    /* Calibration screen filters. */
     buscaCal: '', localCal: '', marcaCal: '', situacaoCal: '', prazoCal: ''
   };
   var rotaAtual = 'catalogo';
 
   function contadores(estado, plano) {
-    /* O contador da calibração mostra o que exige ação: vencido ou a vencer. */
+    /* The calibration counter shows what needs action: expired or due soon. */
     var cal = TC.calibracao.resumo(estado.instrumentos, util.hoje());
     var calibracaoPendente = cal.vencidos + cal.aVencer;
     return {
       catalogo: estado.testes.length,
-      /* O contador mostra o que está em aberto no fluxo: ainda há algo a fazer enquanto
-         a demanda não foi validada pelo cliente nem cancelada. */
+      /* The counter shows what is still open in the workflow: there is something left to do
+         until the request has been signed off by the customer or cancelled. */
       demandas: estado.demandas.filter(function (d) {
         return ['VALIDADA', 'CANCELADA'].indexOf(d.status) === -1;
       }).length,
@@ -158,7 +158,7 @@
     var hoje = util.hoje();
     var plano = TC.scheduler.planejar(estado, hoje);
 
-    /* Uma mudança de permissão pode tornar a janela aberta invisível. */
+    /* A permission change can make the screen currently open invisible. */
     if (!TC.permissoes.podeVer(estado, rotaAtual)) rotaAtual = primeiraRotaVisivel();
 
     var ctx = {
@@ -174,7 +174,7 @@
     desenharNavegacao(estado, plano);
     TC.views[rotaAtual].render(document.getElementById('conteudo'), ctx);
 
-    /* Aviso discreto de somente leitura, para ninguém procurar um botão que não existe. */
+    /* A discreet read-only badge, so nobody hunts for a button that is not there. */
     if (!ctx.podeEditar && rotaAtual !== 'painel') {
       var cabecalho = document.querySelector('#conteudo .cabecalho');
       if (cabecalho) {
@@ -205,7 +205,7 @@
 
   TC.app = { iniciar: iniciar, ir: ir, ROTAS: ROTAS };
 
-  /* Em página embutida o documento já pode estar pronto quando este script roda. */
+  /* On an embedded page the document may already be ready when this script runs. */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', iniciar);
   } else {

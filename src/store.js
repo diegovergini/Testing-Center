@@ -1,10 +1,10 @@
-/* Estado da aplicação: persistência em localStorage, CRUD e exportação/importação. */
+/* Application state: localStorage persistence, CRUD and export/import. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util;
-  /* No navegador estes módulos já foram carregados; no Node (testes) resolvemos na hora. */
+  /* In the browser these modules are already loaded; on Node (tests) we resolve them here. */
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
   if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
   if (!TC.manutencao && typeof require !== 'undefined') require('./manutencao.js');
@@ -15,7 +15,7 @@
   var estado = null;
   var ouvintes = [];
 
-  /* Converte dados gravados por versões anteriores. */
+  /* Converts data saved by earlier versions. */
   function migrar(estado) {
     var antigas = TC.data.FASES_ANTIGAS;
     var validas = TC.data.FASES.map(function (f) { return f.id; });
@@ -27,18 +27,19 @@
 
     estado.clientes = estado.clientes || [];
 
-    /* Hourly rate do centro de testes: um valor só, para todo o catálogo. Dados salvos
-       antes desta mudança traziam o rate em cada procedimento; adotamos o valor vigente
-       do centro de testes, que é o que passa a valer para todos. */
+    /* Test centre hourly rate: a single value for the whole catalogue. Data saved before
+       this change carried the rate on each procedure; we take the test centre's current
+       value, which is what now applies to all of them. */
     if (typeof estado.hourlyRate !== 'number') estado.hourlyRate = TC.data.HOURLY_RATE;
     if (typeof estado.hourlyRateVigencia !== 'string') {
       estado.hourlyRateVigencia = TC.data.HOURLY_RATE_VIGENCIA;
     }
 
-    /* Mudança de catálogo em dados já salvos no navegador.
-       Até a versão 2 o catálogo era o de exemplo, de vários clientes: ele sai inteiro.
-       Daí para frente a atualização é aditiva — procedimentos novos entram e os que já
-       existem ficam como estão, com as horas e a bancada que já foram preenchidas. Cotações arquivadas nunca são tocadas: têm preço congelado. */
+    /* Catalogue change on data already saved in the browser.
+       Up to version 2 the catalogue was the multi-customer example: it goes out whole. From
+       there on the update is additive — new procedures go in and the existing ones stay as
+       they are, with the hours and rig already filled in. Archived quotes are never touched:
+       they have frozen prices. */
     var versaoSalva = Number(estado.catalogoVersao) || 0;
     if (versaoSalva < TC.data.CATALOGO_VERSAO) {
       var padraoNovo = TC.data.seed();
@@ -48,9 +49,9 @@
         var salvo = util.porId(estado.testes, t.id);
         if (!salvo) { estado.testes.push(t); return; }
 
-        /* Levantamento de horas do centro de testes: um procedimento que ainda não tem
-           nenhuma hora medida herda as do catálogo de partida. Se alguém já preencheu
-           qualquer uma das três, o cadastro é dele e fica como está. */
+        /* Test centre hours survey: a procedure with no hours measured yet inherits the ones
+           from the seed catalogue. If anyone has already filled in any of the three, the
+           record is theirs and stays as it is. */
         var semHoras = !salvo.horasSetup && !salvo.horasEnsaio && !salvo.horasReport;
         var padraoTemHoras = t.horasSetup || t.horasEnsaio || t.horasReport;
         if (semHoras && padraoTemHoras) {
@@ -60,8 +61,8 @@
         }
       });
 
-      /* Os clientes que o novo catálogo exige precisam existir no cadastro salvo,
-         senão o catálogo aponta para um cliente que não está na lista. */
+      /* The customers the new catalogue requires have to exist in the saved register, or the
+         catalogue points at a customer that is not on the list. */
       var exigidos = {};
       estado.testes.forEach(function (t) {
         (t.clientes || []).forEach(function (id) { exigidos[id] = true; });
@@ -70,8 +71,8 @@
         if (exigidos[c.id] && !util.porId(estado.clientes, c.id)) estado.clientes.push(c);
       });
 
-      /* O procedimento é a referência da demanda: sem ele a demanda não tem custo nem
-         bancada. Só descarta algo quando o catálogo perdeu procedimentos. */
+      /* The procedure is the request's reference: without it the request has neither cost nor
+         rig. It only discards something when the catalogue has lost procedures. */
       var idsDoCatalogo = estado.testes.map(function (t) { return t.id; });
       estado.demandas = (estado.demandas || []).filter(function (d) {
         return idsDoCatalogo.indexOf(d.testeId) !== -1;
@@ -79,12 +80,12 @@
       estado.catalogoVersao = TC.data.CATALOGO_VERSAO;
     }
 
-    /* A data de chegada das amostras saiu da peça e foi para a demanda; guardamos a
-       data antiga de cada peça para não perder o que já estava planejado. */
+    /* The sample arrival date moved from the part type to the request; we keep each part
+       type's old date so nothing already scheduled is lost. */
     var dataAntigaDaPeca = {};
     (estado.pecas || []).forEach(function (p) {
       if (p.dataAmostras) dataAntigaDaPeca[p.id] = p.dataAmostras;
-      /* Peça deixou de ser de um cliente e de uma área: é um tipo de peça. */
+      /* A part stopped belonging to a customer and a system end: it is a part type. */
       delete p.clienteId;
       delete p.area;
       delete p.programa;
@@ -92,14 +93,14 @@
       delete p.quantidade;
     });
 
-    /* O procedimento não é mais amarrado a fase de projeto, e pode ocupar
-       mais de uma bancada ao mesmo tempo. */
+    /* The procedure is no longer tied to a project phase, and it can occupy more than one
+       rig at the same time. */
     (estado.testes || []).forEach(function (t) {
       delete t.fases;
       if (typeof t.revisao !== 'string') t.revisao = '';
       var unidadesAntigas = t.equipamentoIds || (t.equipamentoId ? [t.equipamentoId] : []);
 
-      /* O procedimento passou a pedir o grupo de bancada, não a unidade. */
+      /* The procedure now asks for the rig group, not the unit. */
       if (!t.equipamentoGrupos) {
         var grupos = [];
         unidadesAntigas.forEach(function (id) {
@@ -112,17 +113,17 @@
       delete t.equipamentoIds;
       delete t.equipamentoId;
 
-      /* O hourly rate deixou de ser campo do procedimento: virou um valor único do
-         centro de testes, guardado no estado e atualizado uma vez por ano. */
+      /* The hourly rate stopped being a procedure field: it became a single test centre
+         value, kept in the state and updated once a year. */
       if (typeof t.horasReport !== 'number') t.horasReport = 0;
       delete t.hourlyRate;
       if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
       delete t.custoBase;
     });
 
-    /* Inventário de instrumentos sujeitos a calibração. Mesma mecânica do catálogo:
-       instrumento novo entra, e o que já existe fica com o plano de calibração que o
-       laboratório preencheu. */
+    /* Inventory of instruments subject to calibration. Same mechanics as the catalogue: a
+       new instrument goes in, and an existing one keeps the calibration plan the lab filled
+       in. */
     estado.instrumentos = estado.instrumentos || [];
     if ((Number(estado.instrumentosVersao) || 0) < TC.data.INSTRUMENTOS_VERSAO) {
       TC.instrumentosPadrao().forEach(function (i) {
@@ -131,17 +132,17 @@
           estado.instrumentos.push(i);
           return;
         }
-        /* A versão 2 trouxe a última calibração de cada instrumento, que o inventário
-           original não tinha. Ela só preenche lacuna: quem já lançou a data pela janela
-           sabe mais do que a planilha, e o histórico de calibração nunca é reescrito. */
+        /* Version 2 brought each instrument's last calibration, which the original inventory
+           did not have. It only fills gaps: whoever entered the date through the screen knows
+           more than the spreadsheet, and the calibration history is never rewritten. */
         if (!salvo.ultimaCalibracao && i.ultimaCalibracao && !(salvo.historico || []).length) {
           salvo.ultimaCalibracao = i.ultimaCalibracao;
         }
       });
       estado.instrumentosVersao = TC.data.INSTRUMENTOS_VERSAO;
     }
-    /* Documentos entraram depois: demanda e instrumento passam a ter a lista de anexos,
-       vazia para quem já tinha dados salvos. */
+    /* Documents came later: requests and instruments gain the attachment list, empty for
+       whoever already had saved data. */
     (estado.demandas || []).forEach(function (d) {
       if (!Array.isArray(d.documentos)) d.documentos = [];
     });
@@ -160,9 +161,9 @@
       if (!Array.isArray(i.historico)) i.historico = [];
     });
 
-    /* As paradas de manutenção passaram a ter duas vidas: planejada e realizada, com o
-       registro do que foi feito. Parada antiga que já terminou entra como realizada — ela
-       aconteceu —, e a que ainda está por vir fica planejada. */
+    /* Maintenance downtime gained two lives: planned and carried out, with the record of
+       what was done. An old downtime that has already ended goes in as carried out — it
+       happened — and one still to come stays planned. */
     (estado.equipamentos || []).forEach(function (eq) {
       (eq.manutencao || []).forEach(function (m) {
         if (typeof m.tipo !== 'string') m.tipo = 'PREVENTIVA';
@@ -176,8 +177,8 @@
     });
 
     /* Status antigo (PENDENTE/EM_ANDAMENTO/CONCLUIDO/CANCELADO) mais o campo separado de
-       situação do relatório viraram um fluxo só. A conversão junta os dois: quem estava
-       concluído com relatório aprovado passa direto a validado. */
+       report status became a single workflow. The conversion merges the two: whatever was
+       completed with an approved report goes straight to signed off. */
     var STATUS_ANTIGO = {
       PENDENTE: 'SOLICITADA', EM_ANDAMENTO: 'EM_EXECUCAO',
       CONCLUIDO: 'CONCLUIDA', CANCELADO: 'CANCELADA'
@@ -189,7 +190,7 @@
     (estado.demandas || []).forEach(function (d) {
       if (estadosDemanda.indexOf(d.status) === -1) {
         d.status = STATUS_ANTIGO[d.status] || 'SOLICITADA';
-        /* Só quem já terminou o ensaio pode ter avançado no ciclo do relatório. */
+        /* Only something that has finished testing can have moved on in the report cycle. */
         if (d.status === 'CONCLUIDA' && RELATORIO_ANTIGO[d.relatorioStatus]) {
           d.status = RELATORIO_ANTIGO[d.relatorioStatus];
         }
@@ -198,8 +199,8 @@
       if (!Array.isArray(d.historico)) d.historico = [];
     });
 
-    /* Antes da LTI, a demanda guardava só a fase; ela vira a classificação da ordem
-       de serviço, e o número fica em branco para ser preenchido. */
+    /* Before the LTI, a request only kept the phase; it becomes the work order
+       classification, and the number is left blank to be filled in. */
     (estado.demandas || []).forEach(function (d) {
       var tipos = TC.data.TIPOS_LTI.map(function (t) { return t.id; });
       if (!d.tipoLti || tipos.indexOf(d.tipoLti) === -1) {
@@ -208,8 +209,8 @@
       if (typeof d.lti !== 'string') d.lti = '';
       if (typeof d.projeto !== 'string') d.projeto = '';
       if (typeof d.partNumber !== 'string') d.partNumber = '';
-      /* Execução real e ciclo do relatório: alimentam os indicadores do painel
-         (testes realizados no mês e certo da primeira vez). */
+      /* Actual execution and report cycle: they feed the dashboard indicators (tests carried
+         out in the month and right first time). */
       if (typeof d.dataConclusao !== 'string') d.dataConclusao = '';
       if (typeof d.dataRelatorio !== 'string') d.dataRelatorio = '';
       if (typeof d.relatorioCorrecoes !== 'number') d.relatorioCorrecoes = 0;
@@ -217,7 +218,7 @@
       delete d.fase;
     });
 
-    /* Perfis, permissões e cotações chegaram depois; estados antigos ganham o padrão. */
+    /* Roles, permissions and quotes came later; older states get the defaults. */
     if (!Array.isArray(estado.cotacoes)) estado.cotacoes = [];
     var COTACAO_ANTIGA = {
       ABERTA: 'RASCUNHO', ENVIADA: 'SOLICITADA', APROVADA: 'APROVADA', RECUSADA: 'RECUSADA'
@@ -230,8 +231,8 @@
       if (!Array.isArray(c.historico)) c.historico = [];
       if (typeof c.lti !== 'string') c.lti = '';
       if (typeof c.previsaoExecucao !== 'string') c.previsaoExecucao = '';
-      /* A peça de referência saiu; o item passou a guardar a quantidade em "amostras".
-         Os totais gravados não são recalculados: cotação arquivada tem preço congelado. */
+      /* The reference part type is gone; the line item now keeps the quantity in "amostras".
+         Saved totals are not recalculated: an archived quote has frozen prices. */
       delete c.pecaId;
       (c.itens || []).forEach(function (i) {
         if (typeof i.amostras !== 'number' || i.quantidade !== undefined) {
@@ -257,10 +258,10 @@
     return estado;
   }
 
-  /* Cópia publicada para a equipe: o build embute um instantâneo dos dados em
-     TC.PUBLICACAO e a aplicação passa a ler dele, sem gravar nada. Todo mundo que abrir
-     o arquivo vê exatamente os mesmos dados — é o compartilhamento possível enquanto não
-     existe servidor. Ver publicada() em permissoes.js: nesta cópia ninguém edita. */
+  /* The copy published for the team: the build embeds a snapshot of the data in
+     TC.PUBLICACAO and the application reads from it, writing nothing. Everyone who opens the
+     file sees exactly the same data — the sharing that is possible while there is no server.
+     See publicada() in permissoes.js: nobody edits in this copy. */
   function publicacao() {
     return TC.PUBLICACAO && TC.PUBLICACAO.dados ? TC.PUBLICACAO : null;
   }
@@ -281,8 +282,9 @@
   }
 
   function salvar() {
-    /* Na cópia publicada não há onde gravar: o dado de origem está na máquina de quem
-       mantém o centro de testes, e gravar aqui só criaria uma divergência silenciosa. */
+    /* In the published copy there is nowhere to write: the source data is on the machine of
+       whoever keeps the test centre, and writing here would only create a silent
+       divergence. */
     if (publicacao()) return;
     try {
       if (global.localStorage) global.localStorage.setItem(CHAVE, JSON.stringify(estado));
@@ -291,9 +293,9 @@
     }
   }
 
-  /* Aplica uma passagem de estado, gravando o histórico. Os campos que a transição exige
-     (data de conclusão, data de validação) são gravados junto, na mesma operação — não
-     adianta mudar o estado e deixar a data para depois. */
+  /* Applies a state move, saving the history. The fields the transition requires (completion
+     date, sign-off date) are saved along with it, in the same operation — there is no point
+     changing the state and leaving the date for later. */
   function mover(tipo, registro, para, dados) {
     var valores = dados || {};
     var perfil = TC.permissoes.perfilAtual(estado);
@@ -346,7 +348,7 @@
         prioridade: dados.prioridade || 'MEDIA',
         quantidade: Number(dados.quantidade) || 1,
         dataAmostras: dados.dataAmostras || util.hoje(),
-        /* Preenchidos depois, conforme o ensaio roda e o relatório vai ao cliente. */
+        /* Filled in later, as the test runs and the report goes to the customer. */
         dataConclusao: '',
         dataRelatorio: '',
         relatorioCorrecoes: 0,
@@ -374,7 +376,7 @@
       commit();
     },
 
-    /* ---- Catálogo de testes ---- */
+    /* ---- Test catalogue ---- */
     salvarTeste: function (teste) {
       var existente = teste.id ? util.porId(estado.testes, teste.id) : null;
       if (existente) {
@@ -408,7 +410,7 @@
       estado.equipamentos = estado.equipamentos.filter(function (e) { return e.id !== id; });
       commit();
     },
-    /* A parada nasce planejada — e já bloqueia a agenda do equipamento a partir daí. */
+    /* Downtime starts planned — and blocks the machine's calendar from then on. */
     adicionarManutencao: function (equipamentoId, janela) {
       var eq = util.porId(estado.equipamentos, equipamentoId);
       if (!eq) return null;
@@ -427,8 +429,8 @@
       return parada;
     },
 
-    /* Registro do que foi feito: a parada passa a realizada e guarda a execução.
-       As datas podem mudar aqui — manutenção raramente termina no dia previsto. */
+    /* Record of what was done: the downtime becomes carried out and keeps the execution.
+       The dates can change here — maintenance rarely ends on the day it was planned to. */
     registrarManutencao: function (equipamentoId, paradaId, dados) {
       var eq = util.porId(estado.equipamentos, equipamentoId);
       if (!eq) return null;
@@ -451,7 +453,7 @@
       commit();
     },
 
-    /* ---- Instrumentos e calibração ---- */
+    /* ---- Instruments and calibration ---- */
     salvarInstrumento: function (instrumento) {
       var existente = instrumento.id ? util.porId(estado.instrumentos, instrumento.id) : null;
       if (existente) {
@@ -470,10 +472,10 @@
       commit();
     },
 
-    /* Registro de uma calibração: entra no histórico e passa a ser a vigente. O vencimento
-       vem do certificado quando informado; senão sai da periodicidade do instrumento.
-       Reprovado não renova a validade — o instrumento não pode voltar a medir por decurso
-       de prazo, então ele sai de uso até alguém decidir o que fazer. */
+    /* Recording a calibration: it goes into the history and becomes the current one. The due
+       date comes from the certificate when given; otherwise from the instrument's interval.
+       A failed one renews nothing — the instrument cannot go back to measuring just because
+       time passed, so it leaves service until someone decides what to do. */
     registrarCalibracao: function (instrumentoId, dados) {
       var i = util.porId(estado.instrumentos, instrumentoId);
       if (!i) return { ok: false, motivo: 'Instrument not found.' };
@@ -493,9 +495,9 @@
       i.historico = i.historico || [];
       i.historico.push(registro);
 
-      /* O link do certificado, quando informado, vira documento do instrumento amarrado a
-         este registro — assim o histórico aponta para o PDF que o comprova. Link recusado
-         não derruba o registro da calibração: a calibração aconteceu de todo jeito. */
+      /* The certificate link, when given, becomes a document of the instrument tied to this
+         record — so the history points at the PDF that evidences it. A refused link does not
+         bring down the calibration record: the calibration happened anyway. */
       if ((dados.certificadoLink || '').trim()) {
         var anexo = TC.documentos.criar({
           tipo: 'CERTIFICADO', link: dados.certificadoLink, refId: registro.id,
@@ -532,11 +534,11 @@
       return { ok: true, instrumento: i, registro: registro };
     },
 
-    /* Lançamento em lote das datas que já estavam em planilha. Grava tudo de uma vez —
-       229 commits seguidos redesenhariam a tela 229 vezes — e reaproveita a mesma regra
-       de validade do registro individual, para não haver dois jeitos de calcular a mesma
-       coisa. Linhas com problema são responsabilidade de quem chama: a tela só manda as
-       que interpretarLote() aprovou. */
+    /* Bulk entry of dates that were already on a spreadsheet. It saves everything at once —
+       229 commits in a row would redraw the screen 229 times — and reuses the same validity
+       rule as the individual record, so there are never two ways of computing the same thing.
+       Problem rows are the caller's responsibility: the screen only sends the ones
+       interpretarLote() approved. */
     lancarCalibracoesEmLote: function (linhas) {
       var aplicados = [];
       (linhas || []).forEach(function (l) {
@@ -561,8 +563,8 @@
         if (registro.laboratorio) i.laboratorio = registro.laboratorio;
         i.periodicidadeMeses = i.periodicidadeMeses || 12;
         i.proximaCalibracao = TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
-        /* A situação não muda no lote, ao contrário do registro individual: quem está
-           "being calibrated" hoje continua em calibração, mesmo lançando a data anterior. */
+        /* The condition does not change in bulk, unlike the individual record: whatever is
+           "being calibrated" today stays that way, even when entering the earlier date. */
         aplicados.push(i.id);
       });
 
@@ -572,8 +574,9 @@
 
     /* ---- Documentos ----
 
-       O anexo é um link para onde o arquivo já está — SharePoint, OneDrive, rede. Vale
-       para demanda e para instrumento; o resto da regra está em src/documentos.js. */
+       An attachment is a link to where the file already is — SharePoint, OneDrive, network.
+       It works for requests and for instruments; the rest of the rule is in
+       src/documentos.js. */
     anexarDocumento: function (alvo, registroId, dados) {
       var lista = alvo === 'instrumento' ? estado.instrumentos : estado.demandas;
       var registro = util.porId(lista || [], registroId);
@@ -599,7 +602,7 @@
       return { ok: true, registro: registro };
     },
 
-    /* ---- Peças ---- */
+    /* ---- Part types ---- */
     salvarPeca: function (peca) {
       var existente = peca.id ? util.porId(estado.pecas, peca.id) : null;
       if (existente) {
@@ -630,17 +633,17 @@
     },
     removerCliente: function (id) {
       estado.clientes = estado.clientes.filter(function (c) { return c.id !== id; });
-      /* O cliente sai também das listas de exigência dos procedimentos, senão o
-         catálogo passa a filtrar por um cliente que não existe mais. */
+      /* The customer also leaves the procedures that require it, or the catalogue starts
+         filtering by a customer that no longer exists. */
       estado.testes.forEach(function (t) {
         if (t.clientes) t.clientes = t.clientes.filter(function (c) { return c !== id; });
       });
       commit();
     },
 
-    /* ---- Perfil e permissões ---- */
-    /* Hourly rate do centro de testes: um campo só, aplicado a todo o catálogo.
-       Cotações já arquivadas guardam o rate do dia e não são afetadas. */
+    /* ---- Role and permissions ---- */
+    /* Test centre hourly rate: a single field, applied to the whole catalogue. Archived
+       quotes keep the rate of their day and are not affected. */
     definirHourlyRate: function (valor, vigencia) {
       estado.hourlyRate = Number(valor) || 0;
       if (typeof vigencia === 'string') estado.hourlyRateVigencia = vigencia.trim();
@@ -670,7 +673,7 @@
       commit();
     },
 
-    /* ---- Cotações ---- */
+    /* ---- Quotes ---- */
     proximoNumeroCotacao: function () {
       var ano = util.hoje().slice(0, 4);
       var prefixo = 'COT-' + ano + '-';
@@ -704,10 +707,10 @@
       commit();
     },
 
-    /* ---- Fluxos ----
-       Uma passagem de estado só acontece por aqui: o fluxo valida perfil, transição e
-       campos exigidos, e cada passagem deixa uma linha no histórico do registro.
-       Devolve { ok: true, registro } ou { ok: false, motivo }. */
+    /* ---- Workflows ----
+       A state move only happens through here: the workflow validates role, transition and
+       required fields, and every move leaves a line in the record's history.
+       Returns { ok: true, registro } or { ok: false, motivo }. */
     moverDemanda: function (id, para, dados) {
       var demanda = util.porId(estado.demandas, id);
       if (!demanda) return { ok: false, motivo: 'Request not found.' };

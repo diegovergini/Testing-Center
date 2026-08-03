@@ -5,7 +5,7 @@
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
-  /* As ações continuam "ver"/"editar" no estado salvo; aqui só o rótulo é traduzido. */
+  /* The actions stay "ver"/"editar" in the saved state; only the label is translated. */
   var ROTULO_ACAO = { ver: 'view', editar: 'edit' };
 
   function render(container, ctx) {
