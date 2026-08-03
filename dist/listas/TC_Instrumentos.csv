@@ -1,4 +1,4 @@
-﻿Title,LegacyCode,Name,Area,Location,Backup,Brand,Model,Serial,Range,Resolution,Status,Active,IntervalMonths,LastCalibration,NextCalibration,LastResult,Certificate,Laboratory,Notes
+﻿Title,LegacyCode,InstrumentName,Sector,Station,Backup,Brand,Model,Serial,WorkingRange,Resolution,InstrumentStatus,Active,IntervalMonths,LastCalibration,NextCalibration,LastResult,Certificate,Laboratory,Notes
 TCL-AC-012,,Uniaxial Accelerometer B&K,Tech Center,Instrumentation,No,B&K,4384,31642,12.5Hz - 3000Hz,200 km/s² (20000g peak) | 8000 Hz,EM_USO,Yes,12,2026-05-14,,,,,
 TCL-AC-014,,Uniaxial Accelerometer B&K,Tech Center,Instrumentation,No,B&K,4384,31644,12.5Hz - 3000Hz,200 km/s² (20000g peak) | 8000 Hz,EM_USO,Yes,12,2026-05-14,,,,,
 TCL-AC-003,,Uniaxial Accelerometer PCB,Tech Center,Instrumentation,No,PCB,M 353 B16,128498,12.5Hz - 3000Hz,±500 g pk (±4905 m/s² pk) - (±5%)1 to 10000 Hz,EM_USO,Yes,12,2026-05-14,,,,,

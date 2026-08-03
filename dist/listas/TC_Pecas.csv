@@ -1,4 +1,4 @@
-﻿Title,Name,Description,CostPerSample
+﻿Title,PartTypeName,Description,CostPerSample
 PC-HOT,Hot End,"Manifold, downpipe, hot pipe and flex pipe",3800
 PC-CAN,Canning,"Canned substrate: catalyst, DPF/GPF",5400
 PC-COL,Cold End,"Pipes, resonator and tailpipe",1650

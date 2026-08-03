@@ -1,4 +1,4 @@
-﻿Title,Name,Group,Positions,Continuous,HoursPerDay,OperatingDays
+﻿Title,EquipmentName,GroupName,Positions,Continuous,HoursPerDay,OperatingDays
 BURNER-1,Burner 1,Burner,1,Yes,24,0; 1; 2; 3; 4; 5; 6
 BURNER-2,Burner 2,Burner,1,Yes,24,0; 1; 2; 3; 4; 5; 6
 BURNER-3,Burner 3,Burner,1,Yes,24,0; 1; 2; 3; 4; 5; 6

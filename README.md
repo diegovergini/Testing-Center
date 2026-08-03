@@ -524,6 +524,9 @@ src/views/*.js        one screen per file
 build.js              produces the single-file versions in dist/
 src/app.js            navigation and schedule recalculation
 tests/                engine tests (node:test)
+ferramentas/listas-schema.json   the SharePoint list schema: the single source of truth
+ferramentas/exportar-listas.js   generates the load CSVs from that schema
+ferramentas/provisionar-listas.ps1  creates the lists on the site from that same schema
 ```
 
 `src/scheduler.js` is pure and also runs on Node, which is why the allocation rules are

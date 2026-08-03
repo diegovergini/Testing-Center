@@ -1,0 +1,182 @@
+{
+  "_leiame": [
+    "Esquema das listas do SharePoint — fonte única de verdade.",
+    "",
+    "Quem lê este arquivo: ferramentas/exportar-listas.js (gera os CSVs de carga) e",
+    "ferramentas/provisionar-listas.ps1 (cria as listas com os tipos certos). Antes eles",
+    "mantinham a lista de colunas cada um por si, e a tradução para inglês mudou um lado só:",
+    "o script criava 'Nome' e o CSV trazia 'Name'. tests/listas.test.js agora falha se os",
+    "dois divergirem de novo.",
+    "",
+    "Title é implícito em toda lista e guarda o código do registro (TP-GM-01, CLI-GM,",
+    "COT-2026-0001) — é por ele que as listas se referenciam.",
+    "",
+    "Os nomes internos evitam as palavras que o SharePoint reserva (Name, Type, Order,",
+    "Created, Modified, Author, Editor, Version, ID, GUID). Por isso EquipmentName e",
+    "MaintenanceType em vez de Name e Type: criar uma coluna com nome reservado falha ou é",
+    "silenciosamente renomeada, e o erro só aparece na hora de colar os dados.",
+    "",
+    "Os valores de escolha continuam sendo as chaves internas (EM_USO, SOLICITADA) e não o",
+    "rótulo traduzido: é o que já está gravado no navegador e no motor de planejamento.",
+    "",
+    "Campos de vários valores (Customers, EquipmentGroups) são texto separado por '; '."
+  ],
+
+  "TC_Parametros": [
+    { "nome": "Value", "tipo": "Currency" },
+    { "nome": "InForceFor", "tipo": "Text" }
+  ],
+
+  "TC_Clientes": [
+    { "nome": "CustomerName", "tipo": "Text" },
+    { "nome": "Segment", "tipo": "Text" }
+  ],
+
+  "TC_Equipamentos": [
+    { "nome": "EquipmentName", "tipo": "Text" },
+    { "nome": "GroupName", "tipo": "Text" },
+    { "nome": "Positions", "tipo": "Number" },
+    { "nome": "Continuous", "tipo": "Choice", "opcoes": ["Yes", "No"] },
+    { "nome": "HoursPerDay", "tipo": "Number" },
+    { "nome": "OperatingDays", "tipo": "Text", "nota": "0 = domingo; texto porque não há coluna de lista de números" }
+  ],
+
+  "TC_Manutencoes": [
+    { "nome": "EquipmentId", "tipo": "Text" },
+    { "nome": "StartDate", "tipo": "DateTime" },
+    { "nome": "EndDate", "tipo": "DateTime" },
+    { "nome": "MaintenanceType", "tipo": "Choice", "opcoes": ["PREVENTIVA", "CALIBRACAO", "CORRETIVA", "MELHORIA"] },
+    { "nome": "Reason", "tipo": "Text" },
+    { "nome": "MaintenanceStatus", "tipo": "Choice", "opcoes": ["PLANEJADA", "REALIZADA"] },
+    { "nome": "WhatWasDone", "tipo": "Note" },
+    { "nome": "CarriedOutBy", "tipo": "Text" }
+  ],
+
+  "TC_Instrumentos": [
+    { "nome": "LegacyCode", "tipo": "Text" },
+    { "nome": "InstrumentName", "tipo": "Text" },
+    { "nome": "Sector", "tipo": "Text" },
+    { "nome": "Station", "tipo": "Text" },
+    { "nome": "Backup", "tipo": "Choice", "opcoes": ["Yes", "No"] },
+    { "nome": "Brand", "tipo": "Text" },
+    { "nome": "Model", "tipo": "Text" },
+    { "nome": "Serial", "tipo": "Text" },
+    { "nome": "WorkingRange", "tipo": "Text" },
+    { "nome": "Resolution", "tipo": "Text" },
+    { "nome": "InstrumentStatus", "tipo": "Choice", "opcoes": ["EM_USO", "EM_CALIBRACAO", "AGUARDANDO", "FORA_DE_USO"] },
+    { "nome": "Active", "tipo": "Choice", "opcoes": ["Yes", "No"] },
+    { "nome": "IntervalMonths", "tipo": "Number" },
+    { "nome": "LastCalibration", "tipo": "DateTime" },
+    { "nome": "NextCalibration", "tipo": "DateTime", "nota": "vem do certificado quando ele traz validade própria; senão é última + periodicidade" },
+    { "nome": "LastResult", "tipo": "Choice", "opcoes": ["APROVADO", "APROVADO_RESTRICAO", "REPROVADO", ""] },
+    { "nome": "Certificate", "tipo": "Text" },
+    { "nome": "Laboratory", "tipo": "Text" },
+    { "nome": "Notes", "tipo": "Note" }
+  ],
+
+  "TC_Calibracoes": [
+    { "nome": "InstrumentId", "tipo": "Text" },
+    { "nome": "CalibrationDate", "tipo": "DateTime" },
+    { "nome": "Result", "tipo": "Choice", "opcoes": ["APROVADO", "APROVADO_RESTRICAO", "REPROVADO"] },
+    { "nome": "NextCalibration", "tipo": "DateTime" },
+    { "nome": "Certificate", "tipo": "Text" },
+    { "nome": "Laboratory", "tipo": "Text" },
+    { "nome": "CarriedOutBy", "tipo": "Text" },
+    { "nome": "Notes", "tipo": "Note" }
+  ],
+
+  "TC_Pecas": [
+    { "nome": "PartTypeName", "tipo": "Text" },
+    { "nome": "Description", "tipo": "Note" },
+    { "nome": "CostPerSample", "tipo": "Currency" }
+  ],
+
+  "TC_Procedimentos": [
+    { "nome": "ProcedureName", "tipo": "Text" },
+    { "nome": "Standard", "tipo": "Text" },
+    { "nome": "Revision", "tipo": "Text" },
+    { "nome": "SystemEnd", "tipo": "Choice", "opcoes": ["HOT", "COLD", "AMBOS"] },
+    { "nome": "EquipmentGroups", "tipo": "Text" },
+    { "nome": "Customers", "tipo": "Text" },
+    { "nome": "SetupHours", "tipo": "Number" },
+    { "nome": "TestHours", "tipo": "Number" },
+    { "nome": "ReportingHours", "tipo": "Number" },
+    { "nome": "Samples", "tipo": "Number" },
+    { "nome": "ConsumablesCost", "tipo": "Currency", "nota": "o hourly rate não é do procedimento: está em TC_Parametros" },
+    { "nome": "Description", "tipo": "Note" }
+  ],
+
+  "TC_Demandas": [
+    { "nome": "ProcedureId", "tipo": "Text" },
+    { "nome": "PartTypeId", "tipo": "Text" },
+    { "nome": "CustomerId", "tipo": "Text" },
+    { "nome": "Project", "tipo": "Text" },
+    { "nome": "PartNumber", "tipo": "Text" },
+    { "nome": "LTI", "tipo": "Text" },
+    { "nome": "LTIClassification", "tipo": "Choice", "opcoes": ["COTACAO", "DV", "PV", "VAVE"] },
+    { "nome": "Priority", "tipo": "Choice", "opcoes": ["ALTA", "MEDIA", "BAIXA"] },
+    { "nome": "Quantity", "tipo": "Number" },
+    { "nome": "SamplesAvailableFrom", "tipo": "DateTime" },
+    { "nome": "DueDate", "tipo": "DateTime" },
+    { "nome": "ForcedStart", "tipo": "DateTime" },
+    { "nome": "Notes", "tipo": "Note" },
+    { "nome": "RequestStatus", "tipo": "Choice", "opcoes": ["SOLICITADA", "ACEITA", "EM_EXECUCAO", "CONCLUIDA", "RELATORIO_ENVIADO", "EM_CORRECAO", "VALIDADA", "CANCELADA"] },
+    { "nome": "CompletionDate", "tipo": "DateTime", "nota": "execução real: alimenta os indicadores do painel" },
+    { "nome": "SignOffDate", "tipo": "DateTime" },
+    { "nome": "ReworkRounds", "tipo": "Number" },
+    { "nome": "PlannedStart", "tipo": "DateTime", "nota": "daqui para baixo, preenchido pelo motor de planejamento, não pelo usuário" },
+    { "nome": "PlannedEnd", "tipo": "DateTime" },
+    { "nome": "AllocatedEquipment", "tipo": "Text" },
+    { "nome": "BlockingReason", "tipo": "Note" }
+  ],
+
+  "TC_Cotacoes": [
+    { "nome": "CustomerId", "tipo": "Text" },
+    { "nome": "Project", "tipo": "Text" },
+    { "nome": "PartNumber", "tipo": "Text" },
+    { "nome": "LTI", "tipo": "Text" },
+    { "nome": "RequestedBy", "tipo": "Text" },
+    { "nome": "PlannedExecution", "tipo": "DateTime" },
+    { "nome": "QuoteStatus", "tipo": "Choice", "opcoes": ["RASCUNHO", "SOLICITADA", "EM_ANALISE", "DEVOLVIDA", "VALIDADA", "APROVADA", "RECUSADA"] },
+    { "nome": "Notes", "tipo": "Note" },
+    { "nome": "CreatedOn", "tipo": "DateTime" }
+  ],
+
+  "TC_CotacaoItens": [
+    { "nome": "QuoteNumber", "tipo": "Text" },
+    { "nome": "ProcedureId", "tipo": "Text" },
+    { "nome": "ItemName", "tipo": "Text" },
+    { "nome": "Revision", "tipo": "Text" },
+    { "nome": "Standard", "tipo": "Text" },
+    { "nome": "BillableHours", "tipo": "Number" },
+    { "nome": "HourlyRate", "tipo": "Currency", "nota": "congelado na data da cotação" },
+    { "nome": "HoursCost", "tipo": "Currency" },
+    { "nome": "ConsumablesCost", "tipo": "Currency" },
+    { "nome": "UnitCost", "tipo": "Currency" },
+    { "nome": "Samples", "tipo": "Number" },
+    { "nome": "Total", "tipo": "Currency" }
+  ],
+
+  "TC_Historico": [
+    { "nome": "RecordType", "tipo": "Choice", "opcoes": ["Demanda", "Cotacao"] },
+    { "nome": "Record", "tipo": "Text" },
+    { "nome": "MovedOn", "tipo": "DateTime" },
+    { "nome": "FromStatus", "tipo": "Text" },
+    { "nome": "ToStatus", "tipo": "Text" },
+    { "nome": "Role", "tipo": "Text" },
+    { "nome": "Note", "tipo": "Note" }
+  ],
+
+  "TC_Documentos": [
+    { "nome": "AttachedTo", "tipo": "Choice", "opcoes": ["Demanda", "Instrumento"] },
+    { "nome": "Record", "tipo": "Text" },
+    { "nome": "DocumentType", "tipo": "Choice", "opcoes": ["ENTRADA", "RELATORIO", "EVIDENCIA", "CERTIFICADO", "OUTRO"] },
+    { "nome": "DocumentName", "tipo": "Text" },
+    { "nome": "Link", "tipo": "Text", "nota": "aponta para a biblioteca do SharePoint; o arquivo não vem no CSV" },
+    { "nome": "LinkKind", "tipo": "Choice", "opcoes": ["WEB", "REDE"] },
+    { "nome": "CalibrationId", "tipo": "Text", "nota": "preenchido quando o documento comprova um registro de TC_Calibracoes" },
+    { "nome": "AttachedOn", "tipo": "DateTime" },
+    { "nome": "Role", "tipo": "Text" },
+    { "nome": "Notes", "tipo": "Note" }
+  ]
+}

@@ -1,1 +1,1 @@
-﻿Title,EquipmentId,Start,End,Type,Reason,Status,WhatWasDone,CarriedOutBy
+﻿Title,EquipmentId,StartDate,EndDate,MaintenanceType,Reason,MaintenanceStatus,WhatWasDone,CarriedOutBy

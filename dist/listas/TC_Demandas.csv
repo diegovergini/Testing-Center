@@ -1,1 +1,1 @@
-﻿Title,ProcedureId,PartTypeId,CustomerId,Project,PartNumber,LTI,LTIClassification,Priority,Quantity,SamplesAvailableFrom,DueDate,ForcedStart,Notes,Status,CompletionDate,SignOffDate,ReworkRounds,PlannedStart,PlannedEnd,AllocatedEquipment,BlockingReason
+﻿Title,ProcedureId,PartTypeId,CustomerId,Project,PartNumber,LTI,LTIClassification,Priority,Quantity,SamplesAvailableFrom,DueDate,ForcedStart,Notes,RequestStatus,CompletionDate,SignOffDate,ReworkRounds,PlannedStart,PlannedEnd,AllocatedEquipment,BlockingReason

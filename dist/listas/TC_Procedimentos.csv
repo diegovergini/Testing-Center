@@ -1,4 +1,4 @@
-﻿Title,Name,Standard,Revision,SystemEnd,EquipmentGroups,Customers,SetupHours,TestHours,ReportingHours,Samples,ConsumablesCost,Description
+﻿Title,ProcedureName,Standard,Revision,SystemEnd,EquipmentGroups,Customers,SetupHours,TestHours,ReportingHours,Samples,ConsumablesCost,Description
 TP-GM-01,Resonance Durability,Appx C,Rev. 01,AMBOS,,CLI-GM,0,0,0,1,0,
 TP-GM-02,Physical Durability Aging Cycle,Appx C,Rev. 01,AMBOS,,CLI-GM,20,300,14,1,0,
 TP-GM-03,Substrate Retention Cold Vibration Aging,Appx C,Rev. 01,AMBOS,,CLI-GM,16,150,16,1,0,
