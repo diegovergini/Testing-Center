@@ -5,6 +5,7 @@ const assert = require('node:assert');
 require('../src/util.js');
 const dados = require('../src/data.js');
 const fluxo = require('../src/fluxo.js');
+require('../src/documentos.js');
 require('../src/scheduler.js');
 require('../src/permissoes.js');
 require('../src/store.js');
@@ -13,6 +14,15 @@ const store = globalThis.TC.store;
 
 function comPerfil(perfil) {
   store.definirPerfil(perfil);
+}
+
+/* O relatório anexado é o que libera "Enviar relatório". Sai daqui para não repetir a
+   colagem do link em cada teste que só quer chegar ao fim do fluxo. */
+function anexarRelatorio(demandaId) {
+  return store.anexarDocumento('demanda', demandaId, {
+    tipo: 'RELATORIO', nome: 'Relatório LTI-1',
+    link: 'https://empresa.sharepoint.com/testes/LTI-1.pdf'
+  });
 }
 
 /* Uma demanda pronta para percorrer o fluxo. */
@@ -98,6 +108,7 @@ test('o caminho completo da demanda, do pedido à validação', () => {
   assert.ok(store.moverDemanda(d.id, 'ACEITA').ok);
   assert.ok(store.moverDemanda(d.id, 'EM_EXECUCAO').ok);
   assert.ok(store.moverDemanda(d.id, 'CONCLUIDA', { dataConclusao: '2026-08-20' }).ok);
+  assert.ok(anexarRelatorio(d.id).ok);
   assert.ok(store.moverDemanda(d.id, 'RELATORIO_ENVIADO').ok);
 
   comPerfil('PRODUTO');
@@ -132,6 +143,7 @@ test('pedir correção conta a rodada e devolve ao centro de testes', () => {
   store.moverDemanda(d.id, 'ACEITA');
   store.moverDemanda(d.id, 'EM_EXECUCAO');
   store.moverDemanda(d.id, 'CONCLUIDA', { dataConclusao: '2026-08-20' });
+  anexarRelatorio(d.id);
   store.moverDemanda(d.id, 'RELATORIO_ENVIADO');
 
   comPerfil('PRODUTO');

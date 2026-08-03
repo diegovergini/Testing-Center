@@ -8,6 +8,7 @@
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
+  if (!TC.documentos && typeof require !== 'undefined') require('./documentos.js');
 
   /* --- Demanda de teste ---------------------------------------------------------------
 
@@ -54,7 +55,9 @@
       exige: ['dataConclusao'],
       descricao: 'O ensaio terminou. A data de conclusão alimenta o painel do mês.' },
     { de: 'CONCLUIDA', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Enviar relatório',
-      descricao: 'O relatório vai ao cliente para validação.' },
+      exigeDocumento: 'RELATORIO',
+      descricao: 'O relatório vai ao cliente para validação. Anexe o relatório antes: é ' +
+        'assim que o cliente chega nele a partir da demanda.' },
     { de: 'RELATORIO_ENVIADO', para: 'VALIDADA', perfil: 'PRODUTO', rotulo: 'Validar relatório',
       exige: ['dataRelatorio'],
       descricao: 'O cliente aceita o relatório como está. É esta validação que conta no ' +
@@ -185,6 +188,13 @@
     }
     if (t.exigeNota && !(valores.nota || '').trim()) {
       return { ok: false, motivo: 'Descreva o motivo para registrar no histórico.' };
+    }
+    /* Relatório enviado sem relatório anexado deixa o cliente com um status e nada para
+       ler; e o indicador de certo da primeira vez passa a contar uma entrega que ninguém
+       consegue abrir. A exigência é do documento, não do arquivo: basta o link. */
+    if (t.exigeDocumento && !TC.documentos.tem(registro.documentos, t.exigeDocumento)) {
+      return { ok: false, motivo: 'Anexe o documento "' +
+        TC.documentos.nomeDoTipo(t.exigeDocumento) + '" antes desta passagem.' };
     }
     return { ok: true, transicao: t };
   }

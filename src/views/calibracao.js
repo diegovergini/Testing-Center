@@ -21,6 +21,24 @@
     return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
   }
 
+  /* O número do certificado vira link quando o PDF está anexado — é assim que quem audita
+     sai da tabela para o documento sem passar por mais nenhuma janela. */
+  function certificadoDoInstrumento(instrumento, registroId) {
+    var docs = TC.documentos.doTipo(instrumento.documentos, 'CERTIFICADO');
+    if (registroId) {
+      var doRegistro = docs.filter(function (d) { return d.refId === registroId; });
+      if (doRegistro.length) return doRegistro[0];
+      return null;
+    }
+    return docs[docs.length - 1] || null;
+  }
+
+  function textoComLink(texto, documento) {
+    if (!documento || !TC.documentos.abrePorClique(documento)) return e(texto);
+    return '<a href="' + e(documento.link) + '" target="_blank" rel="noopener noreferrer" ' +
+      'title="' + e(documento.nome) + '">' + e(texto) + '</a>';
+  }
+
   function etiquetaSituacao(id) {
     var s = util.porId(cal().SITUACOES, id);
     return '<span class="etiqueta ' + (s ? s.cor : '') + '">' + e(s ? s.nome : id) + '</span>';
@@ -185,6 +203,12 @@
         '<div class="campo"><label>Próxima calibração <span class="sub" style="font-weight:400">(vazio = calculada)</span></label>' +
           '<input type="date" name="proximaCalibracao"></div>' +
       '</div>' +
+      '<div class="campo"><label>Link do certificado ' +
+        '<span class="sub" style="font-weight:400">(opcional)</span></label>' +
+        '<input name="certificadoLink" placeholder="https://empresa.sharepoint.com/... ou ' +
+        '\\\\servidor\\calibracao\\certificado.pdf">' +
+        '<p class="sub" style="margin:6px 0 0">Entra como documento deste instrumento, ' +
+        'amarrado a esta calibração. O PDF continua onde já está.</p></div>' +
       '<div class="campo"><label>Observação</label>' +
         '<textarea name="observacao" rows="2" placeholder="Desvios encontrados, ajustes, restrições de uso"></textarea></div>' +
       '<div id="previa-validade"></div>' +
@@ -196,13 +220,20 @@
             return '<div class="linha-selecao" style="display:block">' +
               '<div><span class="mono sub">' + e(util.formatarData(h.data, true)) + '</span> · ' +
               '<span class="etiqueta ' + (r ? r.cor : '') + '">' + e(r ? r.nome : h.resultado) + '</span>' +
-              (h.certificado ? ' <span class="sub">certificado ' + e(h.certificado) + '</span>' : '') +
+              (h.certificado
+                ? ' <span class="sub">certificado ' +
+                  textoComLink(h.certificado, certificadoDoInstrumento(instrumento, h.id)) + '</span>'
+                : '') +
               (h.laboratorio ? ' <span class="sub">· ' + e(h.laboratorio) + '</span>' : '') +
               '</div>' +
               (h.observacao ? '<div class="sub">' + e(h.observacao) + '</div>' : '') +
               '</div>';
           }).join('') + '</div></div>'
-        : '<p class="sub" style="margin-top:14px">Nenhuma calibração registrada na plataforma ainda.</p>');
+        : '<p class="sub" style="margin-top:14px">Nenhuma calibração registrada na plataforma ainda.</p>') +
+      ui.painelDocumentos({
+        registro: instrumento, contexto: 'instrumento', podeEditar: true,
+        rotulo: 'Documentos do instrumento'
+      });
 
     var janela = ui.modal({
       titulo: 'Registrar calibração',
@@ -213,6 +244,7 @@
         var resultado = TC.store.registrarCalibracao(instrumento.id, {
           data: v.data, resultado: v.resultado,
           certificado: v.certificado, laboratorio: v.laboratorio,
+          certificadoLink: v.certificadoLink,
           periodicidadeMeses: Number(v.periodicidadeMeses) || 0,
           proximaCalibracao: v.proximaCalibracao, observacao: v.observacao
         });
@@ -222,6 +254,11 @@
           : 'Calibração registrada. Próxima em ' +
             util.formatarData(resultado.instrumento.proximaCalibracao, true) + '.');
       }
+    });
+
+    ui.ligarDocumentos(janela, {
+      registro: instrumento, contexto: 'instrumento', podeEditar: true,
+      rotulo: 'Documentos do instrumento'
     });
 
     /* A validade calculada aparece enquanto se preenche: é o número que vai para a tabela. */
@@ -372,7 +409,10 @@
           (i.ativo ? '' : '<div><span class="etiqueta erro">desativado</span></div>') + '</td>' +
         '<td>' + (x.ultimaCalibracao
           ? '<div>' + e(util.formatarData(x.ultimaCalibracao, true)) + '</div>' +
-            (i.certificado ? '<div class="sub">' + e(i.certificado) + '</div>' : '')
+            (i.certificado
+              ? '<div class="sub">' + textoComLink(i.certificado, certificadoDoInstrumento(i)) + '</div>'
+              : (i.documentos || []).length
+              ? '<div class="sub">' + (i.documentos || []).length + ' documento(s)</div>' : '')
           : '<span class="sub">—</span>') + '</td>' +
         '<td>' + (i.ultimoResultado === 'REPROVADO' && !x.vencimento
           ? '<span class="etiqueta erro">reprovada</span>'

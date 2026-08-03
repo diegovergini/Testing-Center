@@ -274,7 +274,8 @@
         certificado: '',
         laboratorio: '',
         observacao: '',
-        historico: []
+        historico: [],
+        documentos: []
       };
     });
   };

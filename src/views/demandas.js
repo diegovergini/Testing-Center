@@ -48,6 +48,16 @@
     return texto + '<div style="margin-top:3px">' + etiqueta + '</div>';
   }
 
+  /* O relatório aparece destacado porque é ele que libera "Enviar relatório": quem olha a
+     lista precisa ver de longe a demanda concluída que ainda não tem relatório anexado. */
+  function celulaDocumentos(d) {
+    var docs = d.documentos || [];
+    var contas = TC.documentos.resumo(docs);
+    if (!contas.total) return '<span class="sub">—</span>';
+    return '<span class="etiqueta">' + contas.total + ' anexo' + (contas.total > 1 ? 's' : '') + '</span>' +
+      (contas.RELATORIO ? '<div class="sub">relatório</div>' : '');
+  }
+
   function linha(a, podeEditar, perfil) {
     var transicoes = TC.fluxo.transicoesDe('demanda', a.demanda.status, perfil);
     var d = a.demanda;
@@ -73,6 +83,7 @@
       '<td>' + celulaJanela(a) + '</td>' +
       '<td>' + celulaPrazo(a) + '</td>' +
       '<td class="num forte">' + e(util.formatarMoeda(a.custo.total)) + '</td>' +
+      '<td>' + celulaDocumentos(d) + '</td>' +
       '<td>' + ui.etiquetaStatus(d.status) +
         (d.relatorioCorrecoes
           ? '<div class="sub">' + d.relatorioCorrecoes + ' correção(ões)</div>' : '') + '</td>' +
@@ -129,12 +140,17 @@
         (demanda.dataRelatorio ? ' · relatório validado em ' + e(util.formatarData(demanda.dataRelatorio, true)) : '') +
         (demanda.relatorioCorrecoes ? ' · ' + demanda.relatorioCorrecoes + ' correção(ões)' : '') +
         '<br>A situação muda pelos botões de fluxo na lista de demandas.</p>' +
+      ui.painelDocumentos({
+        registro: demanda, contexto: 'demanda', podeEditar: ctx.podeEditar,
+        rotulo: 'Documentos da demanda'
+      }) +
       ui.historico('demanda', demanda) +
       '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
 
     var janela = ui.modal({
       titulo: 'Editar demanda',
       corpo: corpo,
+      largura: 'min(760px, 100%)',
       confirmar: 'Salvar e replanejar',
       aoConfirmar: function (v) {
         if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
@@ -154,6 +170,12 @@
         });
         ui.notificar('Demanda atualizada e planejamento recalculado.');
       }
+    });
+    /* Anexar grava na hora e redesenha só o painel — a janela segue aberta com o que já
+       estava digitado. Sem o replanejamento do ctx.atualizar(), que fecharia o modal. */
+    ui.ligarDocumentos(janela, {
+      registro: demanda, contexto: 'demanda', podeEditar: ctx.podeEditar,
+      rotulo: 'Documentos da demanda'
     });
     return janela;
   }
@@ -207,7 +229,7 @@
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
           '<th>Procedimento</th><th>Projeto</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
-          '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Status</th><th></th>' +
+          '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Documentos</th><th>Status</th><th></th>' +
           '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar, perfilAtual); }).join('') + '</tbody></table></div>'
           : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
       '</div>';
@@ -262,7 +284,8 @@
   function exportarCsv(lista) {
     var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Revisao', 'Projeto',
       'Part_Number', 'Peca', 'Cliente', 'Prioridade', 'Amostras', 'Equipamentos',
-      'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status'];
+      'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status',
+      'Documentos', 'Link_relatorio'];
     var linhas = lista.map(function (a) {
       return [
         a.demanda.lti || '',
@@ -283,7 +306,9 @@
         a.demanda.prazo || '',
         a.folga === null || a.folga === undefined ? '' : a.folga,
         a.custo.total,
-        a.demanda.status
+        a.demanda.status,
+        (a.demanda.documentos || []).length,
+        (TC.documentos.doTipo(a.demanda.documentos, 'RELATORIO')[0] || {}).link || ''
       ].map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';');
     });
     var conteudo = '﻿' + [cabecalho.join(';')].concat(linhas).join('\n');

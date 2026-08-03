@@ -336,6 +336,7 @@ para quem pediu. Devolver e recusar exigem justificativa.
 | Passagem | Exige |
 |---|---|
 | Concluir ensaio | Data de conclusão — sem ela o teste não entra em nenhum mês do painel |
+| Enviar relatório | O relatório anexado na demanda |
 | Validar relatório | Data de validação pelo cliente |
 | Pedir correção, cancelar, devolver, recusar | Justificativa, que fica no histórico |
 
@@ -345,6 +346,44 @@ ninguém. Aparece no formulário da demanda e no detalhe da cotação.
 
 A situação **não é campo editável**: ela só muda pelos botões do fluxo. Isso impede que
 alguém marque "concluído" sem passar pela execução, e garante que todo avanço deixe rastro.
+
+## Documentos
+
+Demanda e instrumento aceitam documentos anexados. O anexo é uma **referência, não o
+arquivo**: nome, link, quem anexou e quando. O arquivo continua onde a empresa já guarda
+documento — SharePoint, OneDrive, unidade de rede —, que é onde valem o controle de versão
+e a retenção. A plataforma inteira cabe num JSON de poucos MB no navegador; um relatório em
+PDF não caberia.
+
+| Tipo | Janela | Quem costuma anexar |
+|---|---|---|
+| Test input | Demanda | Solicitante — a especificação do que ele quer testar |
+| Relatório de teste | Demanda | Engenheiro de testes |
+| Evidência do ensaio | Demanda | Engenheiro de testes — dados brutos, fotos, aquisição |
+| Certificado de calibração | Calibração | Engenheiro de testes |
+| Outro documento | Ambas | Qualquer um |
+
+O tipo já vem sugerido pelo perfil em uso, mas não bloqueia: quem pode editar a janela pode
+anexar qualquer tipo.
+
+**Enviar relatório exige o relatório anexado.** Sem isso o cliente recebe um status e nada
+para ler, e o indicador de certo da primeira vez passa a contar uma entrega que ninguém
+consegue abrir.
+
+**Só entram links http, https e caminho de rede** (`\\servidor\pasta\arquivo.pdf` ou
+`file://`). Endereço colado sem esquema ganha `https://` quando tem servidor e caminho.
+Qualquer outro esquema é recusado — o link vira `href` numa tela que outra pessoa abre, e
+`javascript:` ali executaria código em vez de abrir documento. Caminho de rede é mostrado
+para copiar, não como link clicável: o navegador bloqueia a navegação de uma página para o
+sistema de arquivos.
+
+Anexar grava na hora, sem esperar o **Salvar** da janela — o documento é do registro, não da
+edição em curso. Remover tira só a referência; o arquivo continua onde estava.
+
+Na janela de **Calibração**, o campo *Link do certificado* do botão **Calibrar** anexa o PDF
+já amarrado àquele registro do histórico, e o número do certificado passa a ser clicável na
+tabela. Link mal colado não derruba o registro da calibração: a calibração aconteceu de todo
+jeito, e a recusa fica anotada na observação.
 
 ## Painel do centro de testes
 
@@ -455,6 +494,7 @@ docs/hospedagem.md    onde hospedar e como controlar acesso (documento para a TI
 src/fluxo.js          os fluxos de demanda e de cotação: estados, quem move e o que exige
 src/manutencao.js     última e próxima manutenção de cada bancada, e o que está vencido
 src/calibracao.js     validade, vencimento e criticidade dos instrumentos
+src/documentos.js     documentos anexados: leitura do link e montagem do registro
 src/kpi.js            os indicadores do painel
 src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
 src/instrumentos-padrao.js  inventário de partida: 229 sensores e instrumentos

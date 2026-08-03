@@ -169,6 +169,125 @@
     return janela;
   }
 
+  /* ---- Documentos anexados -------------------------------------------------------------
+
+     Mesmo painel na demanda e no instrumento: lista o que está anexado e, para quem pode
+     editar, um formulário curto para anexar mais um. Grava direto no store ao anexar, sem
+     esperar o "Salvar" da janela — o documento é do registro, não da edição em curso, e
+     quem fecha a janela no X não espera perder o anexo que acabou de colar.
+
+     Os campos não usam name= de propósito: o modal recolhe todo [name] do formulário e os
+     campos daqui virariam campos do registro que a janela está editando. */
+  function linhaDocumento(documento, podeEditar) {
+    var doc = TC.documentos;
+    var titulo = e(documento.nome || doc.nomeDoLink(documento.link));
+    var alvo = doc.abrePorClique(documento)
+      ? '<a href="' + e(documento.link) + '" target="_blank" rel="noopener noreferrer">' +
+        titulo + '</a>'
+      : '<span title="' + e(documento.link) + '">' + titulo + '</span>';
+
+    return '<div class="linha-selecao" style="display:block" data-documento="' + e(documento.id) + '">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span class="etiqueta marca">' + e(doc.nomeDoTipo(documento.tipo)) + '</span>' +
+        '<span class="forte" style="flex:1;min-width:0;overflow-wrap:anywhere">' + alvo + '</span>' +
+        (podeEditar ? '<button type="button" class="botao pequeno perigo tirar-doc" ' +
+          'title="Remover o anexo">✕</button>' : '') +
+      '</div>' +
+      '<div class="sub mono" style="overflow-wrap:anywhere;margin-top:3px">' + e(documento.link) + '</div>' +
+      '<div class="sub" style="margin-top:2px">' +
+        (documento.local === doc.REDE ? 'caminho de rede — copie e cole no Explorador · ' : '') +
+        'anexado em ' + e(util.formatarData(documento.anexadoEm, true)) +
+        (documento.perfil ? ' por ' + e(TC.permissoes.nomeDoPerfil(documento.perfil)) : '') +
+        (documento.observacao ? ' · ' + e(documento.observacao) : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  /* alvo: { registro, contexto: 'demanda'|'instrumento', podeEditar, rotulo } */
+  function painelDocumentos(alvo) {
+    var doc = TC.documentos;
+    var lista = alvo.registro.documentos || [];
+    var perfil = TC.permissoes.perfilAtual(TC.store.get());
+
+    var formulario = !alvo.podeEditar ? '' :
+      '<div class="grade-campos" style="margin-top:8px">' +
+        '<div class="campo"><label>Tipo</label><select data-doc="tipo">' +
+          opcoes(doc.tipos(alvo.contexto), doc.tipoSugerido(alvo.contexto, perfil)) +
+        '</select></div>' +
+        '<div class="campo"><label>Nome <span class="sub" style="font-weight:400">(opcional)</span></label>' +
+          '<input data-doc="nome" placeholder="Sai do fim do link se ficar vazio"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Link do documento</label>' +
+        '<div style="display:flex;gap:8px">' +
+          '<input data-doc="link" placeholder="https://empresa.sharepoint.com/... ou \\\\servidor\\pasta\\arquivo.pdf">' +
+          '<button type="button" class="botao primario anexar-doc" style="white-space:nowrap">Anexar</button>' +
+        '</div>' +
+        '<p class="sub" style="margin:6px 0 0">O arquivo continua no SharePoint, no OneDrive ' +
+          'ou na rede; a plataforma guarda o endereço, quem anexou e quando.</p>' +
+      '</div>';
+
+    return '<div class="campo" data-painel-documentos style="margin-top:14px">' +
+      '<label>' + e(alvo.rotulo || 'Documentos') + ' (' + lista.length + ')</label>' +
+      (lista.length
+        ? '<div class="lista-selecao" style="max-height:220px">' +
+          lista.map(function (d) { return linhaDocumento(d, alvo.podeEditar); }).join('') + '</div>'
+        : '<p class="sub" style="margin:0">Nenhum documento anexado.</p>') +
+      formulario +
+    '</div>';
+  }
+
+  /* Liga o painel já desenhado. Redesenha só o painel depois de anexar ou remover, para a
+     janela não se fechar nem perder o que a pessoa já digitou nos outros campos. */
+  function ligarDocumentos(raiz, alvo) {
+    var painel = raiz.querySelector('[data-painel-documentos]');
+    if (!painel) return;
+
+    function redesenhar() {
+      var atual = TC.store.get();
+      var lista = alvo.contexto === 'instrumento' ? atual.instrumentos : atual.demandas;
+      var registro = util.porId(lista || [], alvo.registro.id) || alvo.registro;
+      alvo.registro = registro;
+      var novo = el(painelDocumentos(alvo));
+      painel.replaceWith(novo);
+      painel = novo;
+      ligar();
+      if (alvo.aoMudar) alvo.aoMudar(registro);
+    }
+
+    function ligar() {
+      var botao = painel.querySelector('.anexar-doc');
+      if (botao) {
+        var campoLink = painel.querySelector('[data-doc="link"]');
+        botao.onclick = function () {
+          var resultado = TC.store.anexarDocumento(alvo.contexto, alvo.registro.id, {
+            tipo: painel.querySelector('[data-doc="tipo"]').value,
+            nome: painel.querySelector('[data-doc="nome"]').value,
+            link: campoLink.value
+          });
+          if (!resultado.ok) { notificar(resultado.motivo); campoLink.focus(); return; }
+          notificar('Documento anexado.');
+          redesenhar();
+        };
+        /* Enter no campo do link anexa, em vez de disparar o Salvar do modal. */
+        campoLink.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); botao.click(); }
+        });
+      }
+
+      painel.querySelectorAll('[data-documento]').forEach(function (linha) {
+        var tirar = linha.querySelector('.tirar-doc');
+        if (!tirar) return;
+        tirar.onclick = function () {
+          TC.store.removerDocumento(alvo.contexto, alvo.registro.id, linha.dataset.documento);
+          notificar('Documento removido da lista. O arquivo continua onde estava.');
+          redesenhar();
+        };
+      });
+    }
+
+    ligar();
+  }
+
   function etiquetaPrioridade(prioridade) {
     var mapa = { ALTA: 'erro', MEDIA: 'alerta', BAIXA: '' };
     var p = util.porId(TC.data.PRIORIDADES, prioridade);
@@ -247,6 +366,8 @@
     etiquetaEstado: etiquetaEstado,
     historico: historico,
     moverNoFluxo: moverNoFluxo,
+    painelDocumentos: painelDocumentos,
+    ligarDocumentos: ligarDocumentos,
     opcoes: opcoes,
     validarObrigatorios: validarObrigatorios,
     vazio: vazio

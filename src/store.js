@@ -140,7 +140,14 @@
       });
       estado.instrumentosVersao = TC.data.INSTRUMENTOS_VERSAO;
     }
+    /* Documentos entraram depois: demanda e instrumento passam a ter a lista de anexos,
+       vazia para quem já tinha dados salvos. */
+    (estado.demandas || []).forEach(function (d) {
+      if (!Array.isArray(d.documentos)) d.documentos = [];
+    });
+
     estado.instrumentos.forEach(function (i) {
+      if (!Array.isArray(i.documentos)) i.documentos = [];
       if (typeof i.periodicidadeMeses !== 'number') i.periodicidadeMeses = 12;
       if (typeof i.ultimaCalibracao !== 'string') i.ultimaCalibracao = '';
       if (typeof i.proximaCalibracao !== 'string') i.proximaCalibracao = '';
@@ -344,6 +351,7 @@
         dataRelatorio: '',
         relatorioCorrecoes: 0,
         historico: [],
+        documentos: [],
         prazo: dados.prazo || '',
         inicioFixo: dados.inicioFixo || '',
         observacao: dados.observacao || '',
@@ -485,6 +493,26 @@
       i.historico = i.historico || [];
       i.historico.push(registro);
 
+      /* O link do certificado, quando informado, vira documento do instrumento amarrado a
+         este registro — assim o histórico aponta para o PDF que o comprova. Link recusado
+         não derruba o registro da calibração: a calibração aconteceu de todo jeito. */
+      if ((dados.certificadoLink || '').trim()) {
+        var anexo = TC.documentos.criar({
+          tipo: 'CERTIFICADO', link: dados.certificadoLink, refId: registro.id,
+          nome: dados.certificadoNome || (registro.certificado
+            ? 'Certificado ' + registro.certificado : ''),
+          observacao: registro.laboratorio
+        }, TC.permissoes.perfilAtual(estado));
+        if (anexo.ok) {
+          i.documentos = i.documentos || [];
+          i.documentos.push(anexo.documento);
+          registro.documentoId = anexo.documento.id;
+        } else {
+          registro.observacao = (registro.observacao ? registro.observacao + ' ' : '') +
+            '(link do certificado não gravado: ' + anexo.motivo + ')';
+        }
+      }
+
       i.ultimaCalibracao = registro.data;
       i.ultimoResultado = resultado;
       i.certificado = registro.certificado;
@@ -540,6 +568,35 @@
 
       if (aplicados.length) commit();
       return { ok: true, aplicados: aplicados };
+    },
+
+    /* ---- Documentos ----
+
+       O anexo é um link para onde o arquivo já está — SharePoint, OneDrive, rede. Vale
+       para demanda e para instrumento; o resto da regra está em src/documentos.js. */
+    anexarDocumento: function (alvo, registroId, dados) {
+      var lista = alvo === 'instrumento' ? estado.instrumentos : estado.demandas;
+      var registro = util.porId(lista || [], registroId);
+      if (!registro) return { ok: false, motivo: 'Registro não encontrado.' };
+
+      var criado = TC.documentos.criar(dados, TC.permissoes.perfilAtual(estado));
+      if (!criado.ok) return criado;
+
+      registro.documentos = registro.documentos || [];
+      registro.documentos.push(criado.documento);
+      commit();
+      return { ok: true, documento: criado.documento, registro: registro };
+    },
+
+    removerDocumento: function (alvo, registroId, documentoId) {
+      var lista = alvo === 'instrumento' ? estado.instrumentos : estado.demandas;
+      var registro = util.porId(lista || [], registroId);
+      if (!registro) return { ok: false, motivo: 'Registro não encontrado.' };
+      registro.documentos = (registro.documentos || []).filter(function (d) {
+        return d.id !== documentoId;
+      });
+      commit();
+      return { ok: true, registro: registro };
     },
 
     /* ---- Peças ---- */

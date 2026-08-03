@@ -218,6 +218,28 @@ const historico = [];
 arquivos['TC_Historico'] = csv(
   ['Title', 'Tipo', 'Registro', 'Em', 'De', 'Para', 'Perfil', 'Nota'], historico);
 
+/* Documentos anexados às demandas e aos instrumentos. Aqui vai a referência — nome, link e
+   quem anexou —, não o arquivo: ele já está na biblioteca do SharePoint, e é para lá que a
+   coluna Link aponta. */
+const documentos = [];
+[['Demanda', estado.demandas || []], ['Instrumento', estado.instrumentos || []]]
+  .forEach(([alvo, registros]) => {
+    registros.forEach((registro) => {
+      (registro.documentos || []).forEach((d) => {
+        documentos.push({
+          Title: d.id, Alvo: alvo, Registro: registro.numero || registro.id,
+          Tipo: d.tipo, Nome: d.nome, Link: d.link, Local: d.local || '',
+          Calibracao: d.refId || '', AnexadoEm: d.anexadoEm || '', Perfil: d.perfil || '',
+          Observacao: d.observacao || ''
+        });
+      });
+    });
+  });
+arquivos['TC_Documentos'] = csv(
+  ['Title', 'Alvo', 'Registro', 'Tipo', 'Nome', 'Link', 'Local', 'Calibracao', 'AnexadoEm',
+    'Perfil', 'Observacao'],
+  documentos);
+
 fs.mkdirSync(destino, { recursive: true });
 console.log('Origem dos dados: ' + origem);
 Object.keys(arquivos).forEach((nome) => {
