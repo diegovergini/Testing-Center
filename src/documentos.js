@@ -1,34 +1,33 @@
-/* Documentos anexados aos registros da plataforma.
+/* Documents attached to the platform's records.
 
-   O documento aqui é uma referência, não o arquivo: nome, link e quem anexou quando. O
-   arquivo continua onde a empresa já guarda documento — SharePoint, OneDrive, unidade de
-   rede — e é lá que valem o controle de versão e a política de retenção. A plataforma
-   grava tudo num único JSON no navegador (poucos MB no total), então um relatório em PDF
-   não caberia; e o link é exatamente o que vira coluna de lista quando isto migrar para o
-   SharePoint.
+   A document here is a reference, not the file: name, link, and who attached it when. The
+   file stays where the company already keeps documents — SharePoint, OneDrive, network
+   drive — and that is where version control and retention apply. The platform saves
+   everything as a single JSON in the browser (a few MB in total), so a PDF report would not
+   fit; and the link is exactly what becomes a list column when this moves to SharePoint.
 
-   Módulo puro e testado: valida o link, monta o registro e conta o que está anexado. A
-   tela só desenha. */
+   Pure, tested module: it validates the link, builds the record and counts what is
+   attached. The screen only draws. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
 
-  /* Natureza do documento. "perfil" é quem normalmente anexa — serve para a tela sugerir
-     o tipo certo, não para bloquear: quem pode editar a janela pode anexar qualquer um.
-     "contexto" separa o que faz sentido em cada janela. */
+  /* Nature of the document. "perfil" is who usually attaches it — it lets the screen
+     suggest the right type, not block anything: whoever can edit the screen can attach any
+     of them. "contexto" separates what makes sense on each screen. */
   var TIPOS = [
     { id: 'ENTRADA', nome: 'Test input', contexto: 'demanda', perfil: 'PRODUTO',
-      descricao: 'O que o solicitante quer testar: especificação, desenho, condição de ensaio' },
-    { id: 'RELATORIO', nome: 'Relatório de teste', contexto: 'demanda', perfil: 'TESTES',
-      descricao: 'O relatório que vai ao cliente ao fim do ensaio' },
-    { id: 'EVIDENCIA', nome: 'Evidência do ensaio', contexto: 'demanda', perfil: 'TESTES',
-      descricao: 'Dados brutos, fotos, vídeo, aquisição da bancada' },
-    { id: 'CERTIFICADO', nome: 'Certificado de calibração', contexto: 'instrumento', perfil: 'TESTES',
-      descricao: 'O certificado emitido pelo laboratório' },
-    { id: 'OUTRO', nome: 'Outro documento', contexto: 'ambos', perfil: null,
-      descricao: 'Qualquer outro anexo' }
+      descricao: 'What the requester wants tested: specification, drawing, test condition' },
+    { id: 'RELATORIO', nome: 'Test report', contexto: 'demanda', perfil: 'TESTES',
+      descricao: 'The report that goes to the customer at the end of the test' },
+    { id: 'EVIDENCIA', nome: 'Test evidence', contexto: 'demanda', perfil: 'TESTES',
+      descricao: 'Raw data, photos, video, rig acquisition' },
+    { id: 'CERTIFICADO', nome: 'Calibration certificate', contexto: 'instrumento', perfil: 'TESTES',
+      descricao: 'The certificate issued by the laboratory' },
+    { id: 'OUTRO', nome: 'Other document', contexto: 'ambos', perfil: null,
+      descricao: 'Any other attachment' }
   ];
 
   function tipos(contexto) {
@@ -42,8 +41,8 @@
     return t ? t.nome : id;
   }
 
-  /* Tipo sugerido para quem está com a janela aberta: o solicitante anexa test input, o
-     engenheiro de testes anexa relatório. */
+  /* Type suggested for whoever has the screen open: the requester attaches test input, the
+     test engineer attaches the report. */
   function tipoSugerido(contexto, perfil) {
     var candidatos = tipos(contexto).filter(function (t) { return t.perfil === perfil; });
     return (candidatos[0] || tipos(contexto)[0]).id;
@@ -51,37 +50,37 @@
 
   /* --- Link ----------------------------------------------------------------------------
 
-     Só http(s) e caminho de rede entram. A recusa dos demais esquemas não é preciosismo:
-     o link é gravado e depois vira href numa tela que outra pessoa abre, e "javascript:"
-     ou "data:" nesse href executa código no lugar de abrir documento. */
+     Only http(s) and network paths get in. Refusing the other schemes is not fussiness: the
+     link is saved and later becomes an href on a screen someone else opens, and
+     "javascript:" or "data:" in that href runs code instead of opening a document. */
   var ESQUEMAS_WEB = ['http:', 'https:'];
 
   var WEB = 'WEB';
   var REDE = 'REDE';
 
   var MOTIVOS = {
-    SEM_LINK: 'informe o link do documento',
-    ESQUEMA_RECUSADO: 'só entram links http, https ou caminho de rede',
-    INCOMPLETO: 'o link não parece um endereço completo'
+    SEM_LINK: 'enter the document link',
+    ESQUEMA_RECUSADO: 'only http, https or network path links are accepted',
+    INCOMPLETO: 'the link does not look like a complete address'
   };
 
-  /* Devolve { ok, link, local } ou { ok: false, motivo }. O link volta normalizado: um
-     endereço colado sem esquema ("empresa.sharepoint.com/...") ganha https, que é o que a
-     pessoa quis dizer. */
+  /* Returns { ok, link, local } or { ok: false, motivo }. The link comes back normalised:
+     an address pasted without a scheme ("company.sharepoint.com/...") gets https, which is
+     what the person meant. */
   function interpretarLink(texto) {
     var t = String(texto == null ? '' : texto).trim();
-    /* Excel e Outlook colam o endereço entre < >. */
+    /* Excel and Outlook paste the address wrapped in < >. */
     t = t.replace(/^<+/, '').replace(/>+$/, '').trim();
     if (!t) return { ok: false, motivo: 'SEM_LINK' };
 
-    /* Caminho de rede do Windows: \\servidor\pasta\arquivo.pdf */
+    /* Windows network path: \\server\folder\file.pdf */
     if (/^\\\\[^\\]+\\/.test(t)) return { ok: true, link: t, local: REDE };
 
     var comEsquema = /^([a-z][a-z0-9+.-]*):/i.exec(t);
     if (!comEsquema) {
-      /* Sem esquema, exige servidor com ponto e um caminho depois da barra. Só o ponto não
-         serve para decidir: "certificado.pdf" tem a mesma forma de "empresa.com" e é nome
-         de arquivo, não endereço — vira https:// e leva a lugar nenhum. */
+      /* With no scheme, it requires a dotted host and a path after the slash. The dot alone
+         cannot decide: "certificate.pdf" has the same shape as "company.com" and is a file
+         name, not an address — it would become https:// and lead nowhere. */
       if (/^[\w-]+(\.[\w-]+)+\/\S/.test(t)) return { ok: true, link: 'https://' + t, local: WEB };
       return { ok: false, motivo: 'INCOMPLETO' };
     }
@@ -89,21 +88,21 @@
     var esquema = comEsquema[1].toLowerCase() + ':';
     if (esquema === 'file:') return { ok: true, link: t, local: REDE };
     if (ESQUEMAS_WEB.indexOf(esquema) === -1) return { ok: false, motivo: 'ESQUEMA_RECUSADO' };
-    /* "https:" sozinho passa no teste do esquema mas não leva a lugar nenhum. */
+    /* "https:" on its own passes the scheme test but leads nowhere. */
     if (!/^https?:\/\/[^\/\s]+/i.test(t)) return { ok: false, motivo: 'INCOMPLETO' };
     return { ok: true, link: t, local: WEB };
   }
 
-  /* Caminho de rede e file:// não abrem por clique — o navegador bloqueia a navegação de
-     uma página para o sistema de arquivos. A tela mostra o caminho para copiar, então
-     saber disto é decisão de renderização e mora aqui. */
+  /* Network paths and file:// do not open on click — the browser blocks navigation from a
+     page to the file system. The screen shows the path to copy instead, so knowing this is
+     a rendering decision and belongs here. */
   function abrePorClique(documento) {
     return (documento && documento.local) === WEB;
   }
 
-  /* Monta o documento a partir do que a tela coletou. Devolve { ok, documento } ou
-     { ok: false, motivo }. Nome vazio recebe o fim do link, que é quase sempre o nome do
-     arquivo — melhor que obrigar a digitar de novo o que já está no endereço. */
+  /* Builds the document from what the screen collected. Returns { ok, documento } or
+     { ok: false, motivo }. An empty name takes the tail of the link, which is almost always
+     the file name — better than retyping what the address already carries. */
   function criar(dados, perfil, quando) {
     var d = dados || {};
     var lido = interpretarLink(d.link);
@@ -120,7 +119,7 @@
         nome: nome,
         link: lido.link,
         local: lido.local,
-        /* Amarra o documento ao registro de calibração que ele comprova, quando houver. */
+        /* Ties the document to the calibration record it evidences, when there is one. */
         refId: d.refId || '',
         observacao: String(d.observacao == null ? '' : d.observacao).trim(),
         perfil: perfil || '',
@@ -129,12 +128,12 @@
     };
   }
 
-  /* Último pedaço do endereço, sem query nem barra final e com %20 desfeito. */
+  /* Last chunk of the address, without query or trailing slash and with %20 undone. */
   function nomeDoLink(link) {
     var limpo = String(link).split(/[?#]/)[0].replace(/[\/\\]+$/, '');
     var partes = limpo.split(/[\/\\]/);
     var fim = partes[partes.length - 1] || limpo;
-    try { fim = decodeURIComponent(fim); } catch (erro) { /* link com % solto fica como está */ }
+    try { fim = decodeURIComponent(fim); } catch (erro) { /* a stray % is left as it is */ }
     return fim || limpo;
   }
 
@@ -146,7 +145,7 @@
     return doTipo(documentos, tipo).length > 0;
   }
 
-  /* Contagem por tipo para o rodapé da janela e para a coluna da lista. */
+  /* Count per type, for the screen footer and for the list column. */
   function resumo(documentos) {
     var contas = { total: (documentos || []).length };
     TIPOS.forEach(function (t) { contas[t.id] = doTipo(documentos, t.id).length; });

@@ -1,14 +1,18 @@
-/* Utilitários gerais: datas (sempre em UTC, formato ISO YYYY-MM-DD), moeda e DOM. */
+/* General helpers: dates (always UTC, ISO YYYY-MM-DD), currency and DOM.
+
+   Dates are shown as "26 Jul 2026", never 26/07 or 07/26: the platform runs in English for
+   a Brazilian team, and a numeric month is read one way by each of them. The month name
+   removes the ambiguity at the cost of two characters. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
 
   var MS_DIA = 86400000;
-  var NOMES_DIA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  var NOMES_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var NOMES_DIA = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var NOMES_MES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  /* Converte 'YYYY-MM-DD' em Date UTC à meia-noite. */
+  /* Turns 'YYYY-MM-DD' into a UTC Date at midnight. */
   function paraData(iso) {
     var p = String(iso).slice(0, 10).split('-');
     return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
@@ -38,40 +42,41 @@
     return diffDias(a, b) > 0 ? b : a;
   }
 
-  /* '2026-07-26' -> '26/jul' ou '26/07/2026' quando completo. */
+  /* '2026-07-26' -> '26 Jul', or '26 Jul 2026' when complete. */
   function formatarData(iso, completo) {
     if (!iso) return '—';
     var d = paraData(iso);
-    if (completo) {
-      return String(d.getUTCDate()).padStart(2, '0') + '/' +
-        String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + d.getUTCFullYear();
-    }
-    return String(d.getUTCDate()).padStart(2, '0') + '/' + NOMES_MES[d.getUTCMonth()];
+    var curto = String(d.getUTCDate()).padStart(2, '0') + ' ' + NOMES_MES[d.getUTCMonth()];
+    return completo ? curto + ' ' + d.getUTCFullYear() : curto;
   }
 
-  /* Valores de catálogo e totais são lidos em milhares: centavos só poluem. A exceção é
-     o hourly rate, que é negociado com centavos — daí o parâmetro. */
+  /* Catalogue values and totals are read in thousands: cents only add noise. The exception
+     is the hourly rate, negotiated down to cents — hence the parameter.
+
+     The currency stays BRL, which is what the test centre charges in, but the grouping is
+     the English one: "R$ 3,800" in a page that reads "R$ 3.800" would be taken for three
+     point eight by half the people opening it. */
   function formatarMoeda(valor, casas) {
     var decimais = casas || 0;
-    return 'R$ ' + Number(valor || 0).toLocaleString('pt-BR', {
+    return 'R$ ' + Number(valor || 0).toLocaleString('en-US', {
       minimumFractionDigits: decimais,
       maximumFractionDigits: decimais
     });
   }
 
-  /* Hourly rate: sempre com centavos. */
+  /* Hourly rate: always with cents. */
   function formatarTaxa(valor) {
     return formatarMoeda(valor, 2);
   }
 
-  /* Horas -> '72 h (3 d)' para leitura rápida no catálogo. */
+  /* Hours -> '72 h (3 d)', for quick reading in the catalogue. */
   function formatarHoras(horas) {
     if (horas < 24) return horas + ' h';
     var dias = horas / 24;
     return horas + ' h (' + (Math.round(dias * 10) / 10) + ' d)';
   }
 
-  /* Corta um texto longo para caber numa célula, preservando a leitura. */
+  /* Trims a long text to fit a table cell without breaking the reading. */
   function recortar(texto, limite) {
     var t = String(texto == null ? '' : texto);
     return t.length > limite ? t.slice(0, limite - 1).trimEnd() + '…' : t;

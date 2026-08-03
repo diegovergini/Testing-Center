@@ -133,7 +133,7 @@ test('relatório só é enviado depois de anexado', () => {
 
   const semRelatorio = store.moverDemanda(d.id, 'RELATORIO_ENVIADO');
   assert.equal(semRelatorio.ok, false);
-  assert.match(semRelatorio.motivo, /Relatório de teste/);
+  assert.match(semRelatorio.motivo, /Test report/);
   assert.equal(util.porId(store.get().demandas, d.id).status, 'CONCLUIDA', 'não passou');
 
   /* Test input anexado não serve: o que a passagem exige é o relatório. */
@@ -159,7 +159,7 @@ test('o link do certificado vira documento amarrado à calibração', () => {
   const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
   assert.equal(i.documentos.length, 1);
   assert.equal(i.documentos[0].tipo, 'CERTIFICADO');
-  assert.equal(i.documentos[0].nome, 'Certificado RBC-2026-0481');
+  assert.equal(i.documentos[0].nome, 'Certificate RBC-2026-0481');
   assert.equal(i.documentos[0].refId, r.registro.id, 'aponta para a calibração que comprova');
   assert.equal(r.registro.documentoId, i.documentos[0].id);
 });
@@ -176,7 +176,7 @@ test('link ruim não derruba o registro da calibração', () => {
   const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
   assert.equal(i.ultimaCalibracao, '2026-07-10');
   assert.equal(i.documentos.length, 0);
-  assert.match(r.registro.observacao, /link do certificado não gravado/);
+  assert.match(r.registro.observacao, /certificate link not saved/);
 });
 
 /* ---- Dados salvos antes dos documentos ---- */

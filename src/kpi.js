@@ -211,7 +211,7 @@
 
   function custoPorProjeto(estado, plano) {
     return agruparCusto(confirmadas(estado, plano), function (a) {
-      return (a.demanda.projeto || '').trim() || 'Sem projeto';
+      return (a.demanda.projeto || '').trim() || 'No project';
     });
   }
 

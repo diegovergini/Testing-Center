@@ -1,14 +1,13 @@
-/* Exporta o estado da plataforma como CSVs, um por lista do SharePoint.
-   Uso: node ferramentas/exportar-listas.js [arquivo-de-backup.json]
+/* Exports the platform state as CSVs, one per SharePoint list.
+   Usage: node ferramentas/exportar-listas.js [backup-file.json]
 
-   Sem argumento, usa dados/instantaneo.json; sem esse arquivo, o catálogo de partida.
-   Os CSVs saem em dist/listas/ com BOM UTF-8, para o Excel e o SharePoint lerem os
-   acentos corretamente.
+   With no argument it uses dados/instantaneo.json; without that file, the seed catalogue.
+   The CSVs go to dist/listas/ with a UTF-8 BOM, so Excel and SharePoint read accents
+   correctly.
 
-   Campos de múltiplos valores (os clientes que exigem um procedimento, os grupos de
-   equipamento que ele ocupa) vão numa única coluna de texto separados por ponto e
-   vírgula — é o formato que a coluna "Várias linhas de texto" do SharePoint aceita sem
-   exigir uma lista de relacionamento para cada um. */
+   Multi-value fields (the customers that require a procedure, the equipment groups it
+   occupies) go into a single text column separated by semicolons — the format SharePoint's
+   "Multiple lines of text" column accepts without demanding a lookup list for each one. */
 const fs = require('fs');
 const path = require('path');
 
@@ -19,15 +18,15 @@ function carregarEstado() {
   const informado = process.argv[2];
   const instantaneo = path.join(raiz, 'dados', 'instantaneo.json');
   const arquivo = informado || (fs.existsSync(instantaneo) ? instantaneo : null);
-  if (!arquivo) return { estado: require('../src/data.js').seed(), origem: 'catálogo de partida' };
+  if (!arquivo) return { estado: require('../src/data.js').seed(), origem: 'seed catalogue' };
   const estado = JSON.parse(fs.readFileSync(arquivo, 'utf8'));
   if (!estado.testes || !estado.equipamentos) {
-    throw new Error(arquivo + ' não parece um backup da plataforma.');
+    throw new Error(arquivo + ' does not look like a platform backup.');
   }
   return { estado: estado, origem: path.relative(raiz, arquivo) };
 }
 
-/* Uma célula CSV só precisa de aspas quando contém separador, aspas ou quebra de linha. */
+/* A CSV cell only needs quoting when it holds a separator, a quote or a line break. */
 function celula(valor) {
   if (valor === null || valor === undefined) return '';
   const texto = String(valor);
@@ -41,7 +40,7 @@ function csv(colunas, linhas) {
 }
 
 function simNao(valor) {
-  return valor ? 'Sim' : 'Não';
+  return valor ? 'Yes' : 'No';
 }
 
 function lista(valores) {
@@ -53,198 +52,198 @@ const { estado, origem } = carregarEstado();
 const arquivos = {};
 
 arquivos['TC_Clientes'] = csv(
-  ['Title', 'Nome', 'Segmento'],
-  estado.clientes.map((c) => ({ Title: c.id, Nome: c.nome, Segmento: c.segmento || '' }))
+  ['Title', 'Name', 'Segment'],
+  estado.clientes.map((c) => ({ Title: c.id, Name: c.nome, Segment: c.segmento || '' }))
 );
 
-/* Parâmetros do centro de testes: hoje só o hourly rate, atualizado uma vez por ano. */
+/* Test centre parameters: today only the hourly rate, updated once a year. */
 arquivos['TC_Parametros'] = csv(
-  ['Title', 'Valor', 'Vigencia'],
-  [{ Title: 'HourlyRate', Valor: estado.hourlyRate, Vigencia: estado.hourlyRateVigencia || '' }]
+  ['Title', 'Value', 'InForceFor'],
+  [{ Title: 'HourlyRate', Value: estado.hourlyRate, InForceFor: estado.hourlyRateVigencia || '' }]
 );
 
 arquivos['TC_Equipamentos'] = csv(
-  ['Title', 'Nome', 'Grupo', 'Posicoes', 'Continuo', 'HorasDia', 'DiasUteis'],
+  ['Title', 'Name', 'Group', 'Positions', 'Continuous', 'HoursPerDay', 'OperatingDays'],
   estado.equipamentos.map((eq) => ({
-    Title: eq.id, Nome: eq.nome, Grupo: eq.grupo || eq.nome,
-    Posicoes: eq.posicoes, Continuo: simNao(eq.continuo), HorasDia: eq.horasDia,
-    /* 0 = domingo. Guardado como texto porque o SharePoint não tem coluna de lista de números. */
-    DiasUteis: lista(eq.diasUteis)
+    Title: eq.id, Name: eq.nome, Group: eq.grupo || eq.nome,
+    Positions: eq.posicoes, Continuous: simNao(eq.continuo), HoursPerDay: eq.horasDia,
+    /* 0 = Sunday. Stored as text because SharePoint has no list-of-numbers column. */
+    OperatingDays: lista(eq.diasUteis)
   }))
 );
 
-/* As paradas de manutenção viram uma lista própria: são vários períodos por equipamento.
-   A parada nasce planejada (e já bloqueia a agenda) e é fechada com o registro do que foi
-   feito — é dessa lista que saem a última manutenção e a próxima prevista de cada bancada. */
+/* Maintenance downtime becomes a list of its own: there are several periods per machine.
+   A downtime starts planned (already blocking the calendar) and is closed with the record of
+   what was done — this list is where each rig's last and next maintenance come from. */
 const manutencoes = [];
 estado.equipamentos.forEach((eq) => {
   (eq.manutencao || []).forEach((m) => {
     manutencoes.push({
-      Title: eq.id + ' ' + m.inicio, EquipamentoId: eq.id,
-      Inicio: m.inicio, Fim: m.fim, Tipo: m.tipo || 'PREVENTIVA',
-      Motivo: m.motivo || '', Situacao: m.situacao || 'PLANEJADA',
-      OQueFoiFeito: m.oQueFoiFeito || '', Responsavel: m.responsavel || ''
+      Title: eq.id + ' ' + m.inicio, EquipmentId: eq.id,
+      Start: m.inicio, End: m.fim, Type: m.tipo || 'PREVENTIVA',
+      Reason: m.motivo || '', Status: m.situacao || 'PLANEJADA',
+      WhatWasDone: m.oQueFoiFeito || '', CarriedOutBy: m.responsavel || ''
     });
   });
 });
 arquivos['TC_Manutencoes'] = csv(
-  ['Title', 'EquipamentoId', 'Inicio', 'Fim', 'Tipo', 'Motivo', 'Situacao',
-    'OQueFoiFeito', 'Responsavel'],
+  ['Title', 'EquipmentId', 'Start', 'End', 'Type', 'Reason', 'Status',
+    'WhatWasDone', 'CarriedOutBy'],
   manutencoes);
 
-/* Inventário de instrumentos e sensores. O plano de calibração fica no próprio
-   instrumento (última calibração, periodicidade e vencimento); cada certificado emitido
-   entra em TC_Calibracoes. */
+/* Inventory of instruments and sensors. The calibration plan lives on the instrument
+   itself (last calibration, interval and due date); each certificate issued goes into
+   TC_Calibracoes. */
 arquivos['TC_Instrumentos'] = csv(
-  ['Title', 'CodigoAntigo', 'Nome', 'Setor', 'Local', 'Backup', 'Marca', 'Modelo', 'Serie',
-    'Faixa', 'Resolucao', 'Situacao', 'Ativo', 'PeriodicidadeMeses', 'UltimaCalibracao',
-    'ProximaCalibracao', 'UltimoResultado', 'Certificado', 'Laboratorio', 'Observacao'],
+  ['Title', 'LegacyCode', 'Name', 'Area', 'Location', 'Backup', 'Brand', 'Model', 'Serial',
+    'Range', 'Resolution', 'Status', 'Active', 'IntervalMonths', 'LastCalibration',
+    'NextCalibration', 'LastResult', 'Certificate', 'Laboratory', 'Notes'],
   (estado.instrumentos || []).map((i) => ({
-    Title: i.id, CodigoAntigo: i.codigoAntigo || '', Nome: i.nome, Setor: i.setor || '',
-    Local: i.local || '', Backup: simNao(i.backup), Marca: i.marca || '',
-    Modelo: i.modelo || '', Serie: i.serie || '', Faixa: i.faixa || '',
-    Resolucao: i.resolucao || '', Situacao: i.situacao, Ativo: simNao(i.ativo),
-    PeriodicidadeMeses: i.periodicidadeMeses || 12,
-    UltimaCalibracao: i.ultimaCalibracao || '', ProximaCalibracao: i.proximaCalibracao || '',
-    UltimoResultado: i.ultimoResultado || '', Certificado: i.certificado || '',
-    Laboratorio: i.laboratorio || '', Observacao: i.observacao || ''
+    Title: i.id, LegacyCode: i.codigoAntigo || '', Name: i.nome, Area: i.setor || '',
+    Location: i.local || '', Backup: simNao(i.backup), Brand: i.marca || '',
+    Model: i.modelo || '', Serial: i.serie || '', Range: i.faixa || '',
+    Resolution: i.resolucao || '', Status: i.situacao, Active: simNao(i.ativo),
+    IntervalMonths: i.periodicidadeMeses || 12,
+    LastCalibration: i.ultimaCalibracao || '', NextCalibration: i.proximaCalibracao || '',
+    LastResult: i.ultimoResultado || '', Certificate: i.certificado || '',
+    Laboratory: i.laboratorio || '', Notes: i.observacao || ''
   }))
 );
 
-/* Um registro por certificado: é o histórico que a auditoria pede, e o que permite provar
-   que o instrumento estava dentro da validade na data do ensaio. */
+/* One record per certificate: the history an audit asks for, and what makes it possible to
+   prove the instrument was within validity on the date of the test. */
 const calibracoes = [];
 (estado.instrumentos || []).forEach((i) => {
   (i.historico || []).forEach((c) => {
     calibracoes.push({
-      Title: i.id + ' ' + c.data, InstrumentoId: i.id, Data: c.data,
-      Resultado: c.resultado, ProximaCalibracao: c.proximaCalibracao || '',
-      Certificado: c.certificado || '', Laboratorio: c.laboratorio || '',
-      Responsavel: c.responsavel || '', Observacao: c.observacao || ''
+      Title: i.id + ' ' + c.data, InstrumentId: i.id, Date: c.data,
+      Result: c.resultado, NextCalibration: c.proximaCalibracao || '',
+      Certificate: c.certificado || '', Laboratory: c.laboratorio || '',
+      CarriedOutBy: c.responsavel || '', Notes: c.observacao || ''
     });
   });
 });
 arquivos['TC_Calibracoes'] = csv(
-  ['Title', 'InstrumentoId', 'Data', 'Resultado', 'ProximaCalibracao', 'Certificado',
-    'Laboratorio', 'Responsavel', 'Observacao'],
+  ['Title', 'InstrumentId', 'Date', 'Result', 'NextCalibration', 'Certificate',
+    'Laboratory', 'CarriedOutBy', 'Notes'],
   calibracoes);
 
 arquivos['TC_Pecas'] = csv(
-  ['Title', 'Nome', 'Descricao', 'CustoAmostra'],
+  ['Title', 'Name', 'Description', 'CostPerSample'],
   estado.pecas.map((p) => ({
-    Title: p.id, Nome: p.nome, Descricao: p.descricao || '', CustoAmostra: p.custoAmostra || 0
+    Title: p.id, Name: p.nome, Description: p.descricao || '', CostPerSample: p.custoAmostra || 0
   }))
 );
 
-/* O hourly rate não é coluna do procedimento: é um parâmetro único do centro de testes,
-   na lista TC_Parametros. */
+/* The hourly rate is not a procedure column: it is a single test centre parameter, in the
+   TC_Parametros list. */
 arquivos['TC_Procedimentos'] = csv(
-  ['Title', 'Nome', 'Norma', 'Revisao', 'Area', 'EquipamentoGrupos', 'Clientes',
-    'HorasSetup', 'HorasEnsaio', 'HorasReport', 'Amostras', 'CustoInsumos', 'Descricao'],
+  ['Title', 'Name', 'Standard', 'Revision', 'SystemEnd', 'EquipmentGroups', 'Customers',
+    'SetupHours', 'TestHours', 'ReportingHours', 'Samples', 'ConsumablesCost', 'Description'],
   estado.testes.map((t) => ({
-    Title: t.id, Nome: t.nome, Norma: t.norma || '', Revisao: t.revisao || '',
-    Area: t.area, EquipamentoGrupos: lista(t.equipamentoGrupos), Clientes: lista(t.clientes),
-    HorasSetup: t.horasSetup || 0, HorasEnsaio: t.horasEnsaio || 0, HorasReport: t.horasReport || 0,
-    Amostras: t.amostras || 1, CustoInsumos: t.custoInsumos || 0,
-    Descricao: t.descricao || ''
+    Title: t.id, Name: t.nome, Standard: t.norma || '', Revision: t.revisao || '',
+    SystemEnd: t.area, EquipmentGroups: lista(t.equipamentoGrupos), Customers: lista(t.clientes),
+    SetupHours: t.horasSetup || 0, TestHours: t.horasEnsaio || 0, ReportingHours: t.horasReport || 0,
+    Samples: t.amostras || 1, ConsumablesCost: t.custoInsumos || 0,
+    Description: t.descricao || ''
   }))
 );
 
-/* DataConclusao, DataRelatorio, RelatorioStatus e RelatorioCorrecoes são o registro da
-   execução real — alimentam os indicadores do painel (testes realizados no mês e certo da
-   primeira vez). As quatro últimas colunas são preenchidas pelo motor de planejamento. */
+/* CompletionDate, SignOffDate, Status and ReworkRounds are the record of what actually
+   happened — they feed the dashboard indicators (tests carried out in the month and right
+   first time). The last four columns are filled in by the scheduling engine. */
 arquivos['TC_Demandas'] = csv(
-  ['Title', 'ProcedimentoId', 'PecaId', 'ClienteId', 'Projeto', 'PartNumber', 'LTI', 'TipoLTI',
-    'Prioridade', 'Quantidade', 'DataAmostras', 'Prazo', 'InicioFixo', 'Observacao', 'Status',
-    'DataConclusao', 'DataRelatorio', 'RelatorioCorrecoes',
-    'InicioPlanejado', 'FimPlanejado', 'EquipamentosAlocados', 'MotivoBloqueio'],
+  ['Title', 'ProcedureId', 'PartTypeId', 'CustomerId', 'Project', 'PartNumber', 'LTI', 'LTIClassification',
+    'Priority', 'Quantity', 'SamplesAvailableFrom', 'DueDate', 'ForcedStart', 'Notes', 'Status',
+    'CompletionDate', 'SignOffDate', 'ReworkRounds',
+    'PlannedStart', 'PlannedEnd', 'AllocatedEquipment', 'BlockingReason'],
   (estado.demandas || []).map((d) => ({
-    Title: d.id, ProcedimentoId: d.testeId, PecaId: d.pecaId, ClienteId: d.clienteId,
-    Projeto: d.projeto || '', PartNumber: d.partNumber || '', LTI: d.lti || '',
-    TipoLTI: d.tipoLti, Prioridade: d.prioridade, Quantidade: d.quantidade,
-    DataAmostras: d.dataAmostras || '', Prazo: d.prazo || '', InicioFixo: d.inicioFixo || '',
-    Observacao: d.observacao || '', Status: d.status,
-    DataConclusao: d.dataConclusao || '', DataRelatorio: d.dataRelatorio || '',
-    RelatorioCorrecoes: d.relatorioCorrecoes || 0,
-    InicioPlanejado: '', FimPlanejado: '', EquipamentosAlocados: '', MotivoBloqueio: ''
+    Title: d.id, ProcedureId: d.testeId, PartTypeId: d.pecaId, CustomerId: d.clienteId,
+    Project: d.projeto || '', PartNumber: d.partNumber || '', LTI: d.lti || '',
+    LTIClassification: d.tipoLti, Priority: d.prioridade, Quantity: d.quantidade,
+    SamplesAvailableFrom: d.dataAmostras || '', DueDate: d.prazo || '', ForcedStart: d.inicioFixo || '',
+    Notes: d.observacao || '', Status: d.status,
+    CompletionDate: d.dataConclusao || '', SignOffDate: d.dataRelatorio || '',
+    ReworkRounds: d.relatorioCorrecoes || 0,
+    PlannedStart: '', PlannedEnd: '', AllocatedEquipment: '', BlockingReason: ''
   }))
 );
 
 arquivos['TC_Cotacoes'] = csv(
-  ['Title', 'ClienteId', 'Projeto', 'PartNumber', 'LTI', 'Solicitante', 'PrevisaoExecucao',
-    'Status', 'Observacao', 'CriadoEm'],
+  ['Title', 'CustomerId', 'Project', 'PartNumber', 'LTI', 'RequestedBy', 'PlannedExecution',
+    'Status', 'Notes', 'CreatedOn'],
   (estado.cotacoes || []).map((c) => ({
-    Title: c.numero, ClienteId: c.clienteId, Projeto: c.projeto || '',
-    PartNumber: c.partNumber || '', LTI: c.lti || '', Solicitante: c.solicitante || '',
-    PrevisaoExecucao: c.previsaoExecucao || '', Status: c.status,
-    Observacao: c.observacao || '', CriadoEm: c.criadoEm || ''
+    Title: c.numero, CustomerId: c.clienteId, Project: c.projeto || '',
+    PartNumber: c.partNumber || '', LTI: c.lti || '', RequestedBy: c.solicitante || '',
+    PlannedExecution: c.previsaoExecucao || '', Status: c.status,
+    Notes: c.observacao || '', CreatedOn: c.criadoEm || ''
   }))
 );
 
-/* Os itens guardam o preço congelado no momento da cotação: mudar o catálogo depois não
-   pode reescrever um orçamento já entregue. */
+/* The line items keep the price frozen at the moment of the quote: changing the catalogue
+   later must not rewrite a budget already delivered. */
 const itens = [];
 (estado.cotacoes || []).forEach((c) => {
   (c.itens || []).forEach((i) => {
     itens.push({
-      Title: c.numero + ' / ' + i.testeId, CotacaoNumero: c.numero, ProcedimentoId: i.testeId,
-      Nome: i.nome, Revisao: i.revisao || '', Norma: i.norma || '',
-      HorasFaturaveis: i.horasFaturaveis, HourlyRate: i.hourlyRate,
-      CustoHoras: i.custoHoras, CustoInsumos: i.custoInsumos,
-      CustoUnitario: i.custoUnitario, Amostras: i.amostras, Total: i.total
+      Title: c.numero + ' / ' + i.testeId, QuoteNumber: c.numero, ProcedureId: i.testeId,
+      Name: i.nome, Revision: i.revisao || '', Standard: i.norma || '',
+      BillableHours: i.horasFaturaveis, HourlyRate: i.hourlyRate,
+      HoursCost: i.custoHoras, ConsumablesCost: i.custoInsumos,
+      UnitCost: i.custoUnitario, Samples: i.amostras, Total: i.total
     });
   });
 });
 arquivos['TC_CotacaoItens'] = csv(
-  ['Title', 'CotacaoNumero', 'ProcedimentoId', 'Nome', 'Revisao', 'Norma', 'HorasFaturaveis',
-    'HourlyRate', 'CustoHoras', 'CustoInsumos', 'CustoUnitario', 'Amostras', 'Total'],
+  ['Title', 'QuoteNumber', 'ProcedureId', 'Name', 'Revision', 'Standard', 'BillableHours',
+    'HourlyRate', 'HoursCost', 'ConsumablesCost', 'UnitCost', 'Samples', 'Total'],
   itens
 );
 
-/* Histórico dos fluxos: uma linha por passagem, de demanda e de cotação. É o rastro de
-   quem moveu o quê e quando. */
+/* Workflow history: one row per move, for requests and quotes. It is the trail of who moved
+   what and when. */
 const historico = [];
 [['Demanda', estado.demandas || []], ['Cotacao', estado.cotacoes || []]].forEach(([tipo, lista]) => {
   lista.forEach((registro) => {
     (registro.historico || []).forEach((h, i) => {
       const chave = registro.numero || registro.id;
       historico.push({
-        Title: chave + ' #' + (i + 1), Tipo: tipo, Registro: chave,
-        Em: h.em, De: h.de, Para: h.para, Perfil: h.perfil || '', Nota: h.nota || ''
+        Title: chave + ' #' + (i + 1), Type: tipo, Record: chave,
+        On: h.em, From: h.de, To: h.para, Role: h.perfil || '', Note: h.nota || ''
       });
     });
   });
 });
 arquivos['TC_Historico'] = csv(
-  ['Title', 'Tipo', 'Registro', 'Em', 'De', 'Para', 'Perfil', 'Nota'], historico);
+  ['Title', 'Type', 'Record', 'On', 'From', 'To', 'Role', 'Note'], historico);
 
-/* Documentos anexados às demandas e aos instrumentos. Aqui vai a referência — nome, link e
-   quem anexou —, não o arquivo: ele já está na biblioteca do SharePoint, e é para lá que a
-   coluna Link aponta. */
+/* Documents attached to requests and to instruments. What goes here is the reference —
+   name, link and who attached it — not the file: that already lives in the SharePoint
+   library, and the Link column is what points at it. */
 const documentos = [];
 [['Demanda', estado.demandas || []], ['Instrumento', estado.instrumentos || []]]
   .forEach(([alvo, registros]) => {
     registros.forEach((registro) => {
       (registro.documentos || []).forEach((d) => {
         documentos.push({
-          Title: d.id, Alvo: alvo, Registro: registro.numero || registro.id,
-          Tipo: d.tipo, Nome: d.nome, Link: d.link, Local: d.local || '',
-          Calibracao: d.refId || '', AnexadoEm: d.anexadoEm || '', Perfil: d.perfil || '',
-          Observacao: d.observacao || ''
+          Title: d.id, AttachedTo: alvo, Record: registro.numero || registro.id,
+          Type: d.tipo, Name: d.nome, Link: d.link, Location: d.local || '',
+          CalibrationId: d.refId || '', AttachedOn: d.anexadoEm || '', Role: d.perfil || '',
+          Notes: d.observacao || ''
         });
       });
     });
   });
 arquivos['TC_Documentos'] = csv(
-  ['Title', 'Alvo', 'Registro', 'Tipo', 'Nome', 'Link', 'Local', 'Calibracao', 'AnexadoEm',
-    'Perfil', 'Observacao'],
+  ['Title', 'AttachedTo', 'Record', 'Type', 'Name', 'Link', 'Location', 'CalibrationId', 'AttachedOn',
+    'Role', 'Notes'],
   documentos);
 
 fs.mkdirSync(destino, { recursive: true });
-console.log('Origem dos dados: ' + origem);
+console.log('Data source: ' + origem);
 Object.keys(arquivos).forEach((nome) => {
   const arquivo = path.join(destino, nome + '.csv');
   fs.writeFileSync(arquivo, arquivos[nome]);
   const registros = arquivos[nome].trim().split('\r\n').length - 1;
-  console.log('dist/listas/' + nome + '.csv  ' + registros + ' registro(s)');
+  console.log('dist/listas/' + nome + '.csv  ' + registros + ' record(s)');
 });

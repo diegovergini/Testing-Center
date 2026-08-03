@@ -1,6 +1,6 @@
-/* Peças e amostras: os tipos de peça que o laboratório ensaia.
-   Não pertencem a um cliente nem a uma área — qualquer cliente pode ter amostra de qualquer
-   tipo. A data de chegada das amostras é informada em cada demanda, não aqui. */
+/* Parts and samples: the part types the lab tests.
+   They belong neither to a customer nor to an end — any customer can have a sample of any
+   type. The sample arrival date is given on each request, not here. */
 (function (global) {
   'use strict';
 
@@ -13,27 +13,27 @@
 
     var corpo =
       '<div class="grade-campos">' +
-        '<div class="campo"><label>Tipo de peça</label>' +
-          '<input name="nome" value="' + e(peca.nome) + '" required placeholder="Ex.: Hot End"></div>' +
-        '<div class="campo"><label>Custo por amostra (R$)</label>' +
+        '<div class="campo"><label>Part type</label>' +
+          '<input name="nome" value="' + e(peca.nome) + '" required placeholder="e.g. Hot End"></div>' +
+        '<div class="campo"><label>Cost per sample (R$)</label>' +
           '<input type="number" min="0" step="10" name="custoAmostra" value="' + e(String(peca.custoAmostra || 0)) + '"></div>' +
       '</div>' +
-      '<div class="campo"><label>Descrição</label>' +
-        '<textarea name="descricao" rows="2" placeholder="O que entra neste tipo de peça">' + e(peca.descricao || '') + '</textarea></div>' +
-      (novo ? '' : '<p class="sub" style="margin-bottom:0">Código <span class="mono">' + e(peca.id) + '</span> — ' +
-        'referenciado pelas demandas, não muda.</p>');
+      '<div class="campo"><label>Description</label>' +
+        '<textarea name="descricao" rows="2" placeholder="What goes into this part type">' + e(peca.descricao || '') + '</textarea></div>' +
+      (novo ? '' : '<p class="sub" style="margin-bottom:0">Code <span class="mono">' + e(peca.id) + '</span> — ' +
+        'referenced by the requests, it does not change.</p>');
 
     ui.modal({
-      titulo: novo ? 'Novo tipo de peça' : 'Editar ' + peca.nome,
+      titulo: novo ? 'New part type' : 'Edit ' + peca.nome,
       corpo: corpo,
-      confirmar: 'Salvar peça',
+      confirmar: 'Save part type',
       aoConfirmar: function (v) {
-        if (!v.nome.trim()) { ui.notificar('Informe o tipo de peça.'); return false; }
+        if (!v.nome.trim()) { ui.notificar('Enter the part type.'); return false; }
         TC.store.salvarPeca({
           id: peca.id || undefined, nome: v.nome.trim(), descricao: v.descricao.trim(),
           custoAmostra: Number(v.custoAmostra) || 0
         });
-        ui.notificar('Peça salva.');
+        ui.notificar('Part type saved.');
       }
     });
   }
@@ -75,7 +75,7 @@
         '<td class="num forte">' + e(util.formatarMoeda(u.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
           (podeEditar
-            ? '<button class="botao pequeno editar">Editar</button> ' +
+            ? '<button class="botao pequeno editar">Edit</button> ' +
               '<button class="botao pequeno perigo excluir">✕</button>'
             : '<span class="sub">—</span>') + '</td>' +
       '</tr>';
@@ -83,17 +83,17 @@
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Peças e amostras</h2>' +
-        '<p>Os tipos de peça que o laboratório ensaia. Valem para qualquer cliente — a data de chegada das amostras e o prazo são informados a cada demanda, porque variam por programa.</p></div>' +
-        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="nova">+ Novo tipo de peça</button></div>' : '') +
+        '<div><h2>Parts and samples</h2>' +
+        '<p>The part types the lab tests. They apply to any customer — the sample arrival date and the due date are given on each request, because they vary by programme.</p></div>' +
+        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="nova">+ New part type</button></div>' : '') +
       '</div>' +
       '<div class="cartao">' +
         (estado.pecas.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Tipo de peça</th><th class="num">Custo por amostra</th><th class="num">Ensaios</th>' +
-          '<th class="num">Amostras</th><th class="num">Clientes</th><th>Primeira chegada</th>' +
-          '<th class="num">Custo acumulado</th><th></th>' +
+          '<th>Part type</th><th class="num">Cost per sample</th><th class="num">Tests</th>' +
+          '<th class="num">Samples</th><th class="num">Customers</th><th>First arrival</th>' +
+          '<th class="num">Accumulated cost</th><th></th>' +
           '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
-          : ui.vazio('Nenhum tipo de peça cadastrado', 'Cadastre a peça para poder confirmar testes sobre ela.')) +
+          : ui.vazio('No part type registered', 'Register the part type to be able to confirm tests on it.')) +
       '</div>';
 
     var botaoNova = container.querySelector('#nova');
@@ -105,10 +105,10 @@
       editar.onclick = function () { abrirEdicao(peca); };
       tr.querySelector('.excluir').onclick = function () {
         var usos = estado.demandas.filter(function (d) { return d.pecaId === peca.id; }).length;
-        ui.confirmarAcao('Remover "' + peca.nome + '"?' +
-          (usos ? ' Há ' + usos + ' demanda(s) associada(s), que ficarão sem peça.' : ''), function () {
+        ui.confirmarAcao('Remove "' + peca.nome + '"?' +
+          (usos ? ' There are ' + usos + ' request(s) using it, which will be left without a part type.' : ''), function () {
           TC.store.removerPeca(peca.id);
-          ui.notificar('Peça removida.');
+          ui.notificar('Part type removed.');
         });
       };
     });

@@ -275,7 +275,7 @@
         if (lido && lido.testes && lido.equipamentos) return migrar(lido);
       }
     } catch (e) {
-      console.warn('Não foi possível ler os dados salvos, recomeçando do catálogo padrão.', e);
+      console.warn('Could not read the saved data, starting again from the seed catalogue.', e);
     }
     return TC.data.seed();
   }
@@ -287,7 +287,7 @@
     try {
       if (global.localStorage) global.localStorage.setItem(CHAVE, JSON.stringify(estado));
     } catch (e) {
-      console.warn('Não foi possível salvar no navegador.', e);
+      console.warn('Could not save to the browser.', e);
     }
   }
 
@@ -417,7 +417,7 @@
         id: util.id('MN'),
         inicio: janela.inicio, fim: janela.fim,
         tipo: janela.tipo || 'PREVENTIVA',
-        motivo: janela.motivo || 'Manutenção',
+        motivo: janela.motivo || 'Maintenance',
         situacao: janela.situacao || TC.manutencao.PLANEJADA,
         oQueFoiFeito: janela.oQueFoiFeito || '',
         responsavel: janela.responsavel || ''
@@ -476,8 +476,8 @@
        de prazo, então ele sai de uso até alguém decidir o que fazer. */
     registrarCalibracao: function (instrumentoId, dados) {
       var i = util.porId(estado.instrumentos, instrumentoId);
-      if (!i) return { ok: false, motivo: 'Instrumento não encontrado.' };
-      if (!dados.data) return { ok: false, motivo: 'Informe a data da calibração.' };
+      if (!i) return { ok: false, motivo: 'Instrument not found.' };
+      if (!dados.data) return { ok: false, motivo: 'Enter the calibration date.' };
 
       var resultado = dados.resultado || 'APROVADO';
       var registro = {
@@ -500,7 +500,7 @@
         var anexo = TC.documentos.criar({
           tipo: 'CERTIFICADO', link: dados.certificadoLink, refId: registro.id,
           nome: dados.certificadoNome || (registro.certificado
-            ? 'Certificado ' + registro.certificado : ''),
+            ? 'Certificate ' + registro.certificado : ''),
           observacao: registro.laboratorio
         }, TC.permissoes.perfilAtual(estado));
         if (anexo.ok) {
@@ -509,7 +509,7 @@
           registro.documentoId = anexo.documento.id;
         } else {
           registro.observacao = (registro.observacao ? registro.observacao + ' ' : '') +
-            '(link do certificado não gravado: ' + anexo.motivo + ')';
+            '(certificate link not saved: ' + anexo.motivo + ')';
         }
       }
 
@@ -550,7 +550,7 @@
           certificado: (l.certificado || '').trim(),
           laboratorio: (l.laboratorio || '').trim(),
           proximaCalibracao: '',
-          observacao: l.observacao || 'Lançamento em lote a partir da planilha de calibração.',
+          observacao: l.observacao || 'Bulk entry from the calibration spreadsheet.',
           registradoEm: util.hoje()
         };
         i.historico = i.historico || [];
@@ -562,7 +562,7 @@
         i.periodicidadeMeses = i.periodicidadeMeses || 12;
         i.proximaCalibracao = TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
         /* A situação não muda no lote, ao contrário do registro individual: quem está
-           "em calibração" hoje continua em calibração, mesmo lançando a data anterior. */
+           "being calibrated" hoje continua em calibração, mesmo lançando a data anterior. */
         aplicados.push(i.id);
       });
 
@@ -577,7 +577,7 @@
     anexarDocumento: function (alvo, registroId, dados) {
       var lista = alvo === 'instrumento' ? estado.instrumentos : estado.demandas;
       var registro = util.porId(lista || [], registroId);
-      if (!registro) return { ok: false, motivo: 'Registro não encontrado.' };
+      if (!registro) return { ok: false, motivo: 'Record not found.' };
 
       var criado = TC.documentos.criar(dados, TC.permissoes.perfilAtual(estado));
       if (!criado.ok) return criado;
@@ -591,7 +591,7 @@
     removerDocumento: function (alvo, registroId, documentoId) {
       var lista = alvo === 'instrumento' ? estado.instrumentos : estado.demandas;
       var registro = util.porId(lista || [], registroId);
-      if (!registro) return { ok: false, motivo: 'Registro não encontrado.' };
+      if (!registro) return { ok: false, motivo: 'Record not found.' };
       registro.documentos = (registro.documentos || []).filter(function (d) {
         return d.id !== documentoId;
       });
@@ -710,12 +710,12 @@
        Devolve { ok: true, registro } ou { ok: false, motivo }. */
     moverDemanda: function (id, para, dados) {
       var demanda = util.porId(estado.demandas, id);
-      if (!demanda) return { ok: false, motivo: 'Demanda não encontrada.' };
+      if (!demanda) return { ok: false, motivo: 'Request not found.' };
       return mover('demanda', demanda, para, dados);
     },
     moverCotacao: function (id, para, dados) {
       var cotacao = util.porId(estado.cotacoes, id);
-      if (!cotacao) return { ok: false, motivo: 'Cotação não encontrada.' };
+      if (!cotacao) return { ok: false, motivo: 'Quote not found.' };
       return mover('cotacao', cotacao, para, dados);
     },
 
@@ -725,7 +725,7 @@
     },
     importar: function (texto) {
       var lido = JSON.parse(texto);
-      if (!lido.testes || !lido.equipamentos) throw new Error('Arquivo sem catálogo de testes ou equipamentos.');
+      if (!lido.testes || !lido.equipamentos) throw new Error('File has no test catalogue or equipment.');
       lido.demandas = lido.demandas || [];
       lido.pecas = lido.pecas || [];
       lido.clientes = lido.clientes || [];

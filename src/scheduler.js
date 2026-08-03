@@ -348,7 +348,7 @@
     function processarCotacao(demanda) {
       var base = montarBase(demanda);
       base.cotacao = true;
-      base.motivo = 'Cotação — não ocupa bancada.';
+      base.motivo = 'Quote — takes no rig.';
       if (base.teste && base.grupos.length) {
         /* Estimativa pela primeira unidade de cada grupo, só para dar a duração. */
         base.diasOperacao = diasDeOperacao(base.teste, base.grupos.map(function (g) { return g.membros[0]; }));
@@ -365,17 +365,17 @@
       var teste = base.teste;
 
       if (!teste) {
-        base.motivo = 'Procedimento não encontrado no catálogo.';
+        base.motivo = 'Procedure not found in the catalogue.';
         alocacoes.push(base);
         return;
       }
       if (base.gruposFaltando.length) {
-        base.motivo = 'Grupo de equipamento "' + base.gruposFaltando.join('", "') + '" sem unidade cadastrada.';
+        base.motivo = 'Equipment group "' + base.gruposFaltando.join('", "') + '" has no unit registered.';
         alocacoes.push(base);
         return;
       }
       if (!base.grupos.length) {
-        base.motivo = 'Procedimento sem equipamento definido.';
+        base.motivo = 'Procedure with no equipment defined.';
         alocacoes.push(base);
         return;
       }
@@ -390,9 +390,9 @@
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
-          ? 'Data fixada em ' + util.formatarData(demanda.inicioFixo, true) +
-            ' indisponível em ' + nomesDosGrupos(base.grupos) + '.'
-          : 'Sem janela livre em ' + nomesDosGrupos(base.grupos) + ' dentro do horizonte de planejamento.';
+          ? 'Start pinned to ' + util.formatarData(demanda.inicioFixo, true) +
+            ' unavailable on ' + nomesDosGrupos(base.grupos) + '.'
+          : 'No free slot on ' + nomesDosGrupos(base.grupos) + ' within the planning horizon.';
         base.diasOperacao = diasDeOperacao(teste, base.grupos.map(function (g) { return g.membros[0]; }));
         alocacoes.push(base);
         return;

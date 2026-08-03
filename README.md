@@ -1,514 +1,531 @@
 # Testing Center
 
-Gestão da validação de produto e processo de sistemas de exaustão: catálogo de testes
-físicos com custo e tempo de execução, e planejamento automático da bancada a partir da
-confirmação de necessidade de cada teste.
+Product and process validation management for exhaust systems: a catalogue of physical tests
+with cost and run time, and automatic rig scheduling from the moment the need for each test
+is confirmed.
 
-O ciclo é o seguinte:
+The cycle goes like this:
 
 ```
-Catálogo de testes ──► "Confirmar necessidade" ──► Demanda ──► Planejamento (Gantt)
-   custo e duração         LTI, cliente, peça,       fila por      alocado no equipamento
-   por procedimento        classificação, prazo      prioridade    respeitando as restrições
+Test catalogue ──► "Confirm need" ──► Request ──► Schedule (Gantt)
+  cost and duration    LTI, customer,    queue by     allocated to the machine
+  per procedure        part, class, due  priority     within the constraints
 ```
 
-## Como rodar
+## How to run it
 
-Aplicação estática, sem build e sem dependências:
+A static application, with no build step and no dependencies:
 
 ```bash
 npm run serve        # http://localhost:8080
 ```
 
-Qualquer servidor de arquivos estáticos serve (`python3 -m http.server`, Nginx, GitHub Pages).
-Abrir o `index.html` direto pelo sistema de arquivos também funciona, mas alguns navegadores
-bloqueiam o `localStorage` em `file://` e os dados não persistem — prefira servir por HTTP.
+Any static file server will do (`python3 -m http.server`, Nginx, GitHub Pages). Opening
+`index.html` straight from the file system also works, but some browsers block `localStorage`
+on `file://` and the data does not persist — prefer serving over HTTP.
 
-Testes do motor de planejamento:
+Scheduling engine tests:
 
 ```bash
 npm test
 ```
 
-Gerar os arquivos de distribuição:
+Build the distribution files:
 
 ```bash
 node build.js
 ```
 
-## Publicar para a equipe
+## Publishing for the team
 
-Os dados vivem no `localStorage` **do navegador de cada pessoa**. Hospedar o arquivo, por si
-só, não compartilha nada: dez pessoas abrindo o mesmo endereço veriam dez planejamentos
-independentes. Enquanto não existir servidor, o compartilhamento é feito por instantâneo.
+The data lives in the `localStorage` **of each person's browser**. Hosting the file does not,
+by itself, share anything: ten people opening the same address would see ten independent
+schedules. Until there is a server, sharing is done by snapshot.
 
-1. Quem mantém o centro de testes clica em **Exportar backup** e salva o JSON como
+1. Whoever keeps the test centre clicks **Export backup** and saves the JSON as
    `dados/instantaneo.json`.
-2. `node build.js` gera **`dist/testing-center-equipe.html`** com esses dados embutidos.
-3. Esse arquivo vai para onde a equipe alcança — biblioteca do SharePoint, pasta de rede,
-   servidor web interno. É um HTML único, sem instalação e sem dependência externa.
+2. `node build.js` produces **`dist/testing-center-equipe.html`** with that data embedded.
+3. That file goes wherever the team can reach it — a SharePoint library, a network folder, an
+   internal web server. It is a single HTML file, with no installation and no external
+   dependency.
 
-Na cópia da equipe a aplicação lê do instantâneo embutido, **ignora o `localStorage` e não
-grava nada**: todo mundo vê exatamente os mesmos dados, e a barra lateral mostra a data
-daquele instantâneo para ninguém decidir em cima de um planejamento vencido sem perceber.
-Nenhuma janela é editável — os botões de criar, editar e confirmar necessidade não aparecem,
-e o seletor de perfil continua servindo para escolher o recorte de telas que se quer ver.
+In the team copy the application reads from the embedded snapshot, **ignores `localStorage`
+and writes nothing**: everyone sees exactly the same data, and the sidebar shows that
+snapshot's date so nobody decides on top of a stale schedule without noticing. No screen is
+editable — the create, edit and confirm-need buttons do not appear — and the role selector
+still works for choosing which set of screens to look at.
 
-Atualizar é repetir os três passos. Sem `dados/instantaneo.json` o build sai com o catálogo
-de partida, o que serve para demonstrar a plataforma.
+Updating means repeating the three steps. Without `dados/instantaneo.json` the build ships the
+seed catalogue, which is enough to demonstrate the platform.
 
-O instantâneo carrega dados reais — hora-homem, custo de insumos, demandas e cotações.
-Decida conscientemente se ele deve ser versionado junto com o código ou ficar fora do
-repositório.
+The snapshot carries real data — labour hours, consumables cost, requests and quotes. Decide
+deliberately whether it should be versioned along with the code or kept out of the repository.
 
-Isto é uma etapa, não o destino: um editor e muitos leitores. Vários usuários editando ao
-mesmo tempo exige dados compartilhados, login e permissão de verdade. Dois caminhos avaliados:
+This is a stage, not the destination: one editor and many readers. Several users editing at
+the same time requires shared data, sign-in and real permissions. Two paths were assessed:
 
-* [docs/power-platform.md](docs/power-platform.md) — **o caminho escolhido**: SharePoint Lists
-  como banco, Power App como interface, Office Script com o motor de planejamento atual. Só
-  ferramentas oficiais da empresa, com a área de testes como dona da ferramenta.
-  `node ferramentas/exportar-listas.js` já gera os CSVs de carga das listas.
+* [docs/power-platform.md](docs/power-platform.md) — **the chosen path**: SharePoint Lists as
+  the database, a Power App as the interface, Office Script carrying the current scheduling
+  engine. Company-standard tooling only, with the test area owning the tool.
+  `node ferramentas/exportar-listas.js` already produces the CSVs that load the lists.
 * [docs/hospedagem.md](docs/hospedagem.md) — Azure App Service + Entra ID + PostgreSQL.
-  Tecnicamente melhor, mas depende de provisionamento e de a TI assumir suporte de código.
+  Technically better, but it depends on provisioning and on IT taking on code support.
 
-## As três restrições do planejamento
+## The three scheduling constraints
 
-Quando você confirma a necessidade de um teste, o motor procura a primeira janela livre
-respeitando, nesta ordem:
+When you confirm the need for a test, the engine looks for the first free slot, respecting,
+in this order:
 
-1. **Disponibilidade da peça** — nenhum ensaio começa antes da data de chegada das amostras,
-   informada na própria demanda (o mesmo tipo de peça chega em datas diferentes conforme o
-   cliente e o programa).
-2. **Disponibilidade do equipamento** — cada equipamento tem um número de posições em
-   paralelo, um calendário (dias da semana e horas por dia, ou regime contínuo 24 h) e
-   janelas de manutenção. Um ensaio nunca atravessa uma parada programada. O procedimento
-   pede um **grupo** de bancada, e o planejamento escolhe dentro dele a unidade que libera
-   mais cedo. Um procedimento pode ocupar **mais de um grupo ao mesmo tempo**: aí a janela
-   precisa estar livre em todos simultaneamente, e o ritmo é ditado pela bancada de turno
-   mais curto — 500 h num dinamômetro 24 h/dia levam 21 dias sozinhas, mas 63 se o ensaio
-   também prender uma bancada de 8 h/dia.
-3. **Fila** — demandas são ordenadas por prioridade, depois por prazo do cliente, depois por
-   ordem de criação. Uma demanda com data de início forçada reserva a posição antes de todas.
+1. **Sample availability** — no test starts before the sample arrival date, given on the
+   request itself (the same part type arrives on different dates depending on the customer and
+   the programme).
+2. **Equipment availability** — each machine has a number of parallel positions, a calendar
+   (weekdays and hours per day, or a continuous 24 h regime) and maintenance windows. A test
+   never runs across scheduled downtime. The procedure asks for a rig **group**, and the
+   scheduler picks the unit within it that frees up first. A procedure can occupy **more than
+   one group at once**: then the slot has to be free on all of them simultaneously, and the
+   pace is set by the rig with the shortest shift — 500 h on a 24 h/day dynamometer take 21
+   days on their own, but 63 if the test also holds an 8 h/day rig.
+3. **Queue** — requests are ordered by priority, then by customer due date, then by creation
+   order. A request with a forced start date takes its position ahead of all of them.
 
-A duração em dias sai das horas do procedimento divididas pelo regime do equipamento:
-um ensaio de 72 h ocupa 3 dias numa câmara contínua e 9 dias numa bancada de 8 h/dia.
-Dias não úteis dentro da janela continuam ocupando a posição, porque a peça segue montada.
+Duration in days comes from the procedure hours divided by the equipment regime: a 72 h test
+takes 3 days in a continuous chamber and 9 days on an 8 h/day rig. Non-working days inside the
+window still hold the position, because the part stays mounted.
 
-## Telas
+## Screens
 
-| Tela | Para quê |
+| Screen | What for |
 | --- | --- |
-| **Cotações** | Orçamentos pedidos pela engenharia de produto: escolhe-se os testes, a plataforma monta a tabela de custos, arquiva e exporta em Excel. |
-| **Catálogo de testes** | Todos os procedimentos por área (Hot End / Cold End) e cliente, com revisão vigente, horas de bancada e custo estimado. É daqui que se confirma a necessidade de um teste. |
-| **Demandas** | Fila de testes confirmados com o nº da LTI, projeto, part number, a janela calculada, folga contra o prazo, custo e status. Exporta CSV. |
-| **Planejamento** | Gantt por equipamento e posição, com ocupação, paradas de manutenção e destaque para o que fura o prazo. |
-| **Painel** | Custo e horas por cliente, por fase e por área; próximos 30 dias; pontos de atenção. |
-| **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
-| **Equipamentos** | Capacidade instalada: grupo, posições, calendário e paradas. É restrição de agenda, não de custo. |
-| **Peças e amostras** | Os tipos de peça que o laboratório ensaia, com o custo unitário da amostra e o consumo acumulado. |
-| **Calibração** | Inventário de sensores e instrumentos, validade de cada calibração, o que vence no mês e o que já venceu estando em uso. |
-| **Perfis e permissões** | Matriz de quem vê e quem edita cada janela. |
+| **Quotes** | Budgets asked for by product engineering: pick the tests, the platform builds the cost table, archives it and exports it to Excel. |
+| **Test catalogue** | Every procedure by system end (Hot End / Cold End) and customer, with its current revision, rig hours and estimated cost. This is where the need for a test is confirmed. |
+| **Requests** | The queue of confirmed tests with the LTI number, project, part number, the computed slot, spare time against the due date, cost and status. Exports CSV. |
+| **Schedule** | A Gantt per machine and position, with utilisation, maintenance downtime and anything past its due date called out. |
+| **Dashboard** | Cost and hours by customer, phase and system end; the next 30 days; points needing attention. |
+| **Customers** | Whoever requires the validation, with required procedures, part types and the cost committed to each one. |
+| **Equipment** | Installed capacity: group, positions, calendar and downtime. A schedule constraint, not a cost one. |
+| **Parts and samples** | The part types the lab tests, with the unit cost per sample and the accumulated consumption. |
+| **Calibration** | The inventory of sensors and instruments, each calibration's validity, what falls due this month and what has already expired while in use. |
+| **Roles and permissions** | The matrix of who sees and who edits each screen. |
 
-## Perfis e permissões
+## Roles and permissions
 
-Dois perfis usam a plataforma:
+Two roles use the platform:
 
-* **Engenheiro de Produto** — cliente interno. Pede cotações e abre demandas de teste. Vê o
-  catálogo e o planejamento, mas não os altera; não acessa cadastros nem os KPIs.
-* **Engenheiro de Testes** — mantém o catálogo e os cadastros, opera o laboratório e
-  acompanha os KPIs. Acessa tudo.
+* **Product Engineer** — the internal customer. Asks for quotes and opens test requests. Sees
+  the catalogue and the schedule but does not change them; has no access to the registers or
+  the KPIs.
+* **Test Engineer** — keeps the catalogue and the registers, runs the lab and follows the
+  KPIs. Has access to everything.
 
-| Janela | Produto | Testes |
+| Screen | Product | Testing |
 | --- | --- | --- |
-| Catálogo de testes | ver | ver + editar |
-| Cotações | ver + editar | ver + editar |
-| Demandas | ver + editar | ver + editar |
-| Planejamento | ver | ver + editar |
-| Painel (KPIs) | — | ver + editar |
-| Clientes, Equipamentos, Peças | — | ver + editar |
-| Perfis e permissões | — | ver + editar |
+| Test catalogue | view | view + edit |
+| Quotes | view + edit | view + edit |
+| Requests | view + edit | view + edit |
+| Schedule | view | view + edit |
+| Dashboard (KPIs) | — | view + edit |
+| Customers, Equipment, Parts | — | view + edit |
+| Roles and permissions | — | view + edit |
 
-A matriz é editável em *Perfis e permissões*, e marcar **editar** liga **ver** junto.
-Quem está sem permissão de edição vê a janela com um selo de somente leitura e sem os
-botões de ação.
+The matrix is editable in *Roles and permissions*, and ticking **edit** turns **view** on with
+it. Anyone without edit permission sees the screen with a read-only badge and no action
+buttons.
 
-> **Isto não é controle de acesso.** Sem servidor, o perfil é uma escolha da própria
-> interface: organiza o trabalho e evita edição acidental, mas quem abrir o console ou o
-> backup JSON alcança tudo. Autenticação de verdade exige um back-end — é a mesma troca do
-> `src/store.js` por uma API descrita em *Dados*.
+> **This is not access control.** With no server, the role is a choice made by the interface
+> itself: it organises the work and prevents accidental edits, but anyone who opens the
+> console or the JSON backup reaches everything. Real authentication needs a back end — the
+> same swap of `src/store.js` for an API described under *Data*.
 
-## Cotações
+## Quotes
 
-O engenheiro de produto informa a LTI, o cliente, o projeto, o part number, o solicitante e
-a previsão de execução; escolhe os procedimentos e, para cada um, quantas amostras vai
-ensaiar. A plataforma monta a tabela com o custo de cada teste — horas, hourly rate,
-insumos, custo unitário, amostras e total — e a soma geral.
+The product engineer enters the LTI, the customer, the project, the part number, who
+requested it and the planned execution date; picks the procedures and, for each one, how many
+samples will be tested. The platform builds the table with the cost of each test — hours,
+hourly rate, consumables, unit cost, samples and total — plus the grand total.
 
-**A quantidade de amostras multiplica o custo do procedimento**, porque cada amostra é uma
-execução na bancada. O campo já vem com o número padrão do procedimento no catálogo.
+**The number of samples multiplies the procedure cost**, because each sample is one run on the
+rig. The field comes pre-filled with the procedure's default from the catalogue.
 
-Como a lista de procedimentos cresce, o quadro *testes a cotar* tem três filtros que se
-combinam: busca livre (nome, código, norma), **cliente** (mostra os procedimentos exigidos
-por ele mais os padrão do laboratório) e **LTI** (mostra os procedimentos já demandados sob
-aquela ordem de serviço). Eles começam neutros, e o que já foi marcado continua visível
-mesmo que o filtro mude — nada sai da conta sem você ver.
+As the list of procedures grows, the *tests to quote* panel has three filters that combine:
+free search (name, code, standard), **customer** (shows the procedures it requires plus the
+lab standards) and **LTI** (shows the procedures already requested under that work order).
+They start neutral, and anything already ticked stays visible even if the filter changes —
+nothing drops out of the total without you seeing it.
 
-Cada cotação recebe um número sequencial (`COT-2026-0001`), fica arquivada na plataforma com
-um status (em elaboração, enviada, aprovada, recusada) e sai em **Excel** (`.xlsx` de
-verdade, gerado sem dependências).
+Each quote gets a sequential number (`COT-2026-0001`), stays archived on the platform with a
+status (draft, sent, approved, declined) and comes out in **Excel** (a real `.xlsx`, generated
+with no dependencies).
 
-**Os preços ficam congelados na cotação.** Mudar o hourly rate no catálogo depois não
-reescreve um orçamento já entregue — a cotação guarda a cópia dos valores do dia em que foi
-gerada, inclusive a revisão do procedimento.
+**Prices are frozen in the quote.** Changing the hourly rate in the catalogue later does not
+rewrite a budget already delivered — the quote keeps a copy of the values of the day it was
+generated, procedure revision included.
 
-## Fases de projeto
+## Project phases
 
-São três: **DV** (Design Validation), **PV** (Process Validation) e **VAVE** (revalidação
-após mudança de material, processo ou custo).
+There are three: **DV** (Design Validation), **PV** (Process Validation) and **VAVE**
+(revalidation after a material, process or cost change).
 
-A fase **não** classifica o procedimento — qualquer teste do catálogo pode ser executado em
-qualquer fase. Ela classifica a LTI que abre a demanda.
+The phase does **not** classify the procedure — any test in the catalogue can run in any
+phase. It classifies the LTI that opens the request.
 
-Dados salvos por versões anteriores, que usavam Conceito, PPAP e Série, são convertidos ao
-carregar: Conceito vira DV, PPAP vira PV e Série vira VAVE.
+Data saved by earlier versions, which used Conceito, PPAP and Série, is converted on load:
+Conceito becomes DV, PPAP becomes PV and Série becomes VAVE.
 
-## Catálogo, equipamentos e peças
+## Catalogue, equipment and parts
 
-O catálogo de partida traz os procedimentos por cliente, transcritos da especificação de
-cada um com nome, norma e revisão 1: **11 da GM** (`TP-GM-01` a `TP-GM-11`), **30 da
-Stellantis** (`TP-STL-01` a `TP-STL-30`), **11 da Ford** (`TP-FRD-01` a `TP-FRD-11`) e
-**4 da Volkswagen** (`TP-VW-01` a `TP-VW-04`), **9 da Hyundai** (`TP-HYU-01` a
-`TP-HYU-09`), **4 da RSA** (`TP-RSA-01` a `TP-RSA-04`) e **4 da Nissan**
-(`TP-NIS-01` a `TP-NIS-04`).
-No cadastro de clientes, `CLI-FRD` é a Ford e `CLI-FOR` é a Forvia Faurecia — empresas
-diferentes. Os demais campos — equipamento, horas, hourly rate, insumos, área e amostras —
-chegam em branco para o engenheiro de testes preencher: até isso acontecer o procedimento
-aparece marcado como *sem equipamento* e com custo R$ 0, e uma demanda sobre ele fica
-bloqueada no planejamento com o motivo *procedimento sem equipamento definido*.
+The seed catalogue carries the procedures per customer, transcribed from each one's
+specification with name, standard and revision 1: **11 from GM** (`TP-GM-01` to `TP-GM-11`),
+**30 from Stellantis** (`TP-STL-01` to `TP-STL-30`), **11 from Ford** (`TP-FRD-01` to
+`TP-FRD-11`), **4 from Volkswagen** (`TP-VW-01` to `TP-VW-04`), **9 from Hyundai**
+(`TP-HYU-01` to `TP-HYU-09`), **4 from RSA** (`TP-RSA-01` to `TP-RSA-04`) and **4 from
+Nissan** (`TP-NIS-01` to `TP-NIS-04`).
+In the customer register, `CLI-FRD` is Ford and `CLI-FOR` is Forvia Faurecia — different
+companies. The remaining fields — equipment, hours, hourly rate, consumables, system end and
+samples — arrive blank for the test engineer to fill in: until that happens the procedure
+shows up flagged as *no equipment* with a cost of R$ 0, and a request on it stays blocked in
+the schedule with the reason *procedure with no equipment defined*.
 
-O **catálogo** guarda o procedimento com sua **revisão vigente** (`Rev. 01`), a norma, a área
-do sistema, os equipamentos que ele ocupa, as horas (setup, ensaio e report), o hourly rate e
-o custo de insumos. A revisão acompanha o
-procedimento em toda a aplicação — tabela, demanda, Gantt e CSV — para não restar dúvida sobre
-qual versão foi executada.
+The **catalogue** holds the procedure with its **current revision** (`Rev. 01`), the standard,
+the system end, the equipment it occupies, the hours (setup, test and reporting), the hourly
+rate and the consumables cost. The revision follows the procedure across the whole application
+— table, request, Gantt and CSV — so there is never any doubt about which version was run.
 
-### Manutenção das bancadas
+### Rig maintenance
 
-Cada parada tem duas vidas. Nasce **planejada** — e já bloqueia a agenda, porque nenhum
-ensaio é agendado atravessando uma parada — e é fechada com o **registro do que foi feito**,
-quando passa a **realizada**. Registrar exige a descrição: é o histórico da bancada.
+Each downtime has two lives. It starts **planned** — and already blocks the calendar, because
+no test is scheduled across downtime — and is closed with the **record of what was done**, at
+which point it becomes **carried out**. Recording requires the description: it is the rig's
+history.
 
-A tela de Equipamentos mostra, por unidade, a **última manutenção** (data, tipo, há quantos
-dias e o que foi feito) e a **próxima prevista** (data, tipo e em quantos dias). No topo
-aparecem as pendências: paradas com data vencida e sem registro, uma a uma, e uma linha só
-com os equipamentos sem próxima manutenção agendada.
+The Equipment screen shows, per unit, the **last maintenance** (date, type, how many days ago
+and what was done) and the **next planned one** (date, type and in how many days). At the top
+are the outstanding items: downtimes past their date with no record, one by one, and a single
+line with the machines that have no next maintenance scheduled.
 
-Uma parada planejada que venceu **não** vira "a próxima": ela é atraso, e fica separada até
-alguém registrar o que foi feito ou removê-la. As datas podem mudar no registro — manutenção
-raramente termina no dia previsto.
+A planned downtime that has passed does **not** become "the next one": it is overdue, and it
+stays separate until someone records what was done or removes it. The dates can change when
+recording — maintenance rarely ends on the day it was planned to.
 
-### Calibração dos instrumentos
+### Instrument calibration
 
-A janela **Calibração** parte do inventário do centro de testes: **229 instrumentos** —
-acelerômetros, células de carga, termopares, transdutores de pressão, canais de aquisição das
-bancadas — com código, marca, modelo, série, faixa, resolução, posto de uso e a **data da
-última calibração de cada um**, já transcrita da planilha do laboratório.
+The **Calibration** screen starts from the test centre inventory: **229 instruments** —
+accelerometers, load cells, thermocouples, pressure transducers, rig acquisition channels —
+with code, brand, model, serial, range, resolution, station and the **date of each one's last
+calibration**, already transcribed from the laboratory spreadsheet.
 
-A validade sai da **última calibração mais a periodicidade** (12 meses por padrão, ajustável
-por instrumento), salvo quando o certificado traz uma **data própria** — aí é ela que vale.
-Cada instrumento cai em uma de quatro situações de prazo:
+Validity comes from the **last calibration plus the interval** (12 months by default,
+adjustable per instrument), unless the certificate carries a **date of its own** — then that
+one wins. Each instrument falls into one of four due statuses:
 
-* **Vencida** — passou da validade.
-* **A vencer** — vence nos próximos 30 dias; é a fila de quem manda instrumento para o
-  laboratório.
-* **Em dia**.
-* **Sem plano** — ninguém informou ainda quando foi calibrado. Não é o mesmo que vencido: é
-  lacuna de cadastro, e vale para instrumento cadastrado depois do inventário de partida.
+* **Expired** — past its validity.
+* **Due soon** — falls due within the next 30 days; the queue of whoever sends instruments to
+  the laboratory.
+* **In date**.
+* **No plan** — nobody has said when it was last calibrated. Not the same as expired: it is a
+  gap in the register, and it applies to instruments added after the seed inventory.
 
-O topo da tela separa o caso grave: **instrumento vencido e em uso**. Significa ensaio
-rodando com medição fora da validade — é o achado que a auditoria procura. Vencido que está
-como back-up ou fora de uso aparece, mas não no alerta vermelho.
+The top of the screen calls out the serious case: **an instrument expired and in use**. It
+means a test running on an out-of-date measurement — the finding an audit looks for. An
+expired instrument that is a back-up or out of service still shows, but not in the red alert.
 
-**Lançar datas em lote** existe porque são 229 instrumentos: cola-se o recorte da planilha —
-código na primeira coluna, data da última calibração na segunda, certificado e laboratório
-opcionais na terceira e na quarta — e a plataforma confere linha a linha **antes de gravar
-qualquer coisa**. Datas em `31/12/2025` ou `2025-12-31`; o código antigo também é reconhecido.
-O que não dá para lançar aparece com o número da linha e o motivo (código inexistente, data
-impossível, código repetido na colagem) e é ignorado, sem impedir o resto. Uma data lançada
-em lote não muda a situação do instrumento: quem está *em calibração* continua em calibração.
+**Bulk-enter dates** exists because there are 229 instruments: paste the slice of the
+spreadsheet — code in the first column, last calibration date in the second, certificate and
+laboratory optional in the third and fourth — and the platform checks it row by row **before
+saving anything**. Dates as `31/12/2025` or `2025-12-31`; the legacy code is recognised too.
+Whatever cannot be entered shows up with its row number and the reason (code does not exist,
+impossible date, code repeated in the paste) and is ignored, without stopping the rest. A date
+entered in bulk does not change the instrument's condition: whatever is *being calibrated*
+stays being calibrated.
 
-Registrar uma calibração grava data, resultado, certificado, laboratório e responsável, e
-renova a validade. **Reprovado não renova nada**: o instrumento sai de uso e fica sem plano
-até alguém decidir entre ajuste, reparo ou descarte — sem essa regra ele apareceria "em dia"
-justamente por ter sido reprovado. Cada certificado fica no histórico do instrumento.
+Recording a calibration saves the date, result, certificate, laboratory and who carried it
+out, and renews the validity. **A failed calibration renews nothing**: the instrument leaves
+service and is left with no plan until someone decides between adjustment, repair or scrapping
+— without that rule it would show as "in date" precisely because it failed. Every certificate
+stays in the instrument's history.
 
-Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
-LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo e calendário — são
-restrições de agenda, não de custo.
+The **equipment** entries are the lab's real rigs: Burner 1/2/3, Shaker, MTS 1/2/3/4,
+LMS / PTA, ColdFlow and Dynamometer. Each has parallel positions and a calendar — schedule
+constraints, not cost ones.
 
-Unidades que fazem a mesma coisa ficam num **grupo**: `Burner` reúne as três, `MTS` as
-quatro. O procedimento pede o grupo, nunca a unidade — quem escolhe a máquina é o
-planejamento, sempre a que libera mais cedo (empate no início vai para a que termina antes).
-Assim três ensaios de Burner rodam em paralelo nas três unidades, e o quarto emenda na
-primeira que vagar. Uma bancada sem grupo definido forma um grupo só dela.
+Units that do the same thing sit in a **group**: `Burner` gathers the three, `MTS` the four.
+The procedure asks for the group, never the unit — the machine is chosen by the scheduler,
+always the one that frees up first (a tie on the start goes to the one that finishes earlier).
+That way three Burner tests run in parallel on the three units, and the fourth picks up on the
+first one to free. A rig with no group defined forms a group of its own.
 
-Um procedimento pode marcar vários grupos: o ensaio então reserva uma unidade de cada e
-aparece em todas as linhas correspondentes do Gantt.
+A procedure can tick several groups: the test then reserves one unit of each and shows on
+every matching Gantt row.
 
-As **peças** são tipos genéricos — Hot End, Canning, Cold End, Muffler e Component. Não
-pertencem a um cliente nem a uma área: qualquer cliente pode trazer amostra de qualquer tipo.
-Da peça vem só o custo unitário da amostra; a data de chegada é da demanda.
+The **part types** are generic — Hot End, Canning, Cold End, Muffler and Component. They
+belong neither to a customer nor to a system end: any customer can bring a sample of any type.
+Only the unit cost per sample comes from the part type; the arrival date belongs to the
+request.
 
-## LTI (ordem de serviço)
+## LTI (work order)
 
-Toda demanda carrega o número da LTI que a abriu e uma classificação:
+Every request carries the number of the LTI that opened it and a classification:
 
-* **DV, PV ou VAVE** — entra no planejamento normalmente: reserva bancada, disputa fila por
-  prioridade e prazo, e aparece no Gantt.
-* **Cotação** — é orçamento, ainda não é serviço confirmado. O custo e a duração são
-  calculados do mesmo jeito, para dar o valor a cotar, mas a demanda não reserva bancada,
-  não aparece no Gantt e não conta como "sem janela" no painel.
+* **DV, PV or VAVE** — enters the schedule normally: it reserves a rig, competes in the queue
+  by priority and due date, and shows on the Gantt.
+* **Quote** — a budget, not yet confirmed work. Cost and duration are worked out the same way,
+  to give the amount to quote, but the request reserves no rig, does not show on the Gantt and
+  does not count as "no slot" on the dashboard.
 
-Quando uma LTI de cotação vira serviço de fato, basta editar a demanda e trocar a
-classificação para DV, PV ou VAVE — ela entra na fila e recebe uma janela no próximo
-recálculo do planejamento.
+When a quote LTI becomes actual work, edit the request and change the classification to DV, PV
+or VAVE — it joins the queue and gets a slot at the next reschedule.
 
-Além da LTI, a demanda registra o **projeto** e o **part number** da peça ensaiada. O campo
-de projeto sugere os projetos já usados, para o mesmo programa não virar três grafias, e o
-nome do projeto acompanha o procedimento na barra do Gantt.
+Besides the LTI, the request records the **project** and the **part number** of the part
+tested. The project field suggests projects already used, so the same programme does not end
+up spelled three different ways, and the project name follows the procedure on the Gantt bar.
 
-## Campos obrigatórios
+## Required fields
 
-Os dois formulários exigem preenchimento completo, para não entrar demanda nem procedimento
-pela metade:
+Both forms demand to be filled in completely, so that neither a request nor a procedure gets
+in half-done:
 
-* **Novo procedimento** — todos os campos. A única exceção é *exigido pelos clientes*:
-  deixar em branco é o que marca o procedimento como padrão do laboratório, válido para
-  todos os clientes. O código também é verificado contra duplicidade.
-* **Confirmar necessidade de teste** — todos os campos, exceto *forçar início*, que existe
-  justamente para o caso excepcional de fixar uma data na mão.
+* **New procedure** — every field. The only exception is *required by customers*: leaving it
+  blank is what marks the procedure as a lab standard, valid for every customer. The code is
+  also checked against duplicates.
+* **Confirm test need** — every field except *force start*, which exists precisely for the
+  exceptional case of pinning a date by hand.
 
-## Os fluxos
+## The workflows
 
-Duas máquinas de estado em `src/fluxo.js`: quais são os estados, **quem pode mover cada
-passagem** e o que precisa estar preenchido para a passagem valer. A interface só desenha os
-botões que o fluxo autoriza para o perfil em uso — a regra não fica espalhada pelas telas.
+Two state machines in `src/fluxo.js`: which states exist, **who can make each move** and what
+has to be filled in for the move to count. The interface only draws the buttons the workflow
+authorises for the role in use — the rule is not scattered across the screens.
 
-### Demanda de teste
+### Test request
 
 ```
-                    Engenharia de Produto pede
+                    Product Engineering asks
                               │
-        SOLICITADA ──aceite (Testes)──► ACEITA ──início (Testes)──► EM_EXECUCAO
-                                                                          │ conclusão (Testes)
+        SOLICITADA ──accept (Testing)──► ACEITA ──start (Testing)──► EM_EXECUCAO
+                                                                          │ completion (Testing)
                                                                           ▼
-      VALIDADA ◄──validação (Produto)── RELATORIO_ENVIADO ◄──envio (Testes)── CONCLUIDA
+      VALIDADA ◄──sign-off (Product)── RELATORIO_ENVIADO ◄──sent (Testing)── CONCLUIDA
                                               │  ▲
-                             correção (Produto)│  │ reenvio (Testes)
+                             rework (Product) │  │ resend (Testing)
                                               ▼  │
                                           EM_CORRECAO
 ```
 
-**Quem executa não valida o próprio relatório.** Enviar o relatório é do centro de testes;
-validar ou devolver é do cliente interno. Cada devolução conta uma rodada de correção — é daí
-que sai o indicador de certo da primeira vez.
+**Whoever runs the test does not sign off their own report.** Sending the report belongs to
+the test centre; signing it off or sending it back belongs to the internal customer. Each
+return counts one rework round — that is where right first time comes from.
 
-Só **SOLICITADA, ACEITA e EM_EXECUCAO** disputam bancada; o planejamento lê essa lista do
-próprio fluxo. Cancelar é possível até o ensaio terminar: depois disso ele já custou bancada.
+Only **SOLICITADA, ACEITA and EM_EXECUCAO** compete for a rig; the scheduler reads that list
+from the workflow itself. Cancelling is possible until the test finishes: after that it has
+already cost rig time.
 
-### Cotação
+### Quote
 
 ```
-   RASCUNHO ──envio (Produto)──► SOLICITADA ──análise (Testes)──► EM_ANALISE
-                                      ▲                                │
-                    reenvio (Produto) │                                │ validação (Testes)
-                                      └──── DEVOLVIDA ◄────────────────┤
-                                                                       ▼
+   RASCUNHO ──send (Product)──► SOLICITADA ──review (Testing)──► EM_ANALISE
+                                     ▲                                │
+                    resend (Product) │                                │ confirm (Testing)
+                                     └──── DEVOLVIDA ◄────────────────┤
+                                                                      ▼
                                           APROVADA / RECUSADA ◄── VALIDADA
-                                              (Produto decide)
+                                             (Product decides)
 ```
 
-O centro de testes valida o preço, mas **não aprova em nome do cliente**: a decisão volta
-para quem pediu. Devolver e recusar exigem justificativa.
+The test centre confirms the price but **does not approve on the customer's behalf**: the
+decision goes back to whoever asked. Returning and declining require a justification.
 
-### O que cada passagem exige
+### What each move requires
 
-| Passagem | Exige |
+| Move | Requires |
 |---|---|
-| Concluir ensaio | Data de conclusão — sem ela o teste não entra em nenhum mês do painel |
-| Enviar relatório | O relatório anexado na demanda |
-| Validar relatório | Data de validação pelo cliente |
-| Pedir correção, cancelar, devolver, recusar | Justificativa, que fica no histórico |
+| Complete test | The completion date — without it the test enters no month on the dashboard |
+| Send report | The report attached to the request |
+| Sign off report | The customer sign-off date |
+| Request rework, cancel, return, decline | A justification, which goes into the history |
 
-**Histórico por registro.** Cada passagem grava uma linha com data, de/para, perfil e
-observação. É o que permite auditar uma demanda meses depois sem depender da memória de
-ninguém. Aparece no formulário da demanda e no detalhe da cotação.
+**History per record.** Each move saves a line with the date, from/to, role and note. It is
+what makes a request auditable months later without relying on anyone's memory. It shows on
+the request form and in the quote detail.
 
-A situação **não é campo editável**: ela só muda pelos botões do fluxo. Isso impede que
-alguém marque "concluído" sem passar pela execução, e garante que todo avanço deixe rastro.
+The status is **not an editable field**: it only changes through the workflow buttons. That
+stops anyone marking something "completed" without going through execution, and guarantees
+every step leaves a trail.
 
-## Documentos
+## Documents
 
-Demanda e instrumento aceitam documentos anexados. O anexo é uma **referência, não o
-arquivo**: nome, link, quem anexou e quando. O arquivo continua onde a empresa já guarda
-documento — SharePoint, OneDrive, unidade de rede —, que é onde valem o controle de versão
-e a retenção. A plataforma inteira cabe num JSON de poucos MB no navegador; um relatório em
-PDF não caberia.
+Requests and instruments accept attached documents. An attachment is a **reference, not the
+file**: name, link, who attached it and when. The file stays where the company already keeps
+documents — SharePoint, OneDrive, a network drive — which is where version control and
+retention apply. The whole platform fits in a JSON of a few MB in the browser; a PDF report
+would not.
 
-| Tipo | Janela | Quem costuma anexar |
+| Type | Screen | Who usually attaches it |
 |---|---|---|
-| Test input | Demanda | Solicitante — a especificação do que ele quer testar |
-| Relatório de teste | Demanda | Engenheiro de testes |
-| Evidência do ensaio | Demanda | Engenheiro de testes — dados brutos, fotos, aquisição |
-| Certificado de calibração | Calibração | Engenheiro de testes |
-| Outro documento | Ambas | Qualquer um |
+| Test input | Request | The requester — the specification of what they want tested |
+| Test report | Request | Test engineer |
+| Test evidence | Request | Test engineer — raw data, photos, rig acquisition |
+| Calibration certificate | Calibration | Test engineer |
+| Other document | Both | Anyone |
 
-O tipo já vem sugerido pelo perfil em uso, mas não bloqueia: quem pode editar a janela pode
-anexar qualquer tipo.
+The type comes pre-suggested from the role in use, but it does not block: whoever can edit the
+screen can attach any type.
 
-**Enviar relatório exige o relatório anexado.** Sem isso o cliente recebe um status e nada
-para ler, e o indicador de certo da primeira vez passa a contar uma entrega que ninguém
-consegue abrir.
+**Sending the report requires the report to be attached.** Without it the customer gets a
+status and nothing to read, and right first time starts counting a delivery nobody can open.
 
-**Só entram links http, https e caminho de rede** (`\\servidor\pasta\arquivo.pdf` ou
-`file://`). Endereço colado sem esquema ganha `https://` quando tem servidor e caminho.
-Qualquer outro esquema é recusado — o link vira `href` numa tela que outra pessoa abre, e
-`javascript:` ali executaria código em vez de abrir documento. Caminho de rede é mostrado
-para copiar, não como link clicável: o navegador bloqueia a navegação de uma página para o
-sistema de arquivos.
+**Only http, https and network path links get in** (`\\server\folder\file.pdf` or `file://`).
+An address pasted with no scheme gets `https://` when it has a host and a path. Any other
+scheme is refused — the link becomes an `href` on a screen someone else opens, and
+`javascript:` there would run code instead of opening a document. A network path is shown to
+be copied, not as a clickable link: the browser blocks navigation from a page to the file
+system.
 
-Anexar grava na hora, sem esperar o **Salvar** da janela — o documento é do registro, não da
-edição em curso. Remover tira só a referência; o arquivo continua onde estava.
+Attaching saves at once, without waiting for the screen's **Save** — the document belongs to
+the record, not to the edit in progress. Removing takes away only the reference; the file
+stays where it was.
 
-Na janela de **Calibração**, o campo *Link do certificado* do botão **Calibrar** anexa o PDF
-já amarrado àquele registro do histórico, e o número do certificado passa a ser clicável na
-tabela. Link mal colado não derruba o registro da calibração: a calibração aconteceu de todo
-jeito, e a recusa fica anotada na observação.
+On the **Calibration** screen, the *Certificate link* field of the **Calibrate** button
+attaches the PDF already tied to that history record, and the certificate number becomes
+clickable in the table. A badly pasted link does not bring down the calibration record: the
+calibration happened anyway, and the refusal is noted in the observation.
 
-## Painel do centro de testes
+## Test centre dashboard
 
-Os indicadores de gestão, com um seletor de mês de referência. As contas ficam em
-`src/kpi.js` — módulo puro, coberto por testes, para nenhuma definição de KPI ficar
-escondida dentro de HTML.
+The management indicators, with a reference-month selector. The arithmetic lives in
+`src/kpi.js` — a pure module covered by tests, so that no KPI definition ends up hidden inside
+HTML.
 
-| Indicador | Como é medido |
+| Indicator | How it is measured |
 |---|---|
-| **Testes realizados no mês** | Demandas concluídas cuja **data de conclusão** cai no mês |
-| **Horas de bancada no mês** | Horas que o planejamento reservou no mês, contra a capacidade do parque |
-| **Certo da primeira vez** | Relatórios validados pelo cliente no mês **sem nenhuma rodada de correção** |
-| **Planejado no ano** | Custo e horas dos ensaios cuja janela começa no ano |
-| **Ocupação por equipamento** | Por unidade: horas planejadas ÷ horas que aquela bancada tem no mês |
-| **Custo por projeto / por cliente** | Todo serviço confirmado, executado ou não; cotação fica de fora |
+| **Tests carried out in the month** | Completed requests whose **completion date** falls in the month |
+| **Rig hours in the month** | Hours the schedule reserved in the month, against the fleet capacity |
+| **Right first time** | Reports signed off by the customer in the month **with no rework round** |
+| **Scheduled in the year** | Cost and hours of the tests whose slot starts in the year |
+| **Utilisation by equipment** | Per unit: hours scheduled ÷ hours that rig has in the month |
+| **Cost by project / by customer** | Every confirmed job, run or not; quotes stay out |
 
-Três decisões que valem registro:
+Three decisions worth recording:
 
-**Ensaio que atravessa o mês é rateado.** Um ensaio de 47 dias no Burner não joga 1.113 h
-em um mês só: as horas são distribuídas pelos dias de operação que caem em cada mês.
+**A test that spans a month boundary is apportioned.** A 47-day test on the Burner does not
+dump 1,113 h into a single month: the hours are spread across the operating days that fall in
+each month.
 
-**Ensaio que ocupa duas bancadas conta nas duas.** É o que acontece de fato com a agenda
-delas — as duas ficam presas o mesmo tempo.
+**A test that occupies two rigs counts on both.** That is what actually happens to their
+calendars — both are held for the same time.
 
-**Capacidade desconta manutenção.** As horas disponíveis do mês são dias em que a bancada
-opera, menos as paradas programadas, vezes o turno, vezes as posições em paralelo.
+**Capacity subtracts maintenance.** The month's available hours are the days the rig operates,
+minus scheduled downtime, times the shift, times the parallel positions.
 
-O painel soma o que já foi executado: demanda concluída sai do planejamento (não disputa
-mais bancada), mas continua no custo por projeto e por cliente.
+The dashboard adds up what has already been run: a completed request leaves the schedule (it
+no longer competes for a rig) but stays in the cost by project and by customer.
 
-### De onde vêm os dados do painel
+### Where the dashboard data comes from
 
-Do fluxo. As datas de conclusão e de validação são pedidas na própria passagem de estado, e
-as rodadas de correção são contadas automaticamente a cada devolução — ninguém digita um
-indicador à mão.
+From the workflow. The completion and sign-off dates are asked for in the state move itself,
+and the rework rounds are counted automatically at each return — nobody types an indicator by
+hand.
 
-Sem data de conclusão, um teste executado não pode ser atribuído a mês nenhum. O painel não
-chuta: mostra um aviso com as LTIs pendentes de preenchimento.
+Without a completion date, a test that was run cannot be assigned to any month. The dashboard
+does not guess: it shows a warning with the LTIs still to be filled in.
 
-## Modelo de custo
-
-```
-custo do procedimento = (horas de setup + ensaio + report) × hourly rate
-                      + custo de insumos
-
-custo da demanda      = custo do procedimento
-                      + amostras × custo unitário da peça
-```
-
-**O hourly rate é um valor só, do centro de testes**, não um campo de cada procedimento: ele
-não varia por ensaio, só é reajustado uma vez por ano. Fica no estado da aplicação
-(`hourlyRate` e `hourlyRateVigencia`) e se altera num campo único, no indicador *Hourly rate*
-do catálogo — o reajuste reprecifica os 73 procedimentos de uma vez. É a taxa cheia do
-laboratório, e por isso o equipamento não tem custo-hora próprio: a mesma hora não pode ser
-cobrada duas vezes.
-
-Horas e custo de insumos ficam no procedimento; o custo unitário da amostra, no tipo de peça.
-
-**Cotação arquivada não é reprecificada.** Cada item guarda o hourly rate do dia em que foi
-cotado, então o reajuste do ano seguinte não reescreve orçamento já entregue.
-
-**Horas de report contam no custo, mas não na agenda.** Elaborar o relatório é trabalho de
-mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é setup + ensaio.
-
-## Dados
-
-O estado fica no `localStorage` do navegador. O catálogo que vem junto (73 procedimentos,
-11 equipamentos, 5 tipos de peça, 9 clientes, 229 instrumentos) é um ponto de partida — tudo é editável pela
-interface.
-
-**Mudança de catálogo.** `TC.data.CATALOGO_VERSAO` marca a versão do catálogo de partida.
-Quando esse número sobe, quem já tinha dados salvos no navegador recebe os procedimentos
-novos na próxima carga (`migrar()` em `src/store.js`):
-
-* **Aditivo, da versão 2 em diante.** Procedimentos que ainda não existem entram; os que já
-  estão no catálogo ficam como estão, com as horas, o hourly rate e a bancada que já foram
-  preenchidos. Nada que o usuário cadastrou é sobrescrito.
-* **Substituição, apenas até a versão 2.** Dados anteriores a ela carregam o catálogo de
-  exemplo, de vários clientes, que sai inteiro; as demandas dos procedimentos que deixaram
-  de existir são descartadas, porque sem procedimento não têm custo nem bancada.
-
-**Inventário de instrumentos.** `TC.data.INSTRUMENTOS_VERSAO` faz o mesmo pelo inventário da
-calibração, sempre de forma aditiva: instrumentos que ainda não existem entram, e o plano já
-preenchido (última calibração, periodicidade, certificado, histórico) nunca é sobrescrito. A
-versão 2 acrescentou a data da última calibração de cada instrumento; quem já tinha dados
-salvos recebe a data só onde ela estava em branco e não havia histórico — quem lançou pela
-plataforma sabe mais do que a planilha.
-
-Em qualquer caso, cotações arquivadas ficam intactas (têm preço congelado) e os cadastros de
-equipamento, peça, cliente e as permissões não são tocados — só o cliente exigido por um
-procedimento novo é acrescentado, se ainda não estiver na lista.
-
-* **Exportar backup** grava um JSON com todo o estado.
-* **Importar backup** restaura esse JSON, inclusive em outra máquina.
-* **Restaurar padrão** volta ao catálogo de partida e apaga as demandas.
-
-Como não há servidor, o backup é o mecanismo de compartilhamento entre pessoas. Se mais de
-um usuário precisar enxergar o mesmo planejamento ao mesmo tempo, o passo natural é trocar
-o `src/store.js` por uma API — o restante do código não depende de onde os dados moram.
-
-## Organização do código
+## Cost model
 
 ```
-index.html            carrega os scripts na ordem; sem bundler
-assets/styles.css     tema claro/escuro
-src/util.js           datas em UTC, moeda, escape de HTML
-docs/hospedagem.md    onde hospedar e como controlar acesso (documento para a TI)
-src/fluxo.js          os fluxos de demanda e de cotação: estados, quem move e o que exige
-src/manutencao.js     última e próxima manutenção de cada bancada, e o que está vencido
-src/calibracao.js     validade, vencimento e criticidade dos instrumentos
-src/documentos.js     documentos anexados: leitura do link e montagem do registro
-src/kpi.js            os indicadores do painel
-src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
-src/instrumentos-padrao.js  inventário de partida: 229 sensores e instrumentos
-src/scheduler.js      motor de alocação e cálculo de custo — sem dependência de DOM
-src/permissoes.js     perfil em uso e o que ele vê/edita
-src/xlsx.js           gerador de .xlsx (ZIP + XML) sem dependências
-src/store.js          estado, persistência e CRUD
-src/ui.js             modal, notificações, etiquetas
-src/views/*.js        uma tela por arquivo
-build.js              gera as versões de arquivo único em dist/
-src/app.js            navegação e recálculo do planejamento
-tests/                testes do motor (node:test)
+procedure cost = (setup + test + reporting hours) × hourly rate
+               + consumables cost
+
+request cost   = procedure cost
+               + samples × unit cost of the part type
 ```
 
-`src/scheduler.js` é puro e roda também no Node, por isso as regras de alocação são
-cobertas por testes: capacidade em paralelo, manutenção, fim de semana, prioridade, prazo,
-início forçado e cálculo de custo.
+**The hourly rate is a single value, belonging to the test centre**, not a field on each
+procedure: it does not vary by test and is only revised once a year. It lives in the
+application state (`hourlyRate` and `hourlyRateVigencia`) and is changed in a single field, on
+the *Hourly rate* tile of the catalogue — one revision reprices all 73 procedures at once. It
+is the lab's full rate, which is why equipment has no hourly cost of its own: the same hour
+cannot be charged twice.
+
+Hours and consumables cost belong to the procedure; the unit cost per sample belongs to the
+part type.
+
+**An archived quote is not repriced.** Each line item keeps the hourly rate of the day it was
+quoted, so next year's revision does not rewrite a budget already delivered.
+
+**Reporting hours count towards cost but not towards the calendar.** Writing the report is
+desk work: it goes on the invoice, it does not hold the rig. What defines the slot on the
+Gantt is setup + test.
+
+## Data
+
+The state lives in the browser's `localStorage`. The catalogue that ships with it (73
+procedures, 11 machines, 5 part types, 9 customers, 229 instruments) is a starting point —
+everything is editable through the interface.
+
+**Catalogue changes.** `TC.data.CATALOGO_VERSAO` marks the version of the seed catalogue. When
+that number goes up, whoever already had data saved in the browser receives the new procedures
+on the next load (`migrar()` in `src/store.js`):
+
+* **Additive, from version 2 on.** Procedures that do not exist yet go in; the ones already in
+  the catalogue stay as they are, with the hours, hourly rate and rig already filled in.
+  Nothing the user registered is overwritten.
+* **Replacement, only up to version 2.** Data older than that carries the multi-customer
+  example catalogue, which goes out whole; requests for procedures that no longer exist are
+  discarded, because without a procedure they have neither cost nor rig.
+
+**Instrument inventory.** `TC.data.INSTRUMENTOS_VERSAO` does the same for the calibration
+inventory, always additively: instruments that do not exist yet go in, and the plan already
+filled in (last calibration, interval, certificate, history) is never overwritten. Version 2
+added each instrument's last calibration date; whoever already had saved data receives the
+date only where it was blank and there was no history — whoever entered it on the platform
+knows more than the spreadsheet does.
+
+Either way, archived quotes stay intact (they have frozen prices) and the equipment, part
+type, customer and permission registers are untouched — only a customer required by a new
+procedure is added, if it is not on the list yet.
+
+* **Export backup** writes a JSON with the whole state.
+* **Import backup** restores that JSON, on another machine as well.
+* **Restore defaults** goes back to the seed catalogue and erases the requests.
+
+Since there is no server, the backup is the mechanism for sharing between people. If more than
+one user needs to see the same schedule at the same time, the natural next step is to swap
+`src/store.js` for an API — the rest of the code does not depend on where the data lives.
+
+## Language
+
+The interface, the seed content and the export headers are in English, the company's official
+language. Instrument codes, brands, models and serial numbers are kept exactly as issued, and
+the procedure names and standards come from each customer's specification.
+
+The code identifiers (`demanda`, `cotacao`, `instrumento`) and the state keys saved in the
+browser (`EM_USO`, `SOLICITADA`, `RELATORIO_ENVIADO`) stay as they are: they are keys, not
+text, and renaming them would break data already saved without changing anything anyone sees.
+
+## Code layout
+
+```
+index.html            loads the scripts in order; no bundler
+assets/styles.css     light/dark theme
+src/util.js           UTC dates, currency, HTML escaping
+docs/hospedagem.md    where to host and how to control access (a document for IT)
+src/fluxo.js          the request and quote workflows: states, who moves them, what they require
+src/manutencao.js     each rig's last and next maintenance, and what is overdue
+src/calibracao.js     instrument validity, due dates and criticality
+src/documentos.js     attached documents: link parsing and record building
+src/kpi.js            the dashboard indicators
+src/data.js           seed catalogue (customers, equipment, tests, part types)
+src/instrumentos-padrao.js  seed inventory: 229 sensors and instruments
+src/scheduler.js      allocation engine and cost calculation — no DOM dependency
+src/permissoes.js     the role in use and what it views/edits
+src/xlsx.js           .xlsx generator (ZIP + XML) with no dependencies
+src/store.js          state, persistence and CRUD
+src/ui.js             modal, toasts, tags
+src/views/*.js        one screen per file
+build.js              produces the single-file versions in dist/
+src/app.js            navigation and schedule recalculation
+tests/                engine tests (node:test)
+```
+
+`src/scheduler.js` is pure and also runs on Node, which is why the allocation rules are
+covered by tests: parallel capacity, maintenance, weekends, priority, due date, forced start
+and cost calculation.

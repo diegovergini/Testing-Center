@@ -263,7 +263,7 @@ test('custo por projeto agrupa e ordena pelo maior', () => {
 test('demanda sem projeto não some do custo, cai em "Sem projeto"', () => {
   const s = estado({ demandas: [demanda({ projeto: '   ' })] });
   const plano = scheduler.planejar(s, SEGUNDA);
-  assert.equal(kpi.custoPorProjeto(s, plano)[0].chave, 'Sem projeto');
+  assert.equal(kpi.custoPorProjeto(s, plano)[0].chave, 'No project');
 });
 
 test('cotação e demanda cancelada ficam fora dos cortes de custo', () => {

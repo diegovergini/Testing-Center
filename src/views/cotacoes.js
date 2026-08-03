@@ -1,13 +1,13 @@
-/* Cotações: o engenheiro de produto escolhe os testes que precisa orçar e a plataforma
-   monta a tabela de custos. A cotação salva guarda os preços congelados — mexer no
-   catálogo depois não pode reescrever um orçamento já entregue. */
+/* Quotes: the product engineer picks the tests to be priced and the platform builds the
+   cost table. A saved quote keeps its prices frozen — touching the catalogue later must not
+   rewrite a quote already delivered. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
-  /* Nome e cor do estado vêm do fluxo, junto das regras de quem pode movê-lo. */
+  /* State name and colour come from the workflow, next to the rules of who can move it. */
   function nomeStatus(id) {
     return TC.fluxo.nomeDoEstado('cotacao', id);
   }
@@ -16,10 +16,10 @@
     return ui.etiquetaEstado('cotacao', id);
   }
 
-  /* Congela o preço de um procedimento no momento da cotação, inclusive o hourly rate
-     vigente: o reajuste do ano seguinte não reescreve um orçamento já entregue.
-     O custo do procedimento é por amostra ensaiada: cada amostra é uma execução, então
-     a quantidade pedida multiplica o unitário. */
+  /* Freezes a procedure's price at the moment of the quote, hourly rate included: next
+     year's revision does not rewrite a quote already delivered.
+     The procedure cost is per sample tested: each sample is one run, so the quantity asked
+     for multiplies the unit price. */
   function montarItem(teste, amostras, hourlyRate) {
     var custo = TC.scheduler.custoCatalogo(teste, hourlyRate);
     var quantidade = Math.max(1, Number(amostras) || 1);
@@ -44,10 +44,10 @@
     return (cotacao.itens || []).reduce(function (soma, i) { return soma + i.total; }, 0);
   }
 
-  /* ---- Tabela de custos, usada na visualização e no Excel ---- */
+  /* ---- Cost table, used on screen and in the Excel export ---- */
 
-  /* Cotações antigas traziam o custo das amostras vindo de uma peça de referência.
-     A coluna só aparece nelas, para o total continuar reconciliando. */
+  /* Older quotes carried a sample cost coming from a reference part type. The column shows
+     up only on those, so the total keeps reconciling. */
   function temCustoDeAmostra(cotacao) {
     return (cotacao.itens || []).some(function (i) { return i.custoAmostras > 0; });
   }
@@ -57,11 +57,11 @@
     var legado = temCustoDeAmostra(cotacao);
     var colunas = legado ? 11 : 10;
     return '<div class="tabela-rolagem"><table><thead><tr>' +
-      '<th>Código</th><th>Procedimento</th><th>Revisão</th>' +
-      '<th class="num">Horas</th><th class="num">R$/h</th><th class="num">Horas × rate</th>' +
-      '<th class="num">Insumos</th>' +
-      (legado ? '<th class="num">Amostras (R$)</th>' : '') +
-      '<th class="num">Custo unitário</th><th class="num">Amostras</th><th class="num">Total</th>' +
+      '<th>Code</th><th>Procedure</th><th>Revision</th>' +
+      '<th class="num">Hours</th><th class="num">R$/h</th><th class="num">Hours × rate</th>' +
+      '<th class="num">Consumables</th>' +
+      (legado ? '<th class="num">Samples (R$)</th>' : '') +
+      '<th class="num">Unit cost</th><th class="num">Samples</th><th class="num">Total</th>' +
       '</tr></thead><tbody>' +
       cotacao.itens.map(function (i) {
         return '<tr>' +
@@ -80,7 +80,7 @@
         '</tr>';
       }).join('') +
       '</tbody><tfoot><tr>' +
-        '<td colspan="' + colunas + '" class="num forte">Total da cotação</td>' +
+        '<td colspan="' + colunas + '" class="num forte">Quote total</td>' +
         '<td class="num forte" style="font-size:15px">' + e(util.formatarMoeda(total)) + '</td>' +
       '</tr></tfoot></table></div>';
   }
@@ -89,21 +89,21 @@
     var cliente = util.porId(estado.clientes, cotacao.clienteId);
 
     var cabecalho = [
-      ['Cotação', cotacao.numero],
+      ['Quote', cotacao.numero],
       ['LTI', cotacao.lti || ''],
-      ['Cliente', cliente ? cliente.nome : cotacao.clienteId],
-      ['Projeto', cotacao.projeto || ''],
+      ['Customer', cliente ? cliente.nome : cotacao.clienteId],
+      ['Project', cotacao.projeto || ''],
       ['Part Number', cotacao.partNumber || ''],
-      ['Solicitante', cotacao.solicitante || ''],
-      ['Previsão de execução', cotacao.previsaoExecucao ? util.formatarData(cotacao.previsaoExecucao, true) : ''],
-      ['Data', util.formatarData(cotacao.criadoEm, true)],
+      ['Requested by', cotacao.solicitante || ''],
+      ['Planned execution', cotacao.previsaoExecucao ? util.formatarData(cotacao.previsaoExecucao, true) : ''],
+      ['Date', util.formatarData(cotacao.criadoEm, true)],
       ['Status', nomeStatus(cotacao.status)],
       []
     ];
 
-    var titulos = ['Código', 'Procedimento', 'Revisão', 'Norma', 'Horas de bancada',
-      'Horas de report', 'Horas faturáveis', 'Hourly rate', 'Custo das horas', 'Insumos',
-      'Custo unitário', 'Amostras', 'Total'];
+    var titulos = ['Code', 'Procedure', 'Revision', 'Standard', 'Rig hours',
+      'Reporting hours', 'Billable hours', 'Hourly rate', 'Hours cost', 'Consumables',
+      'Unit cost', 'Samples', 'Total'];
 
     var linhas = cotacao.itens.map(function (i) {
       return [i.testeId, i.nome, i.revisao, i.norma, i.horasBancada, i.horasReport,
@@ -112,18 +112,18 @@
     });
 
     linhas.push([]);
-    linhas.push(['', 'TOTAL DA COTAÇÃO', '', '', '', '', '', '', '', '', '', '',
+    linhas.push(['', 'QUOTE TOTAL', '', '', '', '', '', '', '', '', '', '',
       totalDaCotacao(cotacao)]);
 
     TC.xlsx.baixar(cotacao.numero + '.xlsx', [{
-      nome: 'Cotação',
+      nome: 'Quote',
       larguras: [14, 42, 10, 24, 16, 16, 16, 12, 16, 12, 16, 10, 16],
       linhas: cabecalho.concat([titulos]).concat(linhas)
     }]);
-    ui.notificar('Excel de ' + cotacao.numero + ' exportado.');
+    ui.notificar('Excel for ' + cotacao.numero + ' exported.');
   }
 
-  /* ---- Visualizar cotação arquivada ---- */
+  /* ---- Viewing an archived quote ---- */
 
   function abrirDetalhe(ctx, cotacao) {
     var estado = ctx.estado;
@@ -138,12 +138,12 @@
         (cotacao.projeto ? ' · ' + e(cotacao.projeto) : '') +
         (cotacao.partNumber ? ' · ' + e(cotacao.partNumber) : '') +
         '<div class="sub" style="margin-top:4px">' +
-          'Solicitante: ' + e(cotacao.solicitante || '—') +
-          ' · emitida em ' + e(util.formatarData(cotacao.criadoEm, true)) +
+          'Requested by: ' + e(cotacao.solicitante || '—') +
+          ' · issued on ' + e(util.formatarData(cotacao.criadoEm, true)) +
           (cotacao.previsaoExecucao
-            ? ' · previsão de execução: ' + e(util.formatarData(cotacao.previsaoExecucao, true))
+            ? ' · planned execution: ' + e(util.formatarData(cotacao.previsaoExecucao, true))
             : '') +
-          '. Preços congelados na data da cotação.' +
+          '. Prices frozen on the quote date.' +
         '</div>' +
       '</div>' +
       (cotacao.observacao ? '<p class="sub">' + e(cotacao.observacao) + '</p>' : '') +
@@ -151,19 +151,19 @@
       ui.historico('cotacao', cotacao);
 
     var janela = ui.modal({
-      titulo: 'Cotação ' + cotacao.numero,
+      titulo: 'Quote ' + cotacao.numero,
       corpo: corpo,
       largura: 'min(1100px, 100%)',
       confirmar: null
     });
 
     var pe = janela.querySelector('.modal-pe');
-    var botaoExcel = ui.el('<button type="button" class="botao" style="margin-right:auto">Exportar Excel</button>');
+    var botaoExcel = ui.el('<button type="button" class="botao" style="margin-right:auto">Export Excel</button>');
     botaoExcel.onclick = function () { exportarExcel(estado, cotacao); };
     pe.insertBefore(botaoExcel, pe.firstChild);
   }
 
-  /* ---- Nova cotação ---- */
+  /* ---- New quote ---- */
 
   function abrirNova(ctx) {
     var estado = ctx.estado;
@@ -177,11 +177,11 @@
     var projetosConhecidos = distintos(
       estado.demandas.concat(estado.cotacoes).map(function (d) { return d.projeto; }));
 
-    /* LTIs já usadas em demandas e cotações viram filtro e sugestão. */
+    /* LTIs already used on requests and quotes become a filter and a suggestion. */
     var ltisConhecidas = distintos(
       estado.demandas.concat(estado.cotacoes).map(function (d) { return d.lti; })).sort();
 
-    /* Testes já demandados sob cada LTI: é o que o filtro por LTI restringe. */
+    /* Tests already requested under each LTI: that is what the LTI filter narrows to. */
     var testesPorLti = {};
     estado.demandas.forEach(function (d) {
       if (!d.lti) return;
@@ -191,37 +191,37 @@
     var clientePadrao = estado.clientes[0] ? estado.clientes[0].id : '';
 
     var corpo =
-      '<p class="sub" style="margin:0 0 12px">Escolha os procedimentos a orçar. O custo de cada um ' +
-        'vem do catálogo e fica congelado nesta cotação.</p>' +
+      '<p class="sub" style="margin:0 0 12px">Pick the procedures to price. The cost of each one ' +
+        'comes from the catalogue and is frozen in this quote.</p>' +
       '<div class="grade-campos">' +
-        '<div class="campo"><label>Nº da LTI</label>' +
-          '<input name="lti" list="ltis-conhecidas" autocomplete="off" placeholder="Ex.: LTI-2026-0142">' +
+        '<div class="campo"><label>LTI no.</label>' +
+          '<input name="lti" list="ltis-conhecidas" autocomplete="off" placeholder="e.g. LTI-2026-0142">' +
           '<datalist id="ltis-conhecidas">' +
             ltisConhecidas.map(function (l) { return '<option value="' + e(l) + '"></option>'; }).join('') +
           '</datalist></div>' +
-        '<div class="campo"><label>Cliente</label><select name="clienteId">' +
+        '<div class="campo"><label>Customer</label><select name="clienteId">' +
           ui.opcoes(estado.clientes, clientePadrao) + '</select></div>' +
-        '<div class="campo"><label>Projeto</label>' +
-          '<input name="projeto" list="projetos-cotacao" autocomplete="off" placeholder="Ex.: MQB-A0 / EA211">' +
+        '<div class="campo"><label>Project</label>' +
+          '<input name="projeto" list="projetos-cotacao" autocomplete="off" placeholder="e.g. MQB-A0 / EA211">' +
           '<datalist id="projetos-cotacao">' +
             projetosConhecidos.map(function (p) { return '<option value="' + e(p) + '"></option>'; }).join('') +
           '</datalist></div>' +
         '<div class="campo"><label>Part Number</label>' +
-          '<input name="partNumber" autocomplete="off" placeholder="Ex.: 04E253011AB"></div>' +
-        '<div class="campo"><label>Solicitante</label>' +
-          '<input name="solicitante" autocomplete="off" placeholder="Quem pediu o orçamento"></div>' +
-        '<div class="campo"><label>Previsão de execução</label>' +
+          '<input name="partNumber" autocomplete="off" placeholder="e.g. 04E253011AB"></div>' +
+        '<div class="campo"><label>Requested by</label>' +
+          '<input name="solicitante" autocomplete="off" placeholder="Who asked for the quote"></div>' +
+        '<div class="campo"><label>Planned execution</label>' +
           '<input type="date" name="previsaoExecucao" value="' + e(util.somaDias(util.hoje(), 30)) + '"></div>' +
       '</div>' +
-      '<div class="campo"><label>Observação</label>' +
-        '<textarea name="observacao" rows="2" placeholder="Contexto do orçamento"></textarea></div>' +
-      '<div class="campo"><label>Testes a cotar</label>' +
+      '<div class="campo"><label>Note</label>' +
+        '<textarea name="observacao" rows="2" placeholder="Context for the quote"></textarea></div>' +
+      '<div class="campo"><label>Tests to quote</label>' +
         '<div class="filtros" style="margin-bottom:8px">' +
-          '<div class="campo busca"><input id="f-teste" placeholder="Buscar por nome, código ou norma"></div>' +
+          '<div class="campo busca"><input id="f-teste" placeholder="Search by name, code or standard"></div>' +
           '<div class="campo"><select id="f-cliente-teste">' +
-            ui.opcoes(estado.clientes, '', 'Todos os clientes') + '</select></div>' +
+            ui.opcoes(estado.clientes, '', 'All customers') + '</select></div>' +
           '<div class="campo"><select id="f-lti-teste">' +
-            '<option value="">Todas as LTIs</option>' +
+            '<option value="">All LTIs</option>' +
             ltisConhecidas.map(function (l) {
               return '<option value="' + e(l) + '">LTI ' + e(l) + '</option>';
             }).join('') +
@@ -236,35 +236,35 @@
                 '<span><span class="mono sub">' + e(t.id) + '</span> ' + e(t.nome) +
                   (t.revisao ? ' <span class="sub">' + e(t.revisao) + '</span>' : '') + '</span>' +
               '</label>' +
-              '<span class="sub" style="white-space:nowrap">' + e(util.formatarMoeda(custo.custoProcedimento)) + ' / amostra</span>' +
+              '<span class="sub" style="white-space:nowrap">' + e(util.formatarMoeda(custo.custoProcedimento)) + ' / sample</span>' +
               '<input type="number" class="qtd" min="1" value="' + (t.amostras || 1) + '" ' +
-                'title="Amostras a ensaiar" style="width:64px" disabled>' +
+                'title="Samples to test" style="width:64px" disabled>' +
             '</div>';
           }).join('') +
         '</div>' +
-        '<div class="sub" style="margin-top:6px">O número à direita é a quantidade de amostras ' +
-          'a ensaiar; ela multiplica o custo do procedimento.</div>' +
+        '<div class="sub" style="margin-top:6px">The number on the right is how many samples ' +
+          'are to be tested; it multiplies the procedure cost.</div>' +
       '</div>' +
       '<div id="resumo-cotacao"></div>';
 
     var janela = ui.modal({
-      titulo: 'Nova cotação',
+      titulo: 'New quote',
       corpo: corpo,
       largura: 'min(920px, 100%)',
-      confirmar: 'Gerar cotação',
+      confirmar: 'Generate quote',
       aoConfirmar: function (v) {
         if (!ui.validarObrigatorios(janela, v, [
-          { nome: 'lti', rotulo: 'o nº da LTI' },
-          { nome: 'clienteId', rotulo: 'o cliente' },
-          { nome: 'projeto', rotulo: 'o projeto' },
-          { nome: 'partNumber', rotulo: 'o part number' },
-          { nome: 'solicitante', rotulo: 'o solicitante' },
-          { nome: 'previsaoExecucao', rotulo: 'a previsão de execução' }
+          { nome: 'lti', rotulo: 'the LTI number' },
+          { nome: 'clienteId', rotulo: 'the customer' },
+          { nome: 'projeto', rotulo: 'the project' },
+          { nome: 'partNumber', rotulo: 'the part number' },
+          { nome: 'solicitante', rotulo: 'who requested it' },
+          { nome: 'previsaoExecucao', rotulo: 'the planned execution date' }
         ])) return false;
 
         var itens = coletarItens();
         if (!itens.length) {
-          ui.notificar('Selecione ao menos um teste para cotar.');
+          ui.notificar('Select at least one test to quote.');
           return false;
         }
 
@@ -278,7 +278,7 @@
           observacao: v.observacao.trim(),
           itens: itens
         });
-        ui.notificar('Cotação ' + cotacao.numero + ' gerada: ' +
+        ui.notificar('Quote ' + cotacao.numero + ' generated: ' +
           util.formatarMoeda(totalDaCotacao(cotacao)) + '.');
         ctx.atualizar();
       }
@@ -336,20 +336,20 @@
       if (!visiveis) {
         janela.querySelector('#lista-testes').insertAdjacentHTML('afterend',
           '<div id="lista-vazia" class="sub" style="padding:8px 2px">' +
-          'Nenhum procedimento com esses filtros.</div>');
+          'No procedure matches these filters.</div>');
       }
     }
 
     function atualizarResumo() {
       var itens = coletarItens();
       if (!itens.length) {
-        resumo.innerHTML = '<div class="aviso">Nenhum teste selecionado ainda.</div>';
+        resumo.innerHTML = '<div class="aviso">No test selected yet.</div>';
         return;
       }
       var total = itens.reduce(function (s, i) { return s + i.total; }, 0);
       var amostras = itens.reduce(function (s, i) { return s + i.amostras; }, 0);
       resumo.innerHTML = '<div class="aviso alerta"><strong>' + itens.length +
-        ' teste(s) · ' + amostras + ' amostra(s) · ' + e(util.formatarMoeda(total)) + '</strong></div>';
+        ' test(s) · ' + amostras + ' sample(s) · ' + e(util.formatarMoeda(total)) + '</strong></div>';
     }
 
     janela.querySelectorAll('.linha-selecao').forEach(function (linha) {
@@ -410,8 +410,8 @@
         '<td class="num">' + (c.itens || []).length + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(totalDaCotacao(c))) + '</td>' +
         '<td>' + etiquetaStatus(c.status) + '</td>' +
-        /* Cada perfil enxerga só as passagens que são dele: o cliente envia e decide, o
-           centro de testes analisa e valida. */
+        /* Each role sees only the moves that belong to it: the customer sends and decides,
+           the test centre reviews and confirms. */
         '<td class="num" style="white-space:nowrap">' +
           TC.fluxo.transicoesDe('cotacao', c.status, perfilAtual).map(function (t) {
             return '<button class="botao pequeno ' +
@@ -419,37 +419,37 @@
               ' mover" data-para="' + e(t.para) + '" title="' + e(t.descricao || '') + '">' +
               e(t.rotulo) + '</button> ';
           }).join('') +
-          '<button class="botao pequeno ver">Abrir</button> ' +
+          '<button class="botao pequeno ver">Open</button> ' +
           '<button class="botao pequeno excel">Excel</button>' +
-          (podeEditar ? ' <button class="botao pequeno perigo excluir" title="Remover cotação">✕</button>' : '') +
+          (podeEditar ? ' <button class="botao pequeno perigo excluir" title="Remove quote">✕</button>' : '') +
         '</td>' +
       '</tr>';
     }).join('');
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Cotações</h2>' +
-        '<p>Orçamentos pedidos pela engenharia de produto. Escolha os testes e a plataforma monta a tabela de custos, que fica arquivada aqui e sai em Excel.</p></div>' +
-        (podeEditar ? '<div class="acoes"><button class="botao primario" id="nova">+ Nova cotação</button></div>' : '') +
+        '<div><h2>Quotes</h2>' +
+        '<p>Budgets asked for by product engineering. Pick the tests and the platform builds the cost table, which is archived here and comes out in Excel.</p></div>' +
+        (podeEditar ? '<div class="acoes"><button class="botao primario" id="nova">+ New quote</button></div>' : '') +
       '</div>' +
       '<div class="indicadores">' +
-        '<div class="indicador"><div class="rotulo">Cotações</div><div class="valor">' + lista.length + '</div>' +
-          '<div class="nota">arquivadas na plataforma</div></div>' +
-        '<div class="indicador"><div class="rotulo">Valor cotado</div><div class="valor">' + util.formatarMoeda(totalGeral) + '</div>' +
-          '<div class="nota">somando todas</div></div>' +
-        '<div class="indicador"><div class="rotulo">Em aberto</div><div class="valor">' + util.formatarMoeda(emAberto) + '</div>' +
-          '<div class="nota">em elaboração ou enviadas</div></div>' +
-        '<div class="indicador"><div class="rotulo">Aprovado</div><div class="valor" style="color:var(--ok)">' + util.formatarMoeda(aprovadas) + '</div>' +
-          '<div class="nota">vira demanda de teste</div></div>' +
+        '<div class="indicador"><div class="rotulo">Quotes</div><div class="valor">' + lista.length + '</div>' +
+          '<div class="nota">archived on the platform</div></div>' +
+        '<div class="indicador"><div class="rotulo">Value quoted</div><div class="valor">' + util.formatarMoeda(totalGeral) + '</div>' +
+          '<div class="nota">all of them added up</div></div>' +
+        '<div class="indicador"><div class="rotulo">Open</div><div class="valor">' + util.formatarMoeda(emAberto) + '</div>' +
+          '<div class="nota">being drafted or sent</div></div>' +
+        '<div class="indicador"><div class="rotulo">Approved</div><div class="valor" style="color:var(--ok)">' + util.formatarMoeda(aprovadas) + '</div>' +
+          '<div class="nota">becomes a test request</div></div>' +
       '</div>' +
       '<div class="cartao">' +
         (lista.length
           ? '<div class="tabela-rolagem"><table><thead><tr>' +
-            '<th>Número</th><th>LTI</th><th>Cliente / Projeto</th><th>Part Number</th><th>Solicitante</th>' +
-            '<th>Previsão</th><th class="num">Testes</th><th class="num">Total</th><th>Status</th><th></th>' +
+            '<th>Number</th><th>LTI</th><th>Customer / Project</th><th>Part Number</th><th>Requested by</th>' +
+            '<th>Planned</th><th class="num">Tests</th><th class="num">Total</th><th>Status</th><th></th>' +
             '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
-          : ui.vazio('Nenhuma cotação ainda',
-              podeEditar ? 'Crie a primeira escolhendo os testes a orçar.' : 'Nenhum orçamento foi registrado.')) +
+          : ui.vazio('No quote yet',
+              podeEditar ? 'Create the first one by picking the tests to price.' : 'No budget has been recorded.')) +
       '</div>';
 
     if (podeEditar) {
@@ -471,9 +471,9 @@
       var excluir = tr.querySelector('.excluir');
       if (excluir) {
         excluir.onclick = function () {
-          ui.confirmarAcao('Remover a cotação ' + cotacao.numero + '?', function () {
+          ui.confirmarAcao('Remove quote ' + cotacao.numero + '?', function () {
             TC.store.removerCotacao(cotacao.id);
-            ui.notificar('Cotação removida.');
+            ui.notificar('Quote removed.');
           });
         };
       }

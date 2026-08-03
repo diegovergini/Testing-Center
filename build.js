@@ -1,14 +1,15 @@
-/* Gera versões de arquivo único a partir do index.html, embutindo CSS e scripts.
-   Uso: node build.js
-     dist/testing-center.html         página completa, abre com duplo clique ou vai para qualquer host
-     dist/artifact.html               mesmo conteúdo sem <html>/<head>/<body>, para hospedagens
-                                      que envolvem o conteúdo no próprio esqueleto
-     dist/testing-center-equipe.html  cópia da equipe: dados embutidos e somente leitura.
-                                      Todo mundo que abrir vê os mesmos dados — é o
-                                      compartilhamento possível sem servidor.
+/* Builds single-file versions from index.html, inlining CSS and scripts.
+   Usage: node build.js
+     dist/testing-center.html         full page, opens on double click or goes to any host
+     dist/artifact.html               same content without <html>/<head>/<body>, for hosts
+                                      that wrap the content in their own skeleton
+     dist/testing-center-equipe.html  team copy: embedded data, read only. Everyone who
+                                      opens it sees exactly the same data — the sharing
+                                      that is possible without a server.
 
-   A cópia da equipe usa dados/instantaneo.json, que é o arquivo do "Exportar backup"
-   de quem mantém o centro de testes. Sem esse arquivo, sai com o catálogo de partida. */
+   The team copy uses dados/instantaneo.json, the file produced by "Export backup" on the
+   machine of whoever keeps the test centre. Without that file it ships the seed
+   catalogue. */
 const fs = require('fs');
 const path = require('path');
 
@@ -17,7 +18,7 @@ const html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
 
 const ler = (arquivo) => fs.readFileSync(path.join(raiz, arquivo), 'utf8').trimEnd();
 
-/* Impede que uma sequência "</script>" dentro do código encerre a tag que o embute. */
+/* Stops a "</script>" sequence inside the code from closing the tag that embeds it. */
 const seguro = (js) => js.replace(/<\/script>/gi, '<\\/script>');
 
 let completo = html
@@ -27,13 +28,13 @@ let completo = html
     (_, arquivo) => '  <script>\n' + seguro(ler(arquivo)) + '\n  </script>\n');
 
 const pendentes = completo.match(/<script src=|<link rel="stylesheet"/g);
-if (pendentes) throw new Error('Sobraram referências externas: ' + pendentes.join(', '));
+if (pendentes) throw new Error('External references left over: ' + pendentes.join(', '));
 
 const dist = path.join(raiz, 'dist');
 fs.mkdirSync(dist, { recursive: true });
 fs.writeFileSync(path.join(dist, 'testing-center.html'), completo);
 
-/* Versão fragmento: sem doctype nem wrapper, mantendo <title> e o conteúdo do body. */
+/* Fragment version: no doctype and no wrapper, keeping <title> and the body content. */
 const titulo = (completo.match(/<title>[\s\S]*?<\/title>/) || [''])[0];
 const estilo = (completo.match(/<style>[\s\S]*?<\/style>/) || [''])[0];
 const corpo = (completo.match(/<body>([\s\S]*)<\/body>/) || ['', ''])[1];
@@ -43,14 +44,14 @@ fs.writeFileSync(
   [titulo, estilo, corpo.trim(), ''].join('\n')
 );
 
-/* ---- Cópia da equipe ---- */
+/* ---- Team copy ---- */
 
 const arquivoInstantaneo = path.join(raiz, 'dados', 'instantaneo.json');
 let dados, atualizadoEm;
 
 if (fs.existsSync(arquivoInstantaneo)) {
   dados = JSON.parse(fs.readFileSync(arquivoInstantaneo, 'utf8'));
-  /* A data do instantâneo é a do arquivo, a menos que o próprio backup traga uma. */
+  /* The snapshot date is the file's, unless the backup itself carries one. */
   atualizadoEm = dados.atualizadoEm ||
     fs.statSync(arquivoInstantaneo).mtime.toISOString().slice(0, 10);
 } else {
@@ -59,10 +60,10 @@ if (fs.existsSync(arquivoInstantaneo)) {
 }
 
 if (!dados.testes || !dados.equipamentos) {
-  throw new Error('dados/instantaneo.json não parece um backup da plataforma.');
+  throw new Error('dados/instantaneo.json does not look like a platform backup.');
 }
 
-/* Escapar "<" impede que qualquer texto do backup encerre a tag que embute o JSON. */
+/* Escaping "<" stops any text from the backup closing the tag that embeds the JSON. */
 const publicacao = '  <script>\n' +
   '  window.TC = window.TC || {};\n' +
   '  TC.PUBLICACAO = { atualizadoEm: ' + JSON.stringify(atualizadoEm) + ', dados: ' +
@@ -78,4 +79,4 @@ const kb = (arquivo) => Math.round(fs.statSync(path.join(dist, arquivo)).size / 
 console.log('dist/testing-center.html         ' + kb('testing-center.html') + ' kB');
 console.log('dist/artifact.html               ' + kb('artifact.html') + ' kB');
 console.log('dist/testing-center-equipe.html  ' + kb('testing-center-equipe.html') + ' kB' +
-  '  (dados de ' + atualizadoEm + (fs.existsSync(arquivoInstantaneo) ? '' : ', catálogo de partida') + ')');
+  '  (data as of ' + atualizadoEm + (fs.existsSync(arquivoInstantaneo) ? '' : ', seed catalogue') + ')');

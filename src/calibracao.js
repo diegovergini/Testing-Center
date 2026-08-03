@@ -1,32 +1,35 @@
-/* Gestão da calibração dos instrumentos.
-   Responde as perguntas do gestor: o que está calibrado, o que vence este mês, o que já
-   venceu e está em uso — este último é o caso grave, porque significa ensaio rodando com
-   instrumento fora da validade. Puro e testado; a tela só desenha. */
+/* Instrument calibration management.
+   It answers the manager's questions: what is calibrated, what expires this month, and what
+   has already expired while still in use — that last one is the serious case, because it
+   means a test running on an out-of-date instrument. Pure and tested; the screen only
+   draws. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
 
-  /* Situação operacional do instrumento, na coluna "Observações" da planilha de origem. */
+  /* Operating condition of the instrument, from the "Observações" column of the source
+     spreadsheet (the header is kept as the lab writes it). */
   var SITUACOES = [
-    { id: 'EM_USO', nome: 'Em uso', cor: 'ok' },
-    { id: 'EM_CALIBRACAO', nome: 'Em calibração', cor: 'alerta' },
-    { id: 'AGUARDANDO', nome: 'Aguardando calibração', cor: 'alerta' },
-    { id: 'FORA_DE_USO', nome: 'Fora de uso', cor: '' }
+    { id: 'EM_USO', nome: 'In use', cor: 'ok' },
+    { id: 'EM_CALIBRACAO', nome: 'Being calibrated', cor: 'alerta' },
+    { id: 'AGUARDANDO', nome: 'Awaiting calibration', cor: 'alerta' },
+    { id: 'FORA_DE_USO', nome: 'Out of service', cor: '' }
   ];
 
-  /* Resultado de uma calibração. "Aprovado com restrição" existe porque é comum: o
-     certificado sai com desvio dentro da tolerância de uso, mas fora da nominal. */
+  /* Result of a calibration. "Approved with restriction" exists because it is common: the
+     certificate comes back with a deviation inside the usable tolerance but outside the
+     nominal one. */
   var RESULTADOS = [
-    { id: 'APROVADO', nome: 'Aprovado', cor: 'ok' },
-    { id: 'APROVADO_RESTRICAO', nome: 'Aprovado com restrição', cor: 'alerta' },
-    { id: 'REPROVADO', nome: 'Reprovado', cor: 'erro' }
+    { id: 'APROVADO', nome: 'Approved', cor: 'ok' },
+    { id: 'APROVADO_RESTRICAO', nome: 'Approved with restriction', cor: 'alerta' },
+    { id: 'REPROVADO', nome: 'Failed', cor: 'erro' }
   ];
 
-  /* Situação do prazo de calibração — é isto que a tela colore.
-     SEM_PLANO não é um erro do instrumento, é uma lacuna do cadastro: alguém precisa
-     informar quando ele foi calibrado pela última vez. */
+  /* Calibration due status — this is what the screen colours.
+     SEM_PLANO is not a fault of the instrument, it is a gap in the register: someone has to
+     say when it was last calibrated. */
   var VENCIDO = 'VENCIDO';
   var A_VENCER = 'A_VENCER';
   var EM_DIA = 'EM_DIA';
@@ -44,8 +47,8 @@
     return r ? r.nome : id;
   }
 
-  /* Soma meses a uma data ISO sem depender de fuso: o dia é preservado, salvo quando o mês
-     de destino é mais curto (31/01 + 1 mês = 28/02). */
+  /* Adds months to an ISO date without depending on the time zone: the day is preserved
+     unless the target month is shorter (31 Jan + 1 month = 28 Feb). */
   function somaMeses(iso, meses) {
     if (!iso) return '';
     var ano = Number(iso.slice(0, 4));
@@ -58,12 +61,12 @@
       String(Math.min(dia, ultimoDoMes)).padStart(2, '0');
   }
 
-  /* O vencimento informado tem precedência sobre o calculado: o certificado às vezes traz
-     uma validade que não é a periodicidade padrão do instrumento.
+  /* A due date that was entered wins over the computed one: the certificate sometimes
+     carries a validity that is not the instrument's standard interval.
 
-     Reprovado não tem validade nenhuma. Sem esta guarda, a data da própria reprovação mais
-     a periodicidade renderia um vencimento futuro — o instrumento apareceria "em dia" por
-     ter sido reprovado, que é o oposto do que aconteceu. */
+     A failed calibration has no validity at all. Without this guard, the date of the failure
+     itself plus the interval would yield a future due date — the instrument would show as
+     "in date" because it failed, which is the opposite of what happened. */
   function vencimento(instrumento) {
     if (instrumento.ultimoResultado === 'REPROVADO') return '';
     if (instrumento.proximaCalibracao) return instrumento.proximaCalibracao;
@@ -82,7 +85,7 @@
     return EM_DIA;
   }
 
-  /* Tudo que a linha da tabela e os indicadores precisam de um instrumento. */
+  /* Everything the table row and the KPI tiles need from an instrument. */
   function estado(instrumento, hoje) {
     var vence = vencimento(instrumento);
     var prazo = situacaoDoPrazo(instrumento, hoje);
@@ -91,8 +94,8 @@
       vencimento: vence,
       prazo: prazo,
       diasParaVencer: vence ? util.diffDias(hoje, vence) : null,
-      /* Instrumento vencido e em uso é o achado que a auditoria procura: ensaio rodando
-         com medição fora da validade. Back-up e fora de uso não pesam do mesmo jeito. */
+      /* Expired and in use is the finding an audit looks for: a test running on an
+         out-of-date measurement. Back-up and out of service do not weigh the same. */
       criticidade: prazo === VENCIDO && instrumento.situacao === 'EM_USO' && instrumento.ativo
         ? 'CRITICO' : prazo === VENCIDO ? 'ATENCAO' : '',
       ultimaCalibracao: instrumento.ultimaCalibracao || '',
@@ -106,7 +109,7 @@
     return (instrumentos || []).map(function (i) { return estado(i, hoje); });
   }
 
-  /* Contagens do cabeçalho da janela. */
+  /* Counts for the screen header. */
   function resumo(instrumentos, hoje) {
     var contas = {
       total: 0, ativos: 0, emUso: 0, emCalibracao: 0, backup: 0,
@@ -125,14 +128,14 @@
       if (e.prazo === SEM_PLANO) contas.semPlano++;
       if (e.criticidade === 'CRITICO') contas.criticos++;
     });
-    /* Cobertura: dos que têm plano, quantos estão dentro da validade. */
+    /* Coverage: of those with a plan, how many are within validity. */
     var comPlano = contas.total - contas.semPlano;
     contas.cobertura = comPlano ? (contas.emDia + contas.aVencer) / comPlano : null;
     return contas;
   }
 
-  /* O que vence dentro do horizonte, do mais urgente para o menos — é a fila de trabalho
-     de quem manda instrumento para calibrar. */
+  /* What falls due within the horizon, most urgent first — the work queue of whoever sends
+     instruments out for calibration. */
   function agenda(instrumentos, hoje, dias) {
     var limite = dias || 90;
     return lista(instrumentos, hoje)
@@ -143,12 +146,12 @@
       .sort(function (a, b) { return a.diasParaVencer - b.diasParaVencer; });
   }
 
-  /* ---- Lançamento em lote --------------------------------------------------------------
+  /* ---- Bulk entry ----------------------------------------------------------------------
 
-     São 229 instrumentos. Abrir um modal por instrumento para digitar a data da última
-     calibração é trabalho de um dia inteiro, então o lote existe: cola-se o recorte da
-     planilha (código e data, opcionalmente certificado e laboratório) e a plataforma
-     confere linha a linha antes de gravar qualquer coisa. */
+     There are 229 instruments. Opening one dialog per instrument to type the last
+     calibration date is a full day's work, so bulk entry exists: paste the slice of the
+     spreadsheet (code and date, optionally certificate and laboratory) and the platform
+     checks it row by row before saving anything. */
 
   var DIAS_NO_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
@@ -162,9 +165,9 @@
     return ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
   }
 
-  /* Aceita o que sai de uma planilha brasileira (31/12/2025, 31-12-25, 31.12.2025) e
-     também o ISO. Data impossível — 31/02, mês 13 — devolve vazio em vez de virar outro
-     dia: a data errada de calibração é pior que a data ausente. */
+  /* Accepts what comes out of a Brazilian spreadsheet (31/12/2025, 31-12-25, 31.12.2025)
+     and ISO as well. An impossible date — 31/02, month 13 — returns empty instead of
+     becoming another day: a wrong calibration date is worse than a missing one. */
   function interpretarData(texto) {
     var t = String(texto == null ? '' : texto).trim();
     if (!t) return '';
@@ -173,14 +176,14 @@
     var br = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(t);
     if (br) {
       var ano = Number(br[3]);
-      /* Ano de dois dígitos: certificado de calibração é documento recente. */
+      /* Two-digit year: a calibration certificate is a recent document. */
       if (br[3].length === 2) ano += 2000;
       return montarISO(ano, Number(br[2]), Number(br[1]));
     }
     return '';
   }
 
-  /* Uma linha colada do Excel vem separada por tabulação; de um CSV, por ; ou ,. */
+  /* A row pasted from Excel comes tab-separated; from a CSV, by ; or ,. */
   function separarCampos(linha) {
     var campos = linha.split(/\t|;/);
     if (campos.length === 1) campos = linha.split(',');
@@ -188,8 +191,8 @@
     return campos.map(function (c) { return c.trim(); });
   }
 
-  /* Casa pelo código atual e, se não achar, pelo código antigo — a planilha de calibração
-     costuma estar na numeração velha. */
+  /* Matches on the current code and, failing that, on the legacy code — the calibration
+     spreadsheet is usually still on the old numbering. */
   function acharInstrumento(instrumentos, codigo) {
     var alvo = codigo.toUpperCase();
     var porAntigo = null;
@@ -203,8 +206,8 @@
     return porAntigo;
   }
 
-  /* Lê o texto colado e devolve o que será gravado e o que não dá para gravar, sem tocar
-     em nada — a tela mostra as duas listas e só grava depois da confirmação. */
+  /* Reads the pasted text and returns what will be saved and what cannot be, without
+     touching anything — the screen shows both lists and only saves after confirmation. */
   function interpretarLote(texto, instrumentos) {
     var linhas = [];
     var jaVistos = {};
@@ -212,8 +215,8 @@
       if (!bruta.trim()) return;
       var campos = separarCampos(bruta);
       var codigo = campos[0] || '';
-      /* Cabeçalho copiado junto com os dados não é erro do usuário: é ignorado. */
-      if (/^c[oó]d/i.test(codigo)) return;
+      /* A header copied along with the data is not the user's mistake: it is ignored. */
+      if (/^(c[oó]d|code|tag)/i.test(codigo)) return;
 
       var registro = {
         linha: indice + 1, codigo: codigo, data: interpretarData(campos[1]),
@@ -242,10 +245,10 @@
   }
 
   var MOTIVOS_DO_LOTE = {
-    SEM_CODIGO: 'linha sem código',
-    DESCONHECIDO: 'código não existe no inventário',
-    DATA_INVALIDA: 'data ausente ou inválida',
-    REPETIDO: 'código repetido na colagem'
+    SEM_CODIGO: 'row without a code',
+    DESCONHECIDO: 'code does not exist in the inventory',
+    DATA_INVALIDA: 'date missing or invalid',
+    REPETIDO: 'code repeated in the paste'
   };
 
   TC.calibracao = {

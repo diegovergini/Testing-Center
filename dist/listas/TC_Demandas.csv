@@ -1,1 +1,1 @@
-﻿Title,ProcedimentoId,PecaId,ClienteId,Projeto,PartNumber,LTI,TipoLTI,Prioridade,Quantidade,DataAmostras,Prazo,InicioFixo,Observacao,Status,DataConclusao,DataRelatorio,RelatorioCorrecoes,InicioPlanejado,FimPlanejado,EquipamentosAlocados,MotivoBloqueio
+﻿Title,ProcedureId,PartTypeId,CustomerId,Project,PartNumber,LTI,LTIClassification,Priority,Quantity,SamplesAvailableFrom,DueDate,ForcedStart,Notes,Status,CompletionDate,SignOffDate,ReworkRounds,PlannedStart,PlannedEnd,AllocatedEquipment,BlockingReason

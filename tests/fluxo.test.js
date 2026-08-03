@@ -165,7 +165,7 @@ test('a passagem é recusada quando o perfil não é o dono dela', () => {
   const r = store.moverDemanda(d.id, 'ACEITA');
 
   assert.equal(r.ok, false);
-  assert.match(r.motivo, /Engenheiro de Testes/);
+  assert.match(r.motivo, /Test Engineer/);
   assert.equal(globalThis.TC.util.porId(store.get().demandas, d.id).status, 'SOLICITADA',
     'nada muda quando a passagem é recusada');
 });
@@ -176,7 +176,7 @@ test('não se pula etapa: da solicitação direto para concluída não existe', 
   const r = store.moverDemanda(d.id, 'CONCLUIDA', { dataConclusao: '2026-08-20' });
 
   assert.equal(r.ok, false);
-  assert.match(r.motivo, /Não existe passagem/);
+  assert.match(r.motivo, /no move from/);
 });
 
 test('concluir sem data de conclusão é recusado', () => {
@@ -196,7 +196,7 @@ test('devolver e recusar exigem justificativa registrada', () => {
   comPerfil('TESTES');
   const r = store.moverDemanda(d.id, 'CANCELADA', {});
   assert.equal(r.ok, false);
-  assert.match(r.motivo, /motivo/i);
+  assert.match(r.motivo, /reason/i);
 
   assert.ok(store.moverDemanda(d.id, 'CANCELADA', { nota: 'programa cancelado' }).ok);
 });

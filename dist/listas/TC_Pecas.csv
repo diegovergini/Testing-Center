@@ -1,6 +1,6 @@
-﻿Title,Nome,Descricao,CustoAmostra
-PC-HOT,Hot End,"Coletor, downpipe, tubo quente e flexível",3800
-PC-CAN,Canning,"Substrato encapsulado: catalisador, DPF/GPF",5400
-PC-COL,Cold End,"Tubos, ressonador e ponteira",1650
-PC-MUF,Muffler,Silencioso completo,1900
-PC-CMP,Component,"Coxim, suporte, flange, corpo de prova",420
+﻿Title,Name,Description,CostPerSample
+PC-HOT,Hot End,"Manifold, downpipe, hot pipe and flex pipe",3800
+PC-CAN,Canning,"Canned substrate: catalyst, DPF/GPF",5400
+PC-COL,Cold End,"Pipes, resonator and tailpipe",1650
+PC-MUF,Muffler,Complete muffler,1900
+PC-CMP,Component,"Hanger, bracket, flange, coupon",420

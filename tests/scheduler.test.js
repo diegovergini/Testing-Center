@@ -228,7 +228,7 @@ test('demanda sem equipamento cadastrado sai como bloqueada, não some', () => {
   const s = estado({ testes: [teste({ equipamentoGrupos: ['GRUPO-INEXISTENTE'] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
-  assert.match(plano.bloqueadas[0].motivo, /sem unidade cadastrada/);
+  assert.match(plano.bloqueadas[0].motivo, /has no unit registered/);
 });
 
 test('custo do procedimento é (setup + ensaio + report) x rate + insumos', () => {
@@ -606,7 +606,7 @@ test('procedimento sem nenhum equipamento fica bloqueado com motivo claro', () =
   const s = estado({ testes: [teste({ equipamentoGrupos: [] })] });
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
-  assert.match(plano.bloqueadas[0].motivo, /sem equipamento/i);
+  assert.match(plano.bloqueadas[0].motivo, /no equipment/i);
 });
 
 /* Horas levantadas pelo centro de testes: [ensaio, setup, report]. O que não está aqui
@@ -827,7 +827,7 @@ test('grupo sem unidade cadastrada vira bloqueio com motivo claro', () => {
   const plano = scheduler.planejar(s, SEGUNDA);
   assert.equal(plano.bloqueadas.length, 1);
   assert.match(plano.bloqueadas[0].motivo, /Camara/);
-  assert.match(plano.bloqueadas[0].motivo, /sem unidade cadastrada/);
+  assert.match(plano.bloqueadas[0].motivo, /has no unit registered/);
 });
 
 test('o parque tem Burner e MTS como grupos com várias unidades', () => {

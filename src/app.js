@@ -6,16 +6,16 @@
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
   var ROTAS = [
-    { id: 'catalogo', nome: 'Catálogo de testes', icone: '📋', grupo: 'Validação' },
-    { id: 'cotacoes', nome: 'Cotações', icone: '💰', grupo: 'Validação' },
-    { id: 'demandas', nome: 'Demandas', icone: '✅', grupo: 'Validação' },
-    { id: 'planejamento', nome: 'Planejamento', icone: '📅', grupo: 'Validação' },
-    { id: 'painel', nome: 'Painel', icone: '📊', grupo: 'Validação' },
-    { id: 'clientes', nome: 'Clientes', icone: '🏢', grupo: 'Cadastros' },
-    { id: 'equipamentos', nome: 'Equipamentos', icone: '⚙️', grupo: 'Cadastros' },
-    { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' },
-    { id: 'calibracao', nome: 'Calibração', icone: '📏', grupo: 'Cadastros' },
-    { id: 'permissoes', nome: 'Perfis e permissões', icone: '🔐', grupo: 'Administração' }
+    { id: 'catalogo', nome: 'Test catalogue', icone: '📋', grupo: 'Validation' },
+    { id: 'cotacoes', nome: 'Quotes', icone: '💰', grupo: 'Validation' },
+    { id: 'demandas', nome: 'Requests', icone: '✅', grupo: 'Validation' },
+    { id: 'planejamento', nome: 'Schedule', icone: '📅', grupo: 'Validation' },
+    { id: 'painel', nome: 'Dashboard', icone: '📊', grupo: 'Validation' },
+    { id: 'clientes', nome: 'Customers', icone: '🏢', grupo: 'Registers' },
+    { id: 'equipamentos', nome: 'Equipment', icone: '⚙️', grupo: 'Registers' },
+    { id: 'pecas', nome: 'Parts and samples', icone: '🔩', grupo: 'Registers' },
+    { id: 'calibracao', nome: 'Calibration', icone: '📏', grupo: 'Registers' },
+    { id: 'permissoes', nome: 'Roles and permissions', icone: '🔐', grupo: 'Administration' }
   ];
 
   /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
@@ -63,24 +63,24 @@
         '</button>';
     });
     var perfil = util.porId(TC.data.PERFIS, TC.permissoes.perfilAtual(estado));
-    html += '<div class="perfil"><label for="seletor-perfil">Estou usando como</label>' +
+    html += '<div class="perfil"><label for="seletor-perfil">I am working as</label>' +
       '<select id="seletor-perfil">' + ui.opcoes(TC.data.PERFIS, TC.permissoes.perfilAtual(estado)) + '</select>' +
       '<div class="descricao">' + e(perfil ? perfil.descricao : '') + '</div></div>';
 
-    /* Na cópia publicada não há backup a exportar nem padrão a restaurar: o dado vive
-       na máquina de quem mantém o centro de testes. Fica só a data do instantâneo, para
-       ninguém tomar decisão em cima de um planejamento vencido sem perceber. */
+    /* The published copy has no backup to export and no defaults to restore: the data lives
+       on the machine of whoever keeps the test centre. Only the snapshot date stays, so that
+       nobody decides on top of a stale schedule without noticing. */
     if (TC.permissoes.publicada()) {
       html += '<div style="margin-top:auto;padding:14px 10px 0" class="sub">' +
-        '<strong>Cópia da equipe — somente leitura.</strong><br>' +
-        'Dados de ' + e(util.formatarData(TC.PUBLICACAO.atualizadoEm, true)) + '. ' +
-        'Para alterar catálogo, demandas ou cotações, fale com o centro de testes.</div>';
+        '<strong>Team copy — read only.</strong><br>' +
+        'Data as of ' + e(util.formatarData(TC.PUBLICACAO.atualizadoEm, true)) + '. ' +
+        'To change the catalogue, requests or quotes, talk to the test centre.</div>';
     } else {
-      html += '<div class="nav-titulo">Dados</div>' +
-        '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Exportar backup</button>' +
-        '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Importar backup</button>' +
-        '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restaurar padrão</button>' +
-        '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Dados gravados neste navegador. Exporte um backup antes de trocar de máquina.</div>';
+      html += '<div class="nav-titulo">Data</div>' +
+        '<button class="nav-item" id="exportar"><span aria-hidden="true">⬇️</span>Export backup</button>' +
+        '<button class="nav-item" id="importar"><span aria-hidden="true">⬆️</span>Import backup</button>' +
+        '<button class="nav-item" id="restaurar"><span aria-hidden="true">♻️</span>Restore defaults</button>' +
+        '<div style="margin-top:auto;padding:14px 10px 0" class="sub">Data is saved in this browser. Export a backup before switching machines.</div>';
     }
 
     lateral.querySelector('#menu').innerHTML = html;
@@ -91,16 +91,16 @@
     var seletor = lateral.querySelector('#seletor-perfil');
     seletor.onchange = function () {
       TC.store.definirPerfil(seletor.value);
-      /* Trocar de perfil pode tirar a janela atual de vista. */
+      /* Switching roles can take the current screen out of sight. */
       if (!TC.permissoes.podeVer(TC.store.get(), rotaAtual)) ir(primeiraRotaVisivel());
     };
     if (TC.permissoes.publicada()) return;
     lateral.querySelector('#exportar').onclick = exportarBackup;
     lateral.querySelector('#importar').onclick = importarBackup;
     lateral.querySelector('#restaurar').onclick = function () {
-      ui.confirmarAcao('Isto apaga todas as demandas e volta ao catálogo de exemplo. Continuar?', function () {
+      ui.confirmarAcao('This erases every request and goes back to the seed catalogue. Continue?', function () {
         TC.store.restaurarPadrao();
-        ui.notificar('Dados restaurados.');
+        ui.notificar('Data restored.');
       });
     };
   }
@@ -120,7 +120,7 @@
     a.download = 'testing-center-' + util.hoje() + '.json';
     a.click();
     URL.revokeObjectURL(url);
-    ui.notificar('Backup exportado.');
+    ui.notificar('Backup exported.');
   }
 
   function importarBackup() {
@@ -134,9 +134,9 @@
       leitor.onload = function () {
         try {
           TC.store.importar(String(leitor.result));
-          ui.notificar('Backup importado.');
+          ui.notificar('Backup imported.');
         } catch (erro) {
-          ui.notificar('Arquivo inválido: ' + erro.message);
+          ui.notificar('Invalid file: ' + erro.message);
         }
       };
       leitor.readAsText(arquivo);
@@ -184,7 +184,7 @@
           acoes.className = 'acoes';
           cabecalho.appendChild(acoes);
         }
-        acoes.appendChild(ui.el('<span class="somente-leitura">👁️ Somente leitura para ' +
+        acoes.appendChild(ui.el('<span class="somente-leitura">👁️ Read only for ' +
           e(TC.permissoes.nomeDoPerfil(TC.permissoes.perfilAtual(estado))) + '</span>'));
       }
     }

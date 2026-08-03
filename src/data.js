@@ -1,42 +1,42 @@
-/* Dados de partida: clientes, classificação de LTI, equipamentos, catálogo de testes e peças.
-   Tudo é editável na aplicação — isto é apenas o estado inicial. */
+/* Seed data: customers, LTI classification, equipment, test catalogue and parts.
+   Everything is editable in the app — this is only the initial state. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   if (!TC.instrumentosPadrao && typeof require !== 'undefined') require('./instrumentos-padrao.js');
 
-  /* Fases de projeto. Não classificam o procedimento (qualquer teste pode rodar em
-     qualquer fase); classificam a LTI que abre a demanda. */
+  /* Project phases. They do not classify the procedure (any test can run in any phase);
+     they classify the LTI that opens the request. */
   var FASES = [
-    { id: 'DV', nome: 'DV — Design Validation', descricao: 'Validação de projeto com protótipos' },
-    { id: 'PV', nome: 'PV — Process Validation', descricao: 'Validação de processo com peças de ferramental definitivo' },
-    { id: 'VAVE', nome: 'VAVE', descricao: 'Revalidação após mudança de material, processo ou custo' }
+    { id: 'DV', nome: 'DV — Design Validation', descricao: 'Design validation on prototypes' },
+    { id: 'PV', nome: 'PV — Process Validation', descricao: 'Process validation on production-tooling parts' },
+    { id: 'VAVE', nome: 'VAVE', descricao: 'Revalidation after a material, process or cost change' }
   ];
 
-  /* Fases de versões anteriores, convertidas ao carregar dados já salvos. */
+  /* Phases from earlier versions, converted when saved data is loaded. */
   var FASES_ANTIGAS = { CONCEITO: 'DV', PPAP: 'PV', SERIE: 'VAVE' };
 
-  /* Classificação da LTI (ordem de serviço) que abre a demanda.
-     Cotação é orçamento: entra no custo, mas não reserva bancada. */
+  /* Classification of the LTI (work order) that opens the request.
+     A quote is a budget: it counts towards cost but reserves no rig. */
   var TIPOS_LTI = [
-    { id: 'COTACAO', nome: 'Cotação', planeja: false, descricao: 'Orçamento; não ocupa bancada nem entra no planejamento' }
+    { id: 'COTACAO', nome: 'Quote', planeja: false, descricao: 'Budget only; takes no rig and stays out of the schedule' }
   ].concat(FASES.map(function (f) {
     return { id: f.id, nome: f.nome, planeja: true, descricao: f.descricao };
   }));
 
-  /* Quem usa a plataforma. Sem servidor, o perfil é uma escolha da interface: guia o que
-     cada um vê e edita, não é controle de acesso. */
+  /* Who uses the platform. With no server, the role is an interface choice: it guides what
+     each person sees and edits, it is not access control. */
   var PERFIS = [
-    { id: 'PRODUTO', nome: 'Engenheiro de Produto',
-      descricao: 'Cliente interno: solicita cotações e abre demandas de teste' },
-    { id: 'TESTES', nome: 'Engenheiro de Testes',
-      descricao: 'Mantém catálogo e cadastros, opera o laboratório e acompanha os KPIs' }
+    { id: 'PRODUTO', nome: 'Product Engineer',
+      descricao: 'Internal customer: requests quotes and opens test requests' },
+    { id: 'TESTES', nome: 'Test Engineer',
+      descricao: 'Keeps the catalogue and registers, runs the lab and follows the KPIs' }
   ];
 
   var TODOS_PERFIS = PERFIS.map(function (p) { return p.id; });
 
-  /* Permissão por janela. "editar" sempre implica "ver". */
+  /* Permission per screen. "edit" always implies "view". */
   var PERMISSOES_PADRAO = {
     catalogo: { ver: TODOS_PERFIS.slice(), editar: ['TESTES'] },
     cotacoes: { ver: TODOS_PERFIS.slice(), editar: TODOS_PERFIS.slice() },
@@ -50,39 +50,39 @@
     permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
   };
 
-  /* Os estados de demanda e de cotação vivem em src/fluxo.js, junto das regras de quem
-     pode mover cada um — para não haver duas listas de status a manter. */
+  /* Request and quote states live in src/fluxo.js, next to the rules of who can move each
+     one — so there are never two lists of statuses to maintain. */
 
-  /* Natureza da parada. Preventiva e calibração são programadas; corretiva é a que
-     acontece porque a bancada quebrou. */
+  /* Nature of the downtime. Preventive and calibration are scheduled; corrective is the one
+     that happens because the rig broke. */
   var TIPOS_MANUTENCAO = [
-    { id: 'PREVENTIVA', nome: 'Preventiva' },
-    { id: 'CALIBRACAO', nome: 'Calibração' },
-    { id: 'CORRETIVA', nome: 'Corretiva' },
-    { id: 'MELHORIA', nome: 'Melhoria / adequação' }
+    { id: 'PREVENTIVA', nome: 'Preventive' },
+    { id: 'CALIBRACAO', nome: 'Calibration' },
+    { id: 'CORRETIVA', nome: 'Corrective' },
+    { id: 'MELHORIA', nome: 'Upgrade / rework' }
   ];
 
   var AREAS = [
-    { id: 'HOT', nome: 'Hot End', descricao: 'Coletor, downpipe, catalisador, DPF/GPF, flexível' },
-    { id: 'COLD', nome: 'Cold End', descricao: 'Silencioso, ressonador, tubos, ponteira, coxins' },
-    { id: 'AMBOS', nome: 'Hot & Cold End', descricao: 'Aplicável aos dois lados do sistema' }
+    { id: 'HOT', nome: 'Hot End', descricao: 'Manifold, downpipe, catalyst, DPF/GPF, flex pipe' },
+    { id: 'COLD', nome: 'Cold End', descricao: 'Muffler, resonator, pipes, tailpipe, hangers' },
+    { id: 'AMBOS', nome: 'Hot & Cold End', descricao: 'Applies to both ends of the system' }
   ];
 
   var PRIORIDADES = [
-    { id: 'ALTA', nome: 'Alta', peso: 0 },
-    { id: 'MEDIA', nome: 'Média', peso: 1 },
-    { id: 'BAIXA', nome: 'Baixa', peso: 2 }
+    { id: 'ALTA', nome: 'High', peso: 0 },
+    { id: 'MEDIA', nome: 'Medium', peso: 1 },
+    { id: 'BAIXA', nome: 'Low', peso: 2 }
   ];
 
-  /* Hourly rate do centro de testes: um único valor para todos os procedimentos,
-     atualizado uma vez por ano. Não varia por ensaio nem por bancada. Cotações já
-     arquivadas guardam o rate do dia em que foram feitas e não mudam quando este sobe. */
+  /* Test centre hourly rate: a single value for every procedure, updated once a year. It
+     does not vary by test or by rig. Archived quotes keep the rate of the day they were
+     made and do not change when this one goes up. */
   var HOURLY_RATE = 368.75;
   var HOURLY_RATE_VIGENCIA = '2026';
 
   var CLIENTES = [
     { id: 'CLI-GM', nome: 'GM — General Motors', segmento: 'OEM' },
-    /* CLI-FRD é a Ford; CLI-FOR, abaixo, é a Forvia Faurecia — empresas diferentes. */
+    /* CLI-FRD is Ford; CLI-FOR, below, is Forvia Faurecia — different companies. */
     { id: 'CLI-FRD', nome: 'Ford', segmento: 'OEM' },
     { id: 'CLI-FOR', nome: 'Forvia Faurecia', segmento: 'Tier 1' },
     { id: 'CLI-VW', nome: 'Volkswagen', segmento: 'OEM' },
@@ -90,14 +90,14 @@
     { id: 'CLI-RSA', nome: 'RSA', segmento: 'OEM' },
     { id: 'CLI-NIS', nome: 'Nissan', segmento: 'OEM' },
     { id: 'CLI-STL', nome: 'Stellantis', segmento: 'OEM' },
-    { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Comerciais' }
+    { id: 'CLI-SCA', nome: 'Scania', segmento: 'OEM — Commercial vehicles' }
   ];
 
-  /* posicoes = quantos ensaios o equipamento roda em paralelo.
-     continuo = true -> ensaio corre 24 h/dia sem operador.
-     diasUteis = dias da semana em que o equipamento opera (0 = domingo).
-     grupo = família de unidades intercambiáveis. O procedimento pede o grupo ("Burner"),
-     e o planejamento escolhe a unidade livre mais cedo. */
+  /* posicoes = how many tests the equipment runs in parallel.
+     continuo = true -> the test runs 24 h/day with no operator.
+     diasUteis = weekdays the equipment operates (0 = Sunday).
+     grupo = family of interchangeable units. The procedure asks for the group ("Burner")
+     and the scheduler picks the unit that frees up first. */
   var EQUIPAMENTOS = [
     { id: 'BURNER-1', nome: 'Burner 1', grupo: 'Burner', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
     { id: 'BURNER-2', nome: 'Burner 2', grupo: 'Burner', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] },
@@ -112,24 +112,24 @@
     { id: 'DYNO', nome: 'Dynamometer', grupo: 'Dynamometer', posicoes: 1, continuo: true, horasDia: 24, diasUteis: [0, 1, 2, 3, 4, 5, 6], manutencao: [] }
   ];
 
-  /* Catálogo de procedimentos por cliente.
-     Cada linha é [nome do procedimento, norma] e, quando as horas já foram levantadas,
-     um terceiro elemento { ensaio, setup, report }. Nome, norma e revisão vêm da
-     especificação do cliente; as horas vêm do levantamento do centro de testes. Os
-     demais campos ficam em branco para o engenheiro de testes preencher no cadastro —
-     até isso o procedimento aparece no catálogo marcado como "sem equipamento".
+  /* Procedure catalogue per customer.
+     Each row is [procedure name, standard] plus, when the hours have been measured, a third
+     element { ensaio, setup, report }. Name, standard and revision come from the customer
+     specification; the hours come from the test centre's own survey. The remaining fields
+     are left blank for the test engineer to fill in — until then the procedure shows up in
+     the catalogue flagged as "no equipment".
 
-     Sobre os campos preenchidos depois:
-     revisao = revisão vigente do procedimento; acompanha o nome em toda a aplicação.
-     Custo do procedimento = (horasSetup + horasEnsaio + horasReport) x hourly rate do
-     centro de testes + custoInsumos. O rate não é do procedimento: é um valor só,
-     no estado da aplicação.
-     Só horasSetup + horasEnsaio ocupam bancada; horasReport é trabalho de escritório e
-     entra no custo, não na agenda do equipamento.
-     equipamentoGrupos = famílias de bancada que o ensaio ocupa ao mesmo tempo. O
-     planejamento escolhe, dentro de cada grupo, a unidade que libera mais cedo.
-     clientes = lista vazia significa procedimento padrão do laboratório, exigido por todos.
-     O procedimento não é amarrado a fase de projeto: qualquer teste pode rodar em DV, PV ou VAVE. */
+     About the fields filled in later:
+     revisao = the procedure's current revision; it follows the name across the whole app.
+     Procedure cost = (horasSetup + horasEnsaio + horasReport) x the test centre hourly rate
+     + custoInsumos. The rate does not belong to the procedure: it is a single value in the
+     application state.
+     Only horasSetup + horasEnsaio take up a rig; horasReport is desk work and counts
+     towards cost, not towards the equipment schedule.
+     equipamentoGrupos = rig families the test occupies at the same time. Within each group
+     the scheduler picks the unit that frees up first.
+     clientes = an empty list means a lab standard procedure, required by everyone.
+     The procedure is not tied to a project phase: any test can run in DV, PV or VAVE. */
   var PROCEDIMENTOS_GM = [
     ['Resonance Durability', 'Appx C'],
     ['Physical Durability Aging Cycle', 'Appx C', { ensaio: 300, setup: 20, report: 14 }],
@@ -144,8 +144,8 @@
     ['Pipe Durability', 'GMW14390 / GMW18104']
   ];
 
-  /* Stellantis: a lista de origem trazia "Resonance Durability 90.160 - 9.7" duas vezes,
-     com nome e norma idênticos — aqui ela entra uma vez. */
+  /* Stellantis: the source list had "Resonance Durability 90.160 - 9.7" twice, with the
+     same name and standard — here it goes in once. */
   var PROCEDIMENTOS_STELLANTIS = [
     ['Vibrational Analysis', '90.160 - 9.4'],
     ['Modal Analysis', '90.160 - 9.5 and 7-A7515', { ensaio: 16, setup: 12, report: 40 }],
@@ -179,8 +179,8 @@
     ['Ressonance Test', 'Acc. ST Project']
   ];
 
-  /* Ford: a lista de origem trazia "Thermal fatigue rig test CETP 09.00-E-306" duas vezes,
-     com nome e norma idênticos — aqui ela entra uma vez. */
+  /* Ford: the source list had "Thermal fatigue rig test CETP 09.00-E-306" twice, with the
+     same name and standard — here it goes in once. */
   var PROCEDIMENTOS_FORD = [
     ['Thermal fatigue rig test', 'CETP 09.00-E-306'],
     ['Catalytic Converter & Pipe HeatShield Structural Durability Screening Test', 'CETP 09.00-L-306'],
@@ -214,7 +214,7 @@
     ['Condensate Water Noise', 'ES 28600-09 - 6.11']
   ];
 
-  /* RSA: os quatro procedimentos vêm da mesma norma, mudando só o ensaio. */
+  /* RSA: the four procedures come from the same standard, only the test changes. */
   var PROCEDIMENTOS_RSA = [
     ['Cold Flow Backpresure', '34-05-803/--J'],
     ['Thermal Shock', '34-05-803/--J', { ensaio: 332, setup: 9, report: 19 }],
@@ -229,12 +229,12 @@
     ['Mount Bracket Durability', '20000NDS01']
   ];
 
-  /* Monta os procedimentos de um cliente. O código é sequencial dentro do prefixo
-     (TP-STL-07), então acrescentar um cliente não renumera os que já existem.
+  /* Builds one customer's procedures. The code is sequential within the prefix
+     (TP-STL-07), so adding a customer does not renumber the existing ones.
 
-     O terceiro elemento da linha, quando existe, são as horas levantadas pelo centro de
-     testes: { ensaio, setup, report }. Procedimento sem esse elemento ainda está por
-     medir e fica zerado. */
+     The row's third element, when present, holds the hours measured by the test centre:
+     { ensaio, setup, report }. A procedure without it is still to be measured and stays at
+     zero. */
   function procedimentosDe(clienteId, prefixo, linhas) {
     return linhas.map(function (linha, i) {
       var horas = linha[2] || {};
@@ -261,27 +261,27 @@
     .concat(procedimentosDe('CLI-RSA', 'TP-RSA', PROCEDIMENTOS_RSA))
     .concat(procedimentosDe('CLI-NIS', 'TP-NIS', PROCEDIMENTOS_NISSAN));
 
-  /* Peças e amostras. São tipos de peça, não peças de um cliente específico:
-     qualquer cliente pode ter uma amostra de qualquer um destes tipos.
-     A data de chegada das amostras é informada na demanda, não aqui. */
+  /* Parts and samples. These are part types, not parts of one customer: any customer can
+     have a sample of any of these types.
+     The sample arrival date is given on the request, not here. */
   var PECAS = [
-    { id: 'PC-HOT', nome: 'Hot End', custoAmostra: 3800, descricao: 'Coletor, downpipe, tubo quente e flexível' },
-    { id: 'PC-CAN', nome: 'Canning', custoAmostra: 5400, descricao: 'Substrato encapsulado: catalisador, DPF/GPF' },
-    { id: 'PC-COL', nome: 'Cold End', custoAmostra: 1650, descricao: 'Tubos, ressonador e ponteira' },
-    { id: 'PC-MUF', nome: 'Muffler', custoAmostra: 1900, descricao: 'Silencioso completo' },
-    { id: 'PC-CMP', nome: 'Component', custoAmostra: 420, descricao: 'Coxim, suporte, flange, corpo de prova' }
+    { id: 'PC-HOT', nome: 'Hot End', custoAmostra: 3800, descricao: 'Manifold, downpipe, hot pipe and flex pipe' },
+    { id: 'PC-CAN', nome: 'Canning', custoAmostra: 5400, descricao: 'Canned substrate: catalyst, DPF/GPF' },
+    { id: 'PC-COL', nome: 'Cold End', custoAmostra: 1650, descricao: 'Pipes, resonator and tailpipe' },
+    { id: 'PC-MUF', nome: 'Muffler', custoAmostra: 1900, descricao: 'Complete muffler' },
+    { id: 'PC-CMP', nome: 'Component', custoAmostra: 420, descricao: 'Hanger, bracket, flange, coupon' }
   ];
 
-  /* Versão do catálogo de partida. Subir este número faz os dados já salvos no
-     navegador receberem os procedimentos novos daqui na próxima carga — é como uma
-     mudança de catálogo chega a quem já usava a plataforma. Ver migrar() em store.js:
-     até a versão 2 o catálogo antigo era substituído; a partir dela a atualização é
-     aditiva e preserva o que já foi preenchido. */
+  /* Seed catalogue version. Raising this number makes data already saved in the browser
+     pick up the new procedures from here on the next load — it is how a catalogue change
+     reaches someone who was already using the platform. See migrar() in store.js: up to
+     version 2 the old catalogue was replaced; from there on the update is additive and
+     preserves whatever was filled in. */
   var CATALOGO_VERSAO = 9;
 
-  /* Versão do inventário de instrumentos, com a mesma mecânica do catálogo: subir este
-     número leva os instrumentos novos a quem já tem dados salvos, sem tocar no que foi
-     preenchido de plano de calibração. */
+  /* Instrument inventory version, same mechanics as the catalogue: raising this number
+     brings the new instruments to whoever already has saved data, without touching the
+     calibration plan they filled in. */
   var INSTRUMENTOS_VERSAO = 2;
 
   TC.data = {

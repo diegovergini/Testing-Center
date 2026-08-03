@@ -1,4 +1,4 @@
-/* Demandas: testes cuja necessidade já foi confirmada, com a janela que o motor calculou. */
+/* Requests: tests whose need has been confirmed, with the slot the scheduler worked out. */
 (function (global) {
   'use strict';
 
@@ -23,14 +23,14 @@
 
   function celulaJanela(a) {
     if (a.cotacao) {
-      return '<span class="etiqueta alerta">Cotação</span><div class="sub">não ocupa bancada</div>';
+      return '<span class="etiqueta alerta">Quote</span><div class="sub">takes no rig</div>';
     }
     if (!a.inicio) {
-      return '<span class="etiqueta erro">Sem janela</span><div class="sub">' + e(a.motivo || '') + '</div>';
+      return '<span class="etiqueta erro">No slot</span><div class="sub">' + e(a.motivo || '') + '</div>';
     }
     var extras = [];
-    if (a.esperaAmostra) extras.push('aguarda amostra ' + a.esperaAmostra + ' d');
-    if (a.esperaFila > 0) extras.push('fila ' + a.esperaFila + ' d');
+    if (a.esperaAmostra) extras.push('waiting for sample ' + a.esperaAmostra + ' d');
+    if (a.esperaFila > 0) extras.push('queue ' + a.esperaFila + ' d');
     var bancadas = a.equipamentos.map(function (eq) {
       return eq.nome + (eq.posicoes > 1 ? ' pos. ' + (a.posicoes[eq.id] + 1) : '');
     }).join(' + ');
@@ -39,23 +39,23 @@
   }
 
   function celulaPrazo(a) {
-    if (!a.demanda.prazo) return '<span class="sub">sem prazo</span>';
+    if (!a.demanda.prazo) return '<span class="sub">no due date</span>';
     var texto = util.formatarData(a.demanda.prazo, true);
     if (a.folga === null || a.folga === undefined) return texto;
     var etiqueta = a.folga < 0
-      ? '<span class="etiqueta erro">' + Math.abs(a.folga) + ' d de atraso</span>'
-      : '<span class="etiqueta ' + (a.folga < 7 ? 'alerta' : 'ok') + '">' + a.folga + ' d de folga</span>';
+      ? '<span class="etiqueta erro">' + Math.abs(a.folga) + ' d late</span>'
+      : '<span class="etiqueta ' + (a.folga < 7 ? 'alerta' : 'ok') + '">' + a.folga + ' d spare</span>';
     return texto + '<div style="margin-top:3px">' + etiqueta + '</div>';
   }
 
-  /* O relatório aparece destacado porque é ele que libera "Enviar relatório": quem olha a
-     lista precisa ver de longe a demanda concluída que ainda não tem relatório anexado. */
+  /* The report is called out because it is what unlocks "Send report": whoever scans the
+     list has to spot from afar the completed request with no report attached yet. */
   function celulaDocumentos(d) {
     var docs = d.documentos || [];
     var contas = TC.documentos.resumo(docs);
     if (!contas.total) return '<span class="sub">—</span>';
-    return '<span class="etiqueta">' + contas.total + ' anexo' + (contas.total > 1 ? 's' : '') + '</span>' +
-      (contas.RELATORIO ? '<div class="sub">relatório</div>' : '');
+    return '<span class="etiqueta">' + contas.total + ' file' + (contas.total > 1 ? 's' : '') + '</span>' +
+      (contas.RELATORIO ? '<div class="sub">report</div>' : '');
   }
 
   function linha(a, podeEditar, perfil) {
@@ -70,11 +70,11 @@
       '</td>' +
       '<td>' +
         '<div class="forte">' + e(d.projeto || '—') + '</div>' +
-        '<div class="sub">' + e(d.partNumber || 'sem part number') + '</div>' +
+        '<div class="sub">' + e(d.partNumber || 'no part number') + '</div>' +
       '</td>' +
       '<td>' +
         '<div>' + e(a.peca ? a.peca.nome : '—') + '</div>' +
-        '<div class="sub">amostras ' + e(util.formatarData(d.dataAmostras)) + '</div>' +
+        '<div class="sub">samples ' + e(util.formatarData(d.dataAmostras)) + '</div>' +
       '</td>' +
       '<td>' + (a.teste ? ui.etiquetaArea(a.teste.area) : '') + '</td>' +
       '<td>' + ui.celulaLti(d) + '</td>' +
@@ -86,9 +86,9 @@
       '<td>' + celulaDocumentos(d) + '</td>' +
       '<td>' + ui.etiquetaStatus(d.status) +
         (d.relatorioCorrecoes
-          ? '<div class="sub">' + d.relatorioCorrecoes + ' correção(ões)</div>' : '') + '</td>' +
-      /* Só aparecem os botões que o fluxo autoriza para o perfil em uso — a regra de quem
-         faz o quê está em src/fluxo.js, não espalhada pela tela. */
+          ? '<div class="sub">' + d.relatorioCorrecoes + ' rework round(s)</div>' : '') + '</td>' +
+      /* Only the buttons the workflow authorises for the role in use show up — the rule of
+         who does what lives in src/fluxo.js, not scattered across the screen. */
       '<td class="num" style="white-space:nowrap">' +
         transicoes.map(function (t) {
           return '<button class="botao pequeno ' +
@@ -97,8 +97,8 @@
             e(t.rotulo) + '</button> ';
         }).join('') +
         (podeEditar
-          ? '<button class="botao pequeno editar">Editar</button> ' +
-            '<button class="botao pequeno perigo excluir" title="Remover demanda">✕</button>'
+          ? '<button class="botao pequeno editar">Edit</button> ' +
+            '<button class="botao pequeno perigo excluir" title="Remove request">✕</button>'
           : (transicoes.length ? '' : '<span class="sub">—</span>')) +
       '</td>' +
     '</tr>';
@@ -111,54 +111,54 @@
       '<div class="aviso">' + e(teste ? teste.nome : demanda.testeId) +
         (teste && teste.revisao ? ' · ' + e(teste.revisao) : '') +
         (alocacao && alocacao.cotacao
-          ? ' · cotação, não ocupa bancada'
+          ? ' · quote, takes no rig'
           : alocacao && alocacao.inicio
-          ? ' · planejado para ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
-            ' em ' + e(alocacao.equipamentos.map(function (eq) { return eq.nome; }).join(' + '))
-          : ' · ainda sem janela') +
+          ? ' · scheduled for ' + e(util.formatarData(alocacao.inicio, true)) + ' → ' + e(util.formatarData(alocacao.fim, true)) +
+            ' on ' + e(alocacao.equipamentos.map(function (eq) { return eq.nome; }).join(' + '))
+          : ' · no slot yet') +
       '</div>' +
       '<div class="grade-campos">' +
-        '<div class="campo"><label>Nº da LTI (ordem de serviço)</label><input name="lti" value="' + e(demanda.lti || '') + '"></div>' +
-        '<div class="campo"><label>Classificação da LTI</label><select name="tipoLti">' + ui.opcoes(TC.data.TIPOS_LTI, demanda.tipoLti) + '</select></div>' +
-        '<div class="campo"><label>Cliente</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
-        '<div class="campo"><label>Projeto</label><input name="projeto" value="' + e(demanda.projeto || '') + '"></div>' +
+        '<div class="campo"><label>LTI no. (work order)</label><input name="lti" value="' + e(demanda.lti || '') + '"></div>' +
+        '<div class="campo"><label>LTI classification</label><select name="tipoLti">' + ui.opcoes(TC.data.TIPOS_LTI, demanda.tipoLti) + '</select></div>' +
+        '<div class="campo"><label>Customer</label><select name="clienteId">' + ui.opcoes(estado.clientes, demanda.clienteId) + '</select></div>' +
+        '<div class="campo"><label>Project</label><input name="projeto" value="' + e(demanda.projeto || '') + '"></div>' +
         '<div class="campo"><label>Part Number</label><input name="partNumber" value="' + e(demanda.partNumber || '') + '"></div>' +
-        '<div class="campo"><label>Peça</label><select name="pecaId">' +
+        '<div class="campo"><label>Part type</label><select name="pecaId">' +
           ui.opcoes(estado.pecas, demanda.pecaId) + '</select></div>' +
-        '<div class="campo"><label>Amostras disponíveis a partir de</label>' +
+        '<div class="campo"><label>Samples available from</label>' +
           '<input type="date" name="dataAmostras" value="' + e(demanda.dataAmostras || '') + '"></div>' +
-        '<div class="campo"><label>Prazo para finalização</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
-        '<div class="campo"><label>Prioridade</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
-        '<div class="campo"><label>Amostras</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
-        '<div class="campo"><label>Forçar início em</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
+        '<div class="campo"><label>Due date</label><input type="date" name="prazo" value="' + e(demanda.prazo || '') + '"></div>' +
+        '<div class="campo"><label>Priority</label><select name="prioridade">' + ui.opcoes(TC.data.PRIORIDADES, demanda.prioridade) + '</select></div>' +
+        '<div class="campo"><label>Samples</label><input type="number" min="1" name="quantidade" value="' + e(String(demanda.quantidade)) + '"></div>' +
+        '<div class="campo"><label>Force start on</label><input type="date" name="inicioFixo" value="' + e(demanda.inicioFixo || '') + '"></div>' +
       '</div>' +
-      /* A situação não se edita à mão: ela muda pelos botões do fluxo, que registram
-         quem fez a passagem e quando. As datas ficam visíveis para conferência. */
-      '<p class="sub" style="margin:14px 0 8px"><strong>Situação: ' +
+      /* The status is not edited by hand: it moves through the workflow buttons, which
+         record who made the move and when. The dates stay visible for checking. */
+      '<p class="sub" style="margin:14px 0 8px"><strong>Status: ' +
         e(TC.fluxo.nomeDoEstado('demanda', demanda.status)) + '</strong>' +
-        (demanda.dataConclusao ? ' · ensaio concluído em ' + e(util.formatarData(demanda.dataConclusao, true)) : '') +
-        (demanda.dataRelatorio ? ' · relatório validado em ' + e(util.formatarData(demanda.dataRelatorio, true)) : '') +
-        (demanda.relatorioCorrecoes ? ' · ' + demanda.relatorioCorrecoes + ' correção(ões)' : '') +
-        '<br>A situação muda pelos botões de fluxo na lista de demandas.</p>' +
+        (demanda.dataConclusao ? ' · test completed on ' + e(util.formatarData(demanda.dataConclusao, true)) : '') +
+        (demanda.dataRelatorio ? ' · report signed off on ' + e(util.formatarData(demanda.dataRelatorio, true)) : '') +
+        (demanda.relatorioCorrecoes ? ' · ' + demanda.relatorioCorrecoes + ' rework round(s)' : '') +
+        '<br>The status changes through the workflow buttons in the request list.</p>' +
       ui.painelDocumentos({
         registro: demanda, contexto: 'demanda', podeEditar: ctx.podeEditar,
-        rotulo: 'Documentos da demanda'
+        rotulo: 'Request documents'
       }) +
       ui.historico('demanda', demanda) +
-      '<div class="campo"><label>Observação</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
+      '<div class="campo"><label>Note</label><textarea name="observacao" rows="2">' + e(demanda.observacao || '') + '</textarea></div>';
 
     var janela = ui.modal({
-      titulo: 'Editar demanda',
+      titulo: 'Edit request',
       corpo: corpo,
       largura: 'min(760px, 100%)',
-      confirmar: 'Salvar e replanejar',
+      confirmar: 'Save and reschedule',
       aoConfirmar: function (v) {
         if (v.tipoLti !== 'COTACAO' && !v.lti.trim()) {
-          ui.notificar('Informe o número da LTI — só cotação pode ficar sem.');
+          ui.notificar('Enter the LTI number — only a quote can go without one.');
           return false;
         }
         if (!v.dataAmostras) {
-          ui.notificar('Informe a data de disponibilidade das amostras.');
+          ui.notificar('Enter the date the samples become available.');
           return false;
         }
         TC.store.atualizarDemanda(demanda.id, {
@@ -168,11 +168,11 @@
           dataAmostras: v.dataAmostras, prazo: v.prazo,
           inicioFixo: v.inicioFixo, observacao: v.observacao
         });
-        ui.notificar('Demanda atualizada e planejamento recalculado.');
+        ui.notificar('Request updated and schedule recalculated.');
       }
     });
-    /* Anexar grava na hora e redesenha só o painel — a janela segue aberta com o que já
-       estava digitado. Sem o replanejamento do ctx.atualizar(), que fecharia o modal. */
+    /* Attaching saves at once and redraws only the panel — the screen stays open with what
+       was already typed. Without the ctx.atualizar() reschedule, which would close it. */
     ui.ligarDocumentos(janela, {
       registro: demanda, contexto: 'demanda', podeEditar: ctx.podeEditar,
       rotulo: 'Documentos da demanda'
@@ -182,9 +182,10 @@
 
   function render(container, ctx) {
     var estado = ctx.estado, f = ctx.filtros;
-    /* Todas as demandas, não só as que o planejamento carrega: a concluída sai do plano
-       (não disputa mais bancada) mas continua no fluxo, com relatório para enviar e
-       validar. Se a lista viesse do plano, a demanda sumiria no meio do caminho. */
+    /* Every request, not just the ones the scheduler carries: a completed one leaves the
+       plan (it no longer competes for a rig) but stays in the workflow, with a report to
+       send and sign off. If the list came from the plan, the request would vanish
+       midway. */
     var todas = TC.kpi.demandasComCusto(estado, ctx.plano);
     var lista = filtrar(todas, f);
 
@@ -201,37 +202,37 @@
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Demandas de teste</h2>' +
-        '<p>Cada necessidade confirmada no catálogo vira uma linha aqui e é reagendada automaticamente sempre que a prioridade, o prazo ou a disponibilidade muda.</p></div>' +
-        '<div class="acoes"><button class="botao" id="csv">Exportar CSV</button>' +
-        (ctx.podeEditar ? '<button class="botao primario" id="ir-catalogo">+ Confirmar novo teste</button>' : '') +
+        '<div><h2>Test requests</h2>' +
+        '<p>Every need confirmed in the catalogue becomes a row here and is rescheduled automatically whenever priority, due date or availability changes.</p></div>' +
+        '<div class="acoes"><button class="botao" id="csv">Export CSV</button>' +
+        (ctx.podeEditar ? '<button class="botao primario" id="ir-catalogo">+ Confirm new test</button>' : '') +
         '</div>' +
       '</div>' +
       '<div class="indicadores">' +
-        '<div class="indicador"><div class="rotulo">Demandas</div><div class="valor">' + lista.length + '</div>' +
-          '<div class="nota">' + lista.filter(function (a) { return a.demanda.status === 'PENDENTE'; }).length + ' pendentes</div></div>' +
-        '<div class="indicador"><div class="rotulo">Custo comprometido</div><div class="valor">' + util.formatarMoeda(custoTotal) + '</div>' +
-          '<div class="nota">mão de obra + máquina + amostras</div></div>' +
-        '<div class="indicador"><div class="rotulo">Fora do prazo</div><div class="valor" style="color:' + (atrasadas ? 'var(--erro)' : 'inherit') + '">' + atrasadas + '</div>' +
-          '<div class="nota">terminam depois do prazo do cliente</div></div>' +
-        '<div class="indicador"><div class="rotulo">Sem janela</div><div class="valor" style="color:' + (semJanela ? 'var(--alerta)' : 'inherit') + '">' + semJanela + '</div>' +
-          '<div class="nota">equipamento ausente ou lotado</div></div>' +
-        '<div class="indicador"><div class="rotulo">Cotações</div><div class="valor">' + cotacoes + '</div>' +
-          '<div class="nota">não ocupam bancada</div></div>' +
+        '<div class="indicador"><div class="rotulo">Requests</div><div class="valor">' + lista.length + '</div>' +
+          '<div class="nota">' + lista.filter(function (a) { return a.demanda.status === 'PENDENTE'; }).length + ' pending</div></div>' +
+        '<div class="indicador"><div class="rotulo">Committed cost</div><div class="valor">' + util.formatarMoeda(custoTotal) + '</div>' +
+          '<div class="nota">labour + machine + samples</div></div>' +
+        '<div class="indicador"><div class="rotulo">Past due date</div><div class="valor" style="color:' + (atrasadas ? 'var(--erro)' : 'inherit') + '">' + atrasadas + '</div>' +
+          '<div class="nota">finish after the customer due date</div></div>' +
+        '<div class="indicador"><div class="rotulo">No slot</div><div class="valor" style="color:' + (semJanela ? 'var(--alerta)' : 'inherit') + '">' + semJanela + '</div>' +
+          '<div class="nota">equipment missing or fully booked</div></div>' +
+        '<div class="indicador"><div class="rotulo">Quotes</div><div class="valor">' + cotacoes + '</div>' +
+          '<div class="nota">take no rig</div></div>' +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
-          '<div class="campo busca"><label>Buscar LTI</label><input id="f-busca" placeholder="LTI, projeto, part number, procedimento ou peça" value="' + e(f.busca || '') + '"></div>' +
-          '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
-          '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-          '<div class="campo"><label>Classificação</label><select id="f-tipo">' + ui.opcoes(TC.data.TIPOS_LTI, f.tipoLti, 'Todas') + '</select></div>' +
-          '<div class="campo"><label>Status</label><select id="f-status">' + ui.opcoes(statusLista, f.status, 'Todos') + '</select></div>' +
+          '<div class="campo busca"><label>Search LTI</label><input id="f-busca" placeholder="LTI, project, part number, procedure or part type" value="' + e(f.busca || '') + '"></div>' +
+          '<div class="campo"><label>Customer</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'All') + '</select></div>' +
+          '<div class="campo"><label>End</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
+          '<div class="campo"><label>Classification</label><select id="f-tipo">' + ui.opcoes(TC.data.TIPOS_LTI, f.tipoLti, 'All') + '</select></div>' +
+          '<div class="campo"><label>Status</label><select id="f-status">' + ui.opcoes(statusLista, f.status, 'All') + '</select></div>' +
         '</div></div>' +
         (lista.length ? '<div class="tabela-rolagem"><table><thead><tr>' +
-          '<th>Procedimento</th><th>Projeto</th><th>Peça</th><th>Área</th><th>LTI</th><th>Prioridade</th><th class="num">Amostras</th>' +
-          '<th>Janela planejada</th><th>Prazo</th><th class="num">Custo</th><th>Documentos</th><th>Status</th><th></th>' +
+          '<th>Procedure</th><th>Project</th><th>Part type</th><th>End</th><th>LTI</th><th>Priority</th><th class="num">Samples</th>' +
+          '<th>Planned slot</th><th>Due date</th><th class="num">Cost</th><th>Documents</th><th>Status</th><th></th>' +
           '</tr></thead><tbody>' + lista.map(function (a) { return linha(a, ctx.podeEditar, perfilAtual); }).join('') + '</tbody></table></div>'
-          : ui.vazio('Nenhuma demanda confirmada', 'Abra o catálogo e confirme a necessidade de um teste.')) +
+          : ui.vazio('No request confirmed', 'Open the catalogue and confirm the need for a test.')) +
       '</div>';
 
     var irCatalogo = container.querySelector('#ir-catalogo');
@@ -273,19 +274,19 @@
       if (!editar) return;
       editar.onclick = function () { abrirEdicao(ctx, alocacao.demanda, alocacao); };
       tr.querySelector('.excluir').onclick = function () {
-        ui.confirmarAcao('Remover a demanda de "' + (alocacao.teste ? alocacao.teste.nome : '') + '"?', function () {
+        ui.confirmarAcao('Remove the request for "' + (alocacao.teste ? alocacao.teste.nome : '') + '"?', function () {
           TC.store.removerDemanda(tr.dataset.demanda);
-          ui.notificar('Demanda removida.');
+          ui.notificar('Request removed.');
         });
       };
     });
   }
 
   function exportarCsv(lista) {
-    var cabecalho = ['LTI', 'Classificacao_LTI', 'Codigo', 'Procedimento', 'Revisao', 'Projeto',
-      'Part_Number', 'Peca', 'Cliente', 'Prioridade', 'Amostras', 'Equipamentos',
-      'Amostras_disponiveis_em', 'Inicio', 'Fim', 'Prazo', 'Folga_dias', 'Custo_total', 'Status',
-      'Documentos', 'Link_relatorio'];
+    var cabecalho = ['LTI', 'LTI_classification', 'Code', 'Procedure', 'Revision', 'Project',
+      'Part_number', 'Part_type', 'Customer', 'Priority', 'Samples', 'Equipment',
+      'Samples_available_from', 'Start', 'End', 'Due_date', 'Spare_days', 'Total_cost', 'Status',
+      'Documents', 'Report_link'];
     var linhas = lista.map(function (a) {
       return [
         a.demanda.lti || '',
@@ -315,16 +316,16 @@
     var url = URL.createObjectURL(new Blob([conteudo], { type: 'text/csv;charset=utf-8' }));
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'demandas-de-teste-' + util.hoje() + '.csv';
+    a.download = 'test-requests-' + util.hoje() + '.csv';
     a.click();
     URL.revokeObjectURL(url);
-    ui.notificar('CSV exportado.');
+    ui.notificar('CSV exported.');
   }
 
   TC.views = TC.views || {};
   TC.views.demandas = {
     render: render,
-    /* Usado pelo Gantt: clicar numa barra abre a demanda correspondente. */
+    /* Used by the Gantt: clicking a bar opens the matching request. */
     abrirDetalhe: function (ctx, alocacao) { abrirEdicao(ctx, alocacao.demanda, alocacao); }
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

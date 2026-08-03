@@ -1,8 +1,8 @@
-/* Fluxos da plataforma: demanda de teste e cotação.
-   Cada fluxo é uma máquina de estados — quais são os estados, quem pode mover de um para
-   o outro, e o que precisa estar preenchido para a passagem valer. Fica num módulo puro,
-   testado, porque é aqui que mora a regra de quem faz o quê. A interface só desenha os
-   botões que este módulo autoriza. */
+/* Platform workflows: test request and quote.
+   Each workflow is a state machine — which states exist, who can move from one to the next,
+   and what has to be filled in for the move to count. It lives in a pure, tested module,
+   because this is where the rule of who does what belongs. The interface only draws the
+   buttons this module authorises. */
 (function (global) {
   'use strict';
 
@@ -10,110 +10,110 @@
   var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
   if (!TC.documentos && typeof require !== 'undefined') require('./documentos.js');
 
-  /* --- Demanda de teste ---------------------------------------------------------------
+  /* --- Test request -------------------------------------------------------------------
 
-     O cliente interno pede, o centro de testes aceita e executa, o relatório vai ao
-     cliente, e o cliente valida ou devolve para correção.
+     The internal customer asks, the test centre accepts and runs it, the report goes to the
+     customer, and the customer either signs it off or sends it back for rework.
 
-       SOLICITADA ─aceite→ ACEITA ─início→ EM_EXECUCAO ─fim→ CONCLUIDA
-                                                                │ envio do relatório
+       SOLICITADA ─accept→ ACEITA ─start→ EM_EXECUCAO ─finish→ CONCLUIDA
+                                                                │ report sent
                                                                 ▼
-                                    VALIDADA ←validação─ RELATORIO_ENVIADO
-                                                                │ correção pedida
+                                     VALIDADA ←sign-off─ RELATORIO_ENVIADO
+                                                                │ rework asked
                                                                 ▼
-                                                          EM_CORRECAO ─reenvio→ (volta)
+                                                          EM_CORRECAO ─resend→ (back)
 
-     "ativo" marca os estados que ainda disputam bancada: são os que o planejamento
-     agenda. Concluída em diante, o ensaio já saiu do equipamento. */
+     "ativo" marks the states still competing for a rig: those are the ones the scheduler
+     places. From Test completed on, the test has left the equipment. */
   var DEMANDA = [
-    { id: 'SOLICITADA', nome: 'Solicitada', cor: 'marca', ativo: true,
-      dono: 'PRODUTO', descricao: 'Cliente interno abriu a demanda; aguarda aceite do centro de testes' },
-    { id: 'ACEITA', nome: 'Aceita', cor: 'marca', ativo: true,
-      dono: 'TESTES', descricao: 'Centro de testes assumiu; o ensaio está agendado' },
-    { id: 'EM_EXECUCAO', nome: 'Em execução', cor: 'alerta', ativo: true,
-      dono: 'TESTES', descricao: 'Ensaio rodando na bancada' },
-    { id: 'CONCLUIDA', nome: 'Ensaio concluído', cor: 'ok', ativo: false,
-      dono: 'TESTES', descricao: 'Ensaio terminado; relatório em elaboração' },
-    { id: 'RELATORIO_ENVIADO', nome: 'Relatório enviado', cor: 'marca', ativo: false,
-      dono: 'PRODUTO', descricao: 'Relatório com o cliente, aguardando validação' },
-    { id: 'EM_CORRECAO', nome: 'Em correção', cor: 'erro', ativo: false,
-      dono: 'TESTES', descricao: 'Cliente pediu correção do relatório' },
-    { id: 'VALIDADA', nome: 'Validada pelo cliente', cor: 'ok', ativo: false,
-      dono: null, descricao: 'Cliente validou o relatório; demanda encerrada' },
-    { id: 'CANCELADA', nome: 'Cancelada', cor: '', ativo: false,
-      dono: null, descricao: 'Demanda encerrada sem execução' }
+    { id: 'SOLICITADA', nome: 'Requested', cor: 'marca', ativo: true,
+      dono: 'PRODUTO', descricao: 'Internal customer opened the request; waiting for the test centre to accept' },
+    { id: 'ACEITA', nome: 'Accepted', cor: 'marca', ativo: true,
+      dono: 'TESTES', descricao: 'Test centre took it on; the test is scheduled' },
+    { id: 'EM_EXECUCAO', nome: 'Running', cor: 'alerta', ativo: true,
+      dono: 'TESTES', descricao: 'Test running on the rig' },
+    { id: 'CONCLUIDA', nome: 'Test completed', cor: 'ok', ativo: false,
+      dono: 'TESTES', descricao: 'Test finished; report being written' },
+    { id: 'RELATORIO_ENVIADO', nome: 'Report sent', cor: 'marca', ativo: false,
+      dono: 'PRODUTO', descricao: 'Report with the customer, awaiting sign-off' },
+    { id: 'EM_CORRECAO', nome: 'In rework', cor: 'erro', ativo: false,
+      dono: 'TESTES', descricao: 'Customer asked for the report to be reworked' },
+    { id: 'VALIDADA', nome: 'Signed off by customer', cor: 'ok', ativo: false,
+      dono: null, descricao: 'Customer accepted the report; request closed' },
+    { id: 'CANCELADA', nome: 'Cancelled', cor: '', ativo: false,
+      dono: null, descricao: 'Request closed without running' }
   ];
 
-  /* perfil = quem tem o botão. exige = campos que precisam estar preenchidos na passagem;
-     sem eles a transição é recusada, para o dado do indicador não nascer furado. */
+  /* perfil = who gets the button. exige = fields that must be filled in on the way through;
+     without them the transition is refused, so the KPI data is never born with holes. */
   var TRANSICOES_DEMANDA = [
-    { de: 'SOLICITADA', para: 'ACEITA', perfil: 'TESTES', rotulo: 'Aceitar demanda',
-      descricao: 'O centro de testes assume a demanda e ela entra firme no planejamento.' },
-    { de: 'ACEITA', para: 'EM_EXECUCAO', perfil: 'TESTES', rotulo: 'Iniciar ensaio',
-      descricao: 'A peça entrou na bancada.' },
-    { de: 'EM_EXECUCAO', para: 'CONCLUIDA', perfil: 'TESTES', rotulo: 'Concluir ensaio',
+    { de: 'SOLICITADA', para: 'ACEITA', perfil: 'TESTES', rotulo: 'Accept request',
+      descricao: 'The test centre takes the request on and it enters the schedule for good.' },
+    { de: 'ACEITA', para: 'EM_EXECUCAO', perfil: 'TESTES', rotulo: 'Start test',
+      descricao: 'The part is on the rig.' },
+    { de: 'EM_EXECUCAO', para: 'CONCLUIDA', perfil: 'TESTES', rotulo: 'Complete test',
       exige: ['dataConclusao'],
-      descricao: 'O ensaio terminou. A data de conclusão alimenta o painel do mês.' },
-    { de: 'CONCLUIDA', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Enviar relatório',
+      descricao: 'The test is over. The completion date feeds the dashboard for the month.' },
+    { de: 'CONCLUIDA', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Send report',
       exigeDocumento: 'RELATORIO',
-      descricao: 'O relatório vai ao cliente para validação. Anexe o relatório antes: é ' +
-        'assim que o cliente chega nele a partir da demanda.' },
-    { de: 'RELATORIO_ENVIADO', para: 'VALIDADA', perfil: 'PRODUTO', rotulo: 'Validar relatório',
+      descricao: 'The report goes to the customer for sign-off. Attach the report first: ' +
+        'that is how the customer reaches it from the request.' },
+    { de: 'RELATORIO_ENVIADO', para: 'VALIDADA', perfil: 'PRODUTO', rotulo: 'Sign off report',
       exige: ['dataRelatorio'],
-      descricao: 'O cliente aceita o relatório como está. É esta validação que conta no ' +
-        'indicador de certo da primeira vez.' },
-    { de: 'RELATORIO_ENVIADO', para: 'EM_CORRECAO', perfil: 'PRODUTO', rotulo: 'Pedir correção',
+      descricao: 'The customer accepts the report as it stands. This sign-off is what counts ' +
+        'towards right first time.' },
+    { de: 'RELATORIO_ENVIADO', para: 'EM_CORRECAO', perfil: 'PRODUTO', rotulo: 'Request rework',
       contaCorrecao: true, exigeNota: true,
-      descricao: 'O cliente devolve o relatório. A rodada de correção é contabilizada.' },
-    { de: 'EM_CORRECAO', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Reenviar relatório',
-      descricao: 'Relatório corrigido e devolvido ao cliente.' },
-    { de: 'SOLICITADA', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancelar', exigeNota: true },
-    { de: 'ACEITA', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancelar', exigeNota: true },
-    { de: 'EM_EXECUCAO', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancelar', exigeNota: true }
+      descricao: 'The customer sends the report back. The rework round is counted.' },
+    { de: 'EM_CORRECAO', para: 'RELATORIO_ENVIADO', perfil: 'TESTES', rotulo: 'Resend report',
+      descricao: 'Report reworked and returned to the customer.' },
+    { de: 'SOLICITADA', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancel', exigeNota: true },
+    { de: 'ACEITA', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancel', exigeNota: true },
+    { de: 'EM_EXECUCAO', para: 'CANCELADA', perfil: 'QUALQUER', rotulo: 'Cancel', exigeNota: true }
   ];
 
-  /* --- Cotação ------------------------------------------------------------------------
+  /* --- Quote --------------------------------------------------------------------------
 
-     O cliente monta a partir do catálogo e envia; o centro de testes analisa e valida;
-     o cliente aprova ou recusa.
+     The customer builds it from the catalogue and sends it; the test centre reviews and
+     confirms it; the customer approves or declines.
 
-       RASCUNHO ─envio→ SOLICITADA ─análise→ EM_ANALISE ─validação→ VALIDADA
-                              ▲                    │                     │
-                              └── DEVOLVIDA ───────┘            APROVADA / RECUSADA
+       RASCUNHO ─send→ SOLICITADA ─review→ EM_ANALISE ─confirm→ VALIDADA
+                             ▲                   │                    │
+                             └── DEVOLVIDA ──────┘           APROVADA / RECUSADA
   */
   var COTACAO = [
-    { id: 'RASCUNHO', nome: 'Rascunho', cor: '', dono: 'PRODUTO',
-      descricao: 'Cliente interno montando a lista de procedimentos' },
-    { id: 'SOLICITADA', nome: 'Solicitada', cor: 'marca', dono: 'TESTES',
-      descricao: 'Enviada ao centro de testes, aguardando análise' },
-    { id: 'EM_ANALISE', nome: 'Em análise', cor: 'alerta', dono: 'TESTES',
-      descricao: 'Centro de testes conferindo escopo, horas e preço' },
-    { id: 'DEVOLVIDA', nome: 'Devolvida ao cliente', cor: 'erro', dono: 'PRODUTO',
-      descricao: 'Falta informação para cotar; volta ao solicitante' },
-    { id: 'VALIDADA', nome: 'Validada pelo centro de testes', cor: 'ok', dono: 'PRODUTO',
-      descricao: 'Preço confirmado e devolvido ao cliente para decisão' },
-    { id: 'APROVADA', nome: 'Aprovada pelo cliente', cor: 'ok', dono: null,
-      descricao: 'Cliente aprovou; os testes podem ser demandados' },
-    { id: 'RECUSADA', nome: 'Recusada', cor: '', dono: null,
-      descricao: 'Cliente não seguiu com o orçamento' }
+    { id: 'RASCUNHO', nome: 'Draft', cor: '', dono: 'PRODUTO',
+      descricao: 'Internal customer building the list of procedures' },
+    { id: 'SOLICITADA', nome: 'Requested', cor: 'marca', dono: 'TESTES',
+      descricao: 'Sent to the test centre, awaiting review' },
+    { id: 'EM_ANALISE', nome: 'Under review', cor: 'alerta', dono: 'TESTES',
+      descricao: 'Test centre checking scope, hours and price' },
+    { id: 'DEVOLVIDA', nome: 'Returned to customer', cor: 'erro', dono: 'PRODUTO',
+      descricao: 'Missing information to quote; goes back to the requester' },
+    { id: 'VALIDADA', nome: 'Confirmed by test centre', cor: 'ok', dono: 'PRODUTO',
+      descricao: 'Price confirmed and returned to the customer to decide' },
+    { id: 'APROVADA', nome: 'Approved by customer', cor: 'ok', dono: null,
+      descricao: 'Customer approved; the tests can now be requested' },
+    { id: 'RECUSADA', nome: 'Declined', cor: '', dono: null,
+      descricao: 'Customer did not go ahead with the quote' }
   ];
 
   var TRANSICOES_COTACAO = [
-    { de: 'RASCUNHO', para: 'SOLICITADA', perfil: 'PRODUTO', rotulo: 'Enviar para cotação',
-      descricao: 'A solicitação vai ao centro de testes.' },
-    { de: 'SOLICITADA', para: 'EM_ANALISE', perfil: 'TESTES', rotulo: 'Assumir análise',
-      descricao: 'O centro de testes assume a conferência do escopo e do preço.' },
-    { de: 'EM_ANALISE', para: 'VALIDADA', perfil: 'TESTES', rotulo: 'Validar cotação',
-      descricao: 'Preço confirmado. A cotação volta ao cliente para decisão.' },
-    { de: 'EM_ANALISE', para: 'DEVOLVIDA', perfil: 'TESTES', rotulo: 'Devolver ao solicitante',
+    { de: 'RASCUNHO', para: 'SOLICITADA', perfil: 'PRODUTO', rotulo: 'Send for quoting',
+      descricao: 'The request goes to the test centre.' },
+    { de: 'SOLICITADA', para: 'EM_ANALISE', perfil: 'TESTES', rotulo: 'Take on review',
+      descricao: 'The test centre takes on the scope and price check.' },
+    { de: 'EM_ANALISE', para: 'VALIDADA', perfil: 'TESTES', rotulo: 'Confirm quote',
+      descricao: 'Price confirmed. The quote goes back to the customer to decide.' },
+    { de: 'EM_ANALISE', para: 'DEVOLVIDA', perfil: 'TESTES', rotulo: 'Return to requester',
       exigeNota: true,
-      descricao: 'Falta informação para cotar; a cotação volta a quem pediu.' },
-    { de: 'DEVOLVIDA', para: 'SOLICITADA', perfil: 'PRODUTO', rotulo: 'Reenviar',
-      descricao: 'Informação complementada; volta ao centro de testes.' },
-    { de: 'VALIDADA', para: 'APROVADA', perfil: 'PRODUTO', rotulo: 'Aprovar cotação',
-      descricao: 'O cliente aprova o orçamento.' },
-    { de: 'VALIDADA', para: 'RECUSADA', perfil: 'PRODUTO', rotulo: 'Recusar cotação',
-      exigeNota: true, descricao: 'O cliente não segue com o orçamento.' }
+      descricao: 'Missing information to quote; the quote goes back to whoever asked.' },
+    { de: 'DEVOLVIDA', para: 'SOLICITADA', perfil: 'PRODUTO', rotulo: 'Resend',
+      descricao: 'Information completed; back to the test centre.' },
+    { de: 'VALIDADA', para: 'APROVADA', perfil: 'PRODUTO', rotulo: 'Approve quote',
+      descricao: 'The customer approves the quote.' },
+    { de: 'VALIDADA', para: 'RECUSADA', perfil: 'PRODUTO', rotulo: 'Decline quote',
+      exigeNota: true, descricao: 'The customer does not go ahead with the quote.' }
   ];
 
   var FLUXOS = {
@@ -138,13 +138,13 @@
     return e ? e.nome : id;
   }
 
-  /* Estados que ainda disputam bancada. Só a demanda tem essa noção. */
+  /* States still competing for a rig. Only the request has this notion. */
   function estadosAtivos() {
     return DEMANDA.filter(function (e) { return e.ativo; }).map(function (e) { return e.id; });
   }
 
-  /* Transições disponíveis a partir de um estado. Sem perfil, devolve todas — é assim que
-     a documentação e os testes enxergam o fluxo inteiro. */
+  /* Transitions available from a state. With no role it returns all of them — that is how
+     the documentation and the tests see the whole workflow. */
   function transicoesDe(tipo, de, perfil) {
     return fluxo(tipo).transicoes.filter(function (t) {
       if (t.de !== de) return false;
@@ -166,41 +166,41 @@
     return t.perfil === 'QUALQUER' || t.perfil === perfil;
   }
 
-  /* Valida a passagem antes de gravar: perfil certo, transição existente e campos exigidos
-     preenchidos. Devolve { ok: true } ou { ok: false, motivo: '...' }. */
+  /* Validates the move before saving: right role, existing transition and required fields
+     filled in. Returns { ok: true } or { ok: false, motivo: '...' }. */
   function validar(tipo, registro, para, perfil, dados) {
     var de = registro.status;
     var t = transicao(tipo, de, para);
     if (!t) {
-      return { ok: false, motivo: 'Não existe passagem de "' + nomeDoEstado(tipo, de) +
-        '" para "' + nomeDoEstado(tipo, para) + '".' };
+      return { ok: false, motivo: 'There is no move from "' + nomeDoEstado(tipo, de) +
+        '" to "' + nomeDoEstado(tipo, para) + '".' };
     }
     if (t.perfil !== 'QUALQUER' && t.perfil !== perfil) {
-      return { ok: false, motivo: 'Esta passagem é do perfil ' +
-        (t.perfil === 'TESTES' ? 'Engenheiro de Testes' : 'Engenheiro de Produto') + '.' };
+      return { ok: false, motivo: 'This move belongs to the ' +
+        (t.perfil === 'TESTES' ? 'Test Engineer' : 'Product Engineer') + ' role.' };
     }
     var valores = dados || {};
     var faltando = (t.exige || []).filter(function (campo) {
       return !(valores[campo] || registro[campo]);
     });
     if (faltando.length) {
-      return { ok: false, motivo: 'Preencha antes: ' + faltando.join(', ') + '.' };
+      return { ok: false, motivo: 'Fill in first: ' + faltando.join(', ') + '.' };
     }
     if (t.exigeNota && !(valores.nota || '').trim()) {
-      return { ok: false, motivo: 'Descreva o motivo para registrar no histórico.' };
+      return { ok: false, motivo: 'Describe the reason so it goes into the history.' };
     }
-    /* Relatório enviado sem relatório anexado deixa o cliente com um status e nada para
-       ler; e o indicador de certo da primeira vez passa a contar uma entrega que ninguém
-       consegue abrir. A exigência é do documento, não do arquivo: basta o link. */
+    /* A report sent with no report attached leaves the customer with a status and nothing
+       to read, and right first time starts counting a delivery nobody can open. What is
+       required is the document, not the file: the link is enough. */
     if (t.exigeDocumento && !TC.documentos.tem(registro.documentos, t.exigeDocumento)) {
-      return { ok: false, motivo: 'Anexe o documento "' +
-        TC.documentos.nomeDoTipo(t.exigeDocumento) + '" antes desta passagem.' };
+      return { ok: false, motivo: 'Attach the "' +
+        TC.documentos.nomeDoTipo(t.exigeDocumento) + '" document before this move.' };
     }
     return { ok: true, transicao: t };
   }
 
-  /* Uma linha de histórico por passagem: quem, quando, de onde para onde e por quê.
-     É o que permite auditar a demanda depois sem depender da memória de ninguém. */
+  /* One history line per move: who, when, from where to where and why. It is what makes a
+     request auditable later without relying on anyone's memory. */
   function registroDeHistorico(de, para, perfil, nota, quando) {
     return {
       em: quando || util.hoje(),

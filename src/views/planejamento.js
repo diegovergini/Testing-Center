@@ -1,4 +1,5 @@
-/* Planejamento: linha do tempo por equipamento e posição, gerada pelo motor de alocação. */
+/* Schedule: a timeline per piece of equipment and position, produced by the allocation
+   engine. */
 (function (global) {
   'use strict';
 
@@ -6,13 +7,13 @@
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
   var ZOOMS = [
-    { id: '9', nome: 'Trimestre', largura: 9 },
-    { id: '16', nome: 'Mês', largura: 16 },
-    { id: '30', nome: 'Semana', largura: 30 }
+    { id: '9', nome: 'Quarter', largura: 9 },
+    { id: '16', nome: 'Month', largura: 16 },
+    { id: '30', nome: 'Week', largura: 30 }
   ];
 
-  /* Começa mostrando só o que tem ensaio alocado: o laboratório tem muito mais
-     posições do que demandas em curso e a lista completa esconde o que interessa. */
+  /* It starts showing only what has a test allocated: the lab has far more positions than
+     requests in flight, and the full list buries what matters. */
   var preferencias = { zoom: '16', somenteOcupados: true };
 
   function segundaFeiraDe(iso) {
@@ -67,7 +68,7 @@
   function marcadorHoje(faixa, largura, hoje) {
     var offset = util.diffDias(faixa.inicio, hoje);
     if (offset < 0 || offset >= faixa.dias) return '';
-    return '<div class="gantt-dia hoje" title="Hoje" style="left:' + (offset * largura) + 'px;width:' + largura + 'px"></div>';
+    return '<div class="gantt-dia hoje" title="Today" style="left:' + (offset * largura) + 'px;width:' + largura + 'px"></div>';
   }
 
   function blocosManutencao(equipamento, faixa, largura) {
@@ -76,7 +77,7 @@
       var fimOffset = util.diffDias(faixa.inicio, m.fim);
       if (fimOffset < 0 || ini >= faixa.dias) return '';
       var largura_ = (Math.min(faixa.dias - 1, fimOffset) - ini + 1) * largura;
-      return '<div class="gantt-dia manutencao" title="' + e(m.motivo || 'Manutenção') + '" style="left:' +
+      return '<div class="gantt-dia manutencao" title="' + e(m.motivo || 'Maintenance') + '" style="left:' +
         (ini * largura) + 'px;width:' + largura_ + 'px"></div>';
     }).join('');
   }
@@ -92,10 +93,10 @@
       (a.peca ? ' · ' + a.peca.nome : '') +
       '\n' + a.equipamentos.map(function (eq) { return eq.nome; }).join(' + ') +
       '\n' + util.formatarData(a.inicio, true) + ' → ' + util.formatarData(a.fim, true) +
-      '\n' + a.custo.horasBancada + ' h de bancada · ' + util.formatarMoeda(a.custo.total) +
-      (a.atrasado ? '\nTermina ' + Math.abs(a.folga) + ' dia(s) após o prazo' : '');
-    /* O projeto entra na barra junto do procedimento: no Gantt cheio é o que diz
-       de quem é o ensaio sem precisar passar o mouse. */
+      '\n' + a.custo.horasBancada + ' h on the rig · ' + util.formatarMoeda(a.custo.total) +
+      (a.atrasado ? '\nFinishes ' + Math.abs(a.folga) + ' day(s) after the due date' : '');
+    /* The project goes on the bar next to the procedure: on a busy Gantt it is what says
+       whose test it is without hovering. */
     var rotulo = a.teste.nome + (a.demanda.projeto ? ' · ' + a.demanda.projeto : '');
     return '<div class="gantt-barra ' + classe + (a.atrasado ? ' atrasado' : '') + '" ' +
       'data-demanda="' + e(a.demandaId) + '" title="' + e(titulo) + '" ' +
@@ -136,7 +137,7 @@
           '<div class="gantt-linha">' +
             '<div class="gantt-rotulo">' +
               '<span class="nome">' + e(eq.nome) + (eq.posicoes > 1 ? ' <span class="sub">pos. ' + (p + 1) + '</span>' : '') + '</span>' +
-              '<span class="sub">' + (eq.continuo ? '24 h contínuo' : eq.horasDia + ' h/dia') + '</span>' +
+              '<span class="sub">' + (eq.continuo ? '24 h continuous' : eq.horasDia + ' h/day') + '</span>' +
               '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">' +
                 '<span class="barra-trilho" style="flex:1"><span class="barra-valor' +
                   (ocupacao > 85 ? ' erro' : ocupacao > 60 ? ' alerta' : '') +
@@ -157,48 +158,48 @@
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Planejamento</h2>' +
-        '<p>Alocação automática por prioridade e prazo, respeitando a chegada das amostras, o calendário de cada equipamento, as paradas de manutenção e o número de posições em paralelo.</p></div>' +
+        '<div><h2>Schedule</h2>' +
+        '<p>Automatic allocation by priority and due date, respecting sample arrival, each machine\'s calendar, maintenance downtime and the number of parallel positions.</p></div>' +
         '<div class="acoes">' +
           '<select id="zoom" style="width:auto">' + ui.opcoes(ZOOMS, preferencias.zoom) + '</select>' +
-          '<button class="botao" id="ocupados">' + (preferencias.somenteOcupados ? 'Mostrar todos os recursos' : 'Só recursos ocupados') + '</button>' +
+          '<button class="botao" id="ocupados">' + (preferencias.somenteOcupados ? 'Show every resource' : 'Busy resources only') + '</button>' +
         '</div>' +
       '</div>' +
       '<div class="cartao">' +
         '<div class="cartao-topo">' +
           '<div class="filtros" style="flex:1">' +
-            '<div class="campo"><label>Cliente</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'Todos') + '</select></div>' +
-            '<div class="campo"><label>Área</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
-            '<div class="campo"><label>Classificação</label><select id="f-tipo">' + ui.opcoes(TC.data.FASES, f.tipoLti, 'Todas') + '</select></div>' +
+            '<div class="campo"><label>Customer</label><select id="f-cliente">' + ui.opcoes(estado.clientes, f.clienteId, 'All') + '</select></div>' +
+            '<div class="campo"><label>End</label><select id="f-area">' + ui.opcoes(TC.data.AREAS.filter(function (a) { return a.id !== 'AMBOS'; }), f.area, 'Hot + Cold') + '</select></div>' +
+            '<div class="campo"><label>Classification</label><select id="f-tipo">' + ui.opcoes(TC.data.FASES, f.tipoLti, 'All') + '</select></div>' +
           '</div>' +
           '<div class="legenda">' +
             '<span><i style="background:var(--hot)"></i>Hot End</span>' +
             '<span><i style="background:var(--cold)"></i>Cold End</span>' +
             '<span><i style="background:var(--ambos)"></i>Hot &amp; Cold</span>' +
-            '<span><i style="background:var(--alerta-bg);border:1px solid var(--alerta)"></i>Manutenção</span>' +
-            '<span><i style="border:2px solid var(--erro)"></i>Fora do prazo</span>' +
+            '<span><i style="background:var(--alerta-bg);border:1px solid var(--alerta)"></i>Maintenance</span>' +
+            '<span><i style="border:2px solid var(--erro)"></i>Past due date</span>' +
           '</div>' +
         '</div>' +
         (visiveis.length || linhas
           ? '<div class="gantt"><div class="gantt-grade">' +
               '<div class="gantt-linha cabecalho">' +
-                '<div class="gantt-rotulo"><span class="nome">Equipamento</span>' +
+                '<div class="gantt-rotulo"><span class="nome">Equipment</span>' +
                   '<span class="sub">' + e(util.formatarData(faixa.inicio, true)) + ' → ' + e(util.formatarData(util.somaDias(faixa.inicio, faixa.dias - 1), true)) + '</span></div>' +
                 '<div class="gantt-faixa" style="width:' + (faixa.dias * largura) + 'px;' + fundoDaFaixa(largura) + '">' +
                   cabecalhoTempo(faixa, largura) + marcadorHoje(faixa, largura, hoje) +
                 '</div>' +
               '</div>' + linhas +
             '</div></div>'
-          : ui.vazio('Nada planejado ainda', 'Confirme a necessidade de um teste no catálogo para vê-lo aqui.')) +
+          : ui.vazio('Nothing scheduled yet', 'Confirm the need for a test in the catalogue to see it here.')) +
       '</div>' +
       (bloqueadas.length
-        ? '<div class="cartao"><div class="cartao-topo"><h3>Demandas sem janela (' + bloqueadas.length + ')</h3></div>' +
-          '<div class="tabela-rolagem"><table><thead><tr><th>Procedimento</th><th>Peça</th><th>Motivo</th><th></th></tr></thead><tbody>' +
+        ? '<div class="cartao"><div class="cartao-topo"><h3>Requests with no slot (' + bloqueadas.length + ')</h3></div>' +
+          '<div class="tabela-rolagem"><table><thead><tr><th>Procedure</th><th>Part type</th><th>Reason</th><th></th></tr></thead><tbody>' +
           bloqueadas.map(function (a) {
             return '<tr><td class="forte">' + e(a.teste ? a.teste.nome : a.demanda.testeId) + '</td>' +
               '<td>' + e(a.peca ? a.peca.nome : '—') + '</td>' +
               '<td><span class="etiqueta erro">' + e(a.motivo) + '</span></td>' +
-              '<td class="num"><button class="botao pequeno ver" data-demanda="' + e(a.demandaId) + '">Abrir</button></td></tr>';
+              '<td class="num"><button class="botao pequeno ver" data-demanda="' + e(a.demandaId) + '">Open</button></td></tr>';
           }).join('') + '</tbody></table></div></div>'
         : '');
 

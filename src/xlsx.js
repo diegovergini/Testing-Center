@@ -188,7 +188,7 @@
   /* planilhas: [{ nome, linhas, larguras }] -> Uint8Array do .xlsx */
   function gerar(planilhas) {
     var abas = planilhas.map(function (p, i) {
-      return { indice: i + 1, nome: (p.nome || ('Planilha' + (i + 1))).slice(0, 31), planilha: p };
+      return { indice: i + 1, nome: (p.nome || ('Sheet' + (i + 1))).slice(0, 31), planilha: p };
     });
 
     var arquivos = [

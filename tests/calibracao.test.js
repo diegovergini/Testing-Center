@@ -14,7 +14,7 @@ const HOJE = '2026-08-10';
 function instrumento(extra) {
   return Object.assign({
     id: 'TCL-XX-001', codigoAntigo: '', nome: 'Instrumento', setor: 'Tech Center',
-    local: 'Instrumentação', backup: false, marca: 'ACME', modelo: 'M1', serie: '123',
+    local: 'Instrumentation', backup: false, marca: 'ACME', modelo: 'M1', serie: '123',
     faixa: '0 - 10', resolucao: '0,1', situacao: 'EM_USO', ativo: true,
     periodicidadeMeses: 12, ultimaCalibracao: '', proximaCalibracao: '',
     certificado: '', laboratorio: '', observacao: '', historico: []
@@ -127,11 +127,11 @@ test('o inventário de partida traz os instrumentos da planilha, sem código rep
   assert.equal(new Set(base.instrumentos.map((i) => i.id)).size, base.instrumentos.length);
 
   const acelerometro = util.porId(base.instrumentos, 'TCL-AC-012');
-  assert.equal(acelerometro.nome, 'Acelerômetro Monoaxial B&K');
+  assert.equal(acelerometro.nome, 'Uniaxial Accelerometer B&K');
   assert.equal(acelerometro.marca, 'B&K');
   assert.equal(acelerometro.modelo, '4384');
   assert.equal(acelerometro.serie, '31642');
-  assert.equal(acelerometro.local, 'Instrumentação');
+  assert.equal(acelerometro.local, 'Instrumentation');
   assert.equal(acelerometro.situacao, 'EM_USO');
 
   const celula = util.porId(base.instrumentos, 'TCL-CC-003');
@@ -157,7 +157,7 @@ test('a data da última calibração casa com a campanha de cada posto', () => {
   const base = dados.seed();
   const porPosto = {};
   base.instrumentos
-    .filter((i) => /^Temperatura tipo K - Canal /.test(i.nome))
+    .filter((i) => /^Type K Temperature - Channel /.test(i.nome))
     .forEach((i) => {
       porPosto[i.local] = porPosto[i.local] || new Set();
       porPosto[i.local].add(i.ultimaCalibracao);
@@ -232,7 +232,7 @@ test('registrar sem data é recusado', () => {
   store.restaurarPadrao();
   const r = store.registrarCalibracao('TCL-AC-012', { resultado: 'APROVADO' });
   assert.equal(r.ok, false);
-  assert.match(r.motivo, /data/i);
+  assert.match(r.motivo, /date/i);
 });
 
 /* ---- Lançamento em lote ---- */
@@ -351,7 +351,7 @@ test('o instrumento cadastrado à mão convive com o inventário de partida', ()
   store.restaurarPadrao();
   const total = store.get().instrumentos.length;
   store.salvarInstrumento({
-    id: 'TCL-NV-001', nome: 'Instrumento novo', local: 'Instrumentação',
+    id: 'TCL-NV-001', nome: 'Instrumento novo', local: 'Instrumentation',
     situacao: 'EM_USO', ativo: true, periodicidadeMeses: 6
   });
   assert.equal(store.get().instrumentos.length, total + 1);

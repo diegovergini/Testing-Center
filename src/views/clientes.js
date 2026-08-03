@@ -1,5 +1,5 @@
-/* Clientes: quem exige a validação. Cada cliente carrega suas peças, seus procedimentos
-   obrigatórios e o custo já confirmado. */
+/* Customers: whoever requires the validation. Each customer carries its part types, its
+   required procedures and the cost already committed. */
 (function (global) {
   'use strict';
 
@@ -12,22 +12,22 @@
 
     var corpo =
       '<div class="grade-campos">' +
-        '<div class="campo"><label>Nome</label><input name="nome" value="' + e(cliente.nome) + '" required ' +
-          'placeholder="Ex.: Volkswagen"></div>' +
-        '<div class="campo"><label>Segmento</label><input name="segmento" value="' + e(cliente.segmento || '') + '" ' +
-          'placeholder="OEM, Tier 1, interno…"></div>' +
+        '<div class="campo"><label>Name</label><input name="nome" value="' + e(cliente.nome) + '" required ' +
+          'placeholder="e.g. Volkswagen"></div>' +
+        '<div class="campo"><label>Segment</label><input name="segmento" value="' + e(cliente.segmento || '') + '" ' +
+          'placeholder="OEM, Tier 1, internal…"></div>' +
       '</div>' +
-      (novo ? '' : '<p class="sub" style="margin-bottom:0">Código <span class="mono">' + e(cliente.id) + '</span> — ' +
-        'usado pelas peças e pelos procedimentos, não muda.</p>');
+      (novo ? '' : '<p class="sub" style="margin-bottom:0">Code <span class="mono">' + e(cliente.id) + '</span> — ' +
+        'used by the part types and the procedures, it does not change.</p>');
 
     ui.modal({
-      titulo: novo ? 'Novo cliente' : 'Editar ' + cliente.nome,
+      titulo: novo ? 'New customer' : 'Edit ' + cliente.nome,
       corpo: corpo,
-      confirmar: 'Salvar cliente',
+      confirmar: 'Save customer',
       aoConfirmar: function (v) {
-        if (!v.nome.trim()) { ui.notificar('Informe o nome do cliente.'); return false; }
+        if (!v.nome.trim()) { ui.notificar('Enter the customer name.'); return false; }
         TC.store.salvarCliente({ id: cliente.id || undefined, nome: v.nome.trim(), segmento: v.segmento.trim() });
-        ui.notificar('Cliente salvo.');
+        ui.notificar('Customer saved.');
       }
     });
   }
@@ -45,7 +45,8 @@
         if (resumo[id]) resumo[id].procedimentos++;
       });
     });
-    /* Peça não pertence a cliente; o que conta é quais tipos de peça o cliente já trouxe. */
+    /* A part type does not belong to a customer; what counts is which types the
+       customer has already brought in. */
     ctx.plano.alocacoes.forEach(function (a) {
       var r = resumo[a.demanda.clienteId];
       if (!r) return;
@@ -62,14 +63,14 @@
         '<td><div class="forte">' + e(c.nome) + '</div>' +
           '<div class="sub"><span class="mono">' + e(c.id) + '</span></div></td>' +
         '<td>' + (c.segmento ? '<span class="etiqueta">' + e(c.segmento) + '</span>' : '<span class="sub">—</span>') + '</td>' +
-        '<td class="num">' + r.procedimentos + '<div class="sub">+ ' + padrao + ' padrão</div></td>' +
+        '<td class="num">' + r.procedimentos + '<div class="sub">+ ' + padrao + ' standard</div></td>' +
         '<td class="num">' + Object.keys(r.tiposPeca).length + '</td>' +
         '<td class="num">' + r.demandas + '</td>' +
         '<td class="num forte">' + e(util.formatarMoeda(r.custo)) + '</td>' +
         '<td class="num" style="white-space:nowrap">' +
           (podeEditar
-            ? '<button class="botao pequeno editar">Editar</button> ' +
-              '<button class="botao pequeno perigo excluir" title="Remover cliente">✕</button>'
+            ? '<button class="botao pequeno editar">Edit</button> ' +
+              '<button class="botao pequeno perigo excluir" title="Remove customer">✕</button>'
             : '<span class="sub">—</span>') +
         '</td>' +
       '</tr>';
@@ -77,17 +78,17 @@
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Clientes</h2>' +
-        '<p>Quem exige a validação. Um procedimento sem cliente marcado vale como padrão do laboratório e aparece para todos.</p></div>' +
-        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="novo">+ Novo cliente</button></div>' : '') +
+        '<div><h2>Customers</h2>' +
+        '<p>Whoever requires the validation. A procedure with no customer marked counts as a lab standard and shows up for everyone.</p></div>' +
+        (ctx.podeEditar ? '<div class="acoes"><button class="botao primario" id="novo">+ New customer</button></div>' : '') +
       '</div>' +
       '<div class="cartao">' +
         (estado.clientes.length
           ? '<div class="tabela-rolagem"><table><thead><tr>' +
-            '<th>Cliente</th><th>Segmento</th><th class="num">Procedimentos exigidos</th>' +
-            '<th class="num">Tipos de peça</th><th class="num">Demandas</th><th class="num">Custo confirmado</th><th></th>' +
+            '<th>Customer</th><th>Segment</th><th class="num">Required procedures</th>' +
+            '<th class="num">Part types</th><th class="num">Requests</th><th class="num">Committed cost</th><th></th>' +
             '</tr></thead><tbody>' + linhas + '</tbody></table></div>'
-          : ui.vazio('Nenhum cliente cadastrado', 'Cadastre o primeiro cliente para poder registrar peças e confirmar testes.')) +
+          : ui.vazio('No customer registered', 'Register the first customer to be able to add part types and confirm tests.')) +
       '</div>';
 
     var botaoNovo = container.querySelector('#novo');
@@ -101,14 +102,14 @@
       editar.onclick = function () { abrirEdicao(cliente); };
       tr.querySelector('.excluir').onclick = function () {
         ui.confirmarAcao(
-          'Remover "' + cliente.nome + '"?' +
+          'Remove "' + cliente.nome + '"?' +
           (r.demandas
-            ? ' Ele tem ' + r.demandas + ' demanda(s), que ficarão sem cliente e somem dos filtros.'
+            ? ' It has ' + r.demandas + ' request(s), which will be left without a customer and drop out of the filters.'
             : '') +
-          ' O cliente também sai da lista de exigência dos procedimentos.',
+          ' The customer is also removed from the procedures that require it.',
           function () {
             TC.store.removerCliente(cliente.id);
-            ui.notificar('Cliente removido.');
+            ui.notificar('Customer removed.');
           });
       };
     });

@@ -1,8 +1,8 @@
-/* Gestão da manutenção das bancadas.
-   Uma parada tem duas vidas: primeiro é planejada (e já bloqueia a agenda do equipamento),
-   depois é realizada (e passa a registrar o que de fato foi feito). Este módulo responde as
-   perguntas de gestão — qual foi a última, o que foi feito nela, quando é a próxima e o que
-   está atrasado. Puro e testado; a tela só desenha. */
+/* Rig maintenance management.
+   A downtime has two lives: first it is planned (and already blocks the equipment calendar),
+   then it is carried out (and starts recording what was actually done). This module answers
+   the management questions — which was the last one, what was done in it, when is the next
+   one and what is overdue. Pure and tested; the screen only draws. */
 (function (global) {
   'use strict';
 
@@ -24,8 +24,8 @@
     return paradas(equipamento).filter(function (m) { return m.situacao !== REALIZADA; });
   }
 
-  /* A última manutenção é a realizada que terminou mais tarde — é dela que sai "o que foi
-     feito" na tela. */
+  /* The last maintenance is the carried-out one that ended latest — it is where "what was
+     done" on screen comes from. */
   function ultimaRealizada(equipamento) {
     return realizadas(equipamento).reduce(function (maior, m) {
       if (!maior) return m;
@@ -33,8 +33,9 @@
     }, null);
   }
 
-  /* A próxima prevista é a planejada que começa mais cedo daqui para a frente. Uma parada
-     planejada que já deveria ter acontecido não é "a próxima": é atraso, e aparece à parte. */
+  /* The next planned one is the planned downtime starting soonest from here on. A planned
+     downtime that should already have happened is not "the next one": it is overdue, and it
+     shows up separately. */
   function proximaPlanejada(equipamento, hoje) {
     return planejadas(equipamento).reduce(function (menor, m) {
       if (util.diffDias(hoje, m.fim) < 0) return menor;
@@ -43,9 +44,9 @@
     }, null);
   }
 
-  /* Planejada cujo período já passou sem ninguém registrar o que foi feito. */
+  /* A planned downtime whose period has passed with nobody recording what was done. */
   function atrasadas(equipamento, hoje) {
-    /* diffDias(a, b) é b - a: a parada está vencida quando o fim ficou para trás. */
+    /* diffDias(a, b) is b - a: the downtime is overdue when its end is behind us. */
     return planejadas(equipamento).filter(function (m) {
       return util.diffDias(m.fim, hoje) > 0;
     }).sort(function (a, b) { return util.diffDias(b.fim, a.fim); });
@@ -70,8 +71,9 @@
     };
   }
 
-  /* Equipamentos que exigem atenção agora: parada vencida sem registro, ou nenhuma parada
-     futura agendada. A segunda não é erro — é a pergunta que o gestor precisa responder. */
+  /* Equipment needing attention now: an overdue downtime with no record, or no future
+     downtime scheduled. The second is not an error — it is the question the manager has to
+     answer. */
   function pendencias(estado, hoje) {
     var lista = [];
     (estado.equipamentos || []).forEach(function (eq) {
@@ -79,14 +81,14 @@
       s.atrasadas.forEach(function (m) {
         lista.push({
           tipo: 'atrasada', equipamento: eq, parada: m,
-          texto: eq.nome + ': parada de ' + util.formatarData(m.inicio, true) + ' a ' +
-            util.formatarData(m.fim, true) + ' não teve o registro do que foi feito.'
+          texto: eq.nome + ': downtime from ' + util.formatarData(m.inicio, true) + ' to ' +
+            util.formatarData(m.fim, true) + ' has no record of what was done.'
         });
       });
       if (!s.proxima) {
         lista.push({
           tipo: 'sem-proxima', equipamento: eq, parada: null,
-          texto: eq.nome + ': sem próxima manutenção agendada.'
+          texto: eq.nome + ': no next maintenance scheduled.'
         });
       }
     });

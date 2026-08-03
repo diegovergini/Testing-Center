@@ -1,9 +1,12 @@
-/* Matriz de permissões: quem vê e quem edita cada janela. */
+/* Permission matrix: who sees and who edits each screen. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  /* As ações continuam "ver"/"editar" no estado salvo; aqui só o rótulo é traduzido. */
+  var ROTULO_ACAO = { ver: 'view', editar: 'edit' };
 
   function render(container, ctx) {
     var estado = ctx.estado;
@@ -24,7 +27,7 @@
               'font-weight:500;color:var(--texto)">' +
               '<input type="checkbox" style="width:auto" data-acao="' + acao + '" ' +
                 'data-perfil="' + e(perfil.id) + '"' + (marcado ? ' checked' : '') +
-                (podeEditar ? '' : ' disabled') + '>' + acao + '</label>';
+                (podeEditar ? '' : ' disabled') + '>' + ROTULO_ACAO[acao] + '</label>';
           }
           return '<td>' + caixa('ver') + caixa('editar') + '</td>';
         }).join('') +
@@ -33,16 +36,16 @@
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Perfis e permissões</h2>' +
-        '<p>O que cada perfil enxerga e o que pode alterar em cada janela. Marcar <strong>editar</strong> liga <strong>ver</strong> junto, porque não dá para alterar uma tela que não se vê.</p></div>' +
-        (podeEditar ? '<div class="acoes"><button class="botao" id="restaurar">Restaurar padrão</button></div>' : '') +
+        '<div><h2>Roles and permissions</h2>' +
+        '<p>What each role sees and what it can change on each screen. Ticking <strong>edit</strong> turns <strong>view</strong> on with it, because you cannot change a screen you cannot see.</p></div>' +
+        (podeEditar ? '<div class="acoes"><button class="botao" id="restaurar">Restore defaults</button></div>' : '') +
       '</div>' +
-      '<div class="aviso alerta">Sem servidor, o perfil é uma escolha da interface: ele organiza o ' +
-        'trabalho e evita edição acidental, mas não é controle de acesso — quem abrir o backup JSON ' +
-        'alcança tudo. Autenticação de verdade só com um back-end.</div>' +
+      '<div class="aviso alerta">With no server, the role is an interface choice: it organises the ' +
+        'work and prevents accidental edits, but it is not access control — anyone who opens the JSON ' +
+        'backup reaches everything. Real authentication needs a back end.</div>' +
       '<div class="cartao">' +
-        '<div class="cartao-topo"><h3>Matriz de permissões</h3></div>' +
-        '<div class="tabela-rolagem"><table><thead><tr><th>Janela</th>' +
+        '<div class="cartao-topo"><h3>Permission matrix</h3></div>' +
+        '<div class="tabela-rolagem"><table><thead><tr><th>Screen</th>' +
           perfis.map(function (p) {
             return '<th>' + e(p.nome) + '<div class="sub" style="font-weight:400;text-transform:none">' +
               e(p.descricao) + '</div></th>';
@@ -53,9 +56,9 @@
     if (!podeEditar) return;
 
     container.querySelector('#restaurar').onclick = function () {
-      ui.confirmarAcao('Voltar a matriz de permissões ao padrão?', function () {
+      ui.confirmarAcao('Reset the permission matrix to its defaults?', function () {
         TC.store.restaurarPermissoes();
-        ui.notificar('Permissões restauradas.');
+        ui.notificar('Permissions restored.');
       });
     };
 

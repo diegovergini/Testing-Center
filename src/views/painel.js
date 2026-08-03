@@ -1,26 +1,26 @@
-/* Painel: os indicadores de gestão do centro de testes.
-   Volume do mês, ocupação de cada bancada contra a capacidade dela, qualidade do relatório
-   entregue ao cliente, e para onde vai o dinheiro — por projeto, por cliente e no ano.
-   As contas ficam em src/kpi.js; aqui só se desenha. */
+/* Dashboard: the test centre's management indicators.
+   Volume for the month, each rig's utilisation against its own capacity, the quality of the
+   report delivered to the customer, and where the money goes — by project, by customer and
+   across the year. The arithmetic lives in src/kpi.js; here we only draw. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
   var util = TC.util, ui = TC.ui, e = util.escapar;
 
-  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  var MESES = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
 
   function nomeDoMes(mes) {
-    return MESES[Number(mes.slice(5, 7)) - 1] + ' de ' + mes.slice(0, 4);
+    return MESES[Number(mes.slice(5, 7)) - 1] + ' ' + mes.slice(0, 4);
   }
 
   function porcento(fracao) {
     return Math.round((fracao || 0) * 100) + '%';
   }
 
-  /* Ocupação passa de 100% quando o planejamento reservou mais horas do que a bancada tem
-     no mês — sinal de gargalo, não de erro de conta. */
+  /* Utilisation goes past 100% when the schedule has reserved more hours than the rig has
+     in the month — a sign of a bottleneck, not of an arithmetic error. */
   function corDaOcupacao(ocupacao) {
     if (ocupacao > 1) return 'erro';
     if (ocupacao >= 0.85) return 'alerta';
@@ -31,8 +31,8 @@
     if (!grupos.length) return ui.vazio(vazio[0], vazio[1]);
     var maximo = grupos[0].custo || 1;
     var total = grupos.reduce(function (s, g) { return s + g.custo; }, 0);
-    return '<table><thead><tr><th>' + e(rotulo) + '</th><th class="num">Ensaios</th>' +
-      '<th class="num">Horas</th><th style="width:38%">Custo</th></tr></thead><tbody>' +
+    return '<table><thead><tr><th>' + e(rotulo) + '</th><th class="num">Tests</th>' +
+      '<th class="num">Hours</th><th style="width:38%">Cost</th></tr></thead><tbody>' +
       grupos.map(function (g) {
         return '<tr><td class="forte">' + e(g.chave) + '</td>' +
           '<td class="num">' + g.ensaios + '</td>' +
@@ -82,40 +82,41 @@
 
     var indicadores =
       '<div class="indicadores">' +
-        '<div class="indicador"><div class="rotulo">Testes realizados</div><div class="valor">' +
-          realizados.length + '</div><div class="nota">concluídos em ' + e(nomeDoMes(mes)) +
+        '<div class="indicador"><div class="rotulo">Tests carried out</div><div class="valor">' +
+          realizados.length + '</div><div class="nota">completed in ' + e(nomeDoMes(mes)) +
           ' · ' + e(util.formatarMoeda(custoRealizado)) + '</div></div>' +
 
-        '<div class="indicador"><div class="rotulo">Horas de bancada no mês</div><div class="valor">' +
-          Math.round(horasMes) + ' h</div><div class="nota">de ' + Math.round(capacidadeMes) +
-          ' h disponíveis · ' + porcento(capacidadeMes ? horasMes / capacidadeMes : 0) + ' do parque</div></div>' +
+        '<div class="indicador"><div class="rotulo">Rig hours in the month</div><div class="valor">' +
+          Math.round(horasMes) + ' h</div><div class="nota">of ' + Math.round(capacidadeMes) +
+          ' h available · ' + porcento(capacidadeMes ? horasMes / capacidadeMes : 0) + ' of the fleet</div></div>' +
 
-        '<div class="indicador"><div class="rotulo">Certo da primeira vez</div>' +
+        '<div class="indicador"><div class="rotulo">Right first time</div>' +
           '<div class="valor"' + (ftt.indice !== null && ftt.indice < 0.8
             ? ' style="color:var(--alerta)"' : '') + '>' +
             (ftt.indice === null ? '—' : porcento(ftt.indice)) + '</div>' +
           '<div class="nota">' + (ftt.aprovados
-            ? ftt.semCorrecao + ' de ' + ftt.aprovados + ' relatórios validados sem correção'
-            : 'nenhum relatório validado no mês') + '</div></div>' +
+            ? ftt.semCorrecao + ' of ' + ftt.aprovados + ' reports signed off with no rework'
+            : 'no report signed off this month') + '</div></div>' +
 
-        '<div class="indicador"><div class="rotulo">Planejado em ' + e(ano) + '</div><div class="valor">' +
+        '<div class="indicador"><div class="rotulo">Scheduled in ' + e(ano) + '</div><div class="valor">' +
           util.formatarMoeda(noAno.custo) + '</div><div class="nota">' + noAno.ensaios +
-          ' ensaios · ' + Math.round(noAno.horas) + ' h de bancada</div></div>' +
+          ' tests · ' + Math.round(noAno.horas) + ' h on the rigs</div></div>' +
 
-        '<div class="indicador"><div class="rotulo">Riscos de prazo</div>' +
+        '<div class="indicador"><div class="rotulo">Due date risks</div>' +
           '<div class="valor" style="color:' + (atrasadas + semJanela ? 'var(--erro)' : 'var(--ok)') + '">' +
           (atrasadas + semJanela) + '</div><div class="nota">' + atrasadas +
-          ' fora do prazo · ' + semJanela + ' sem janela</div></div>' +
+          ' past due · ' + semJanela + ' with no slot</div></div>' +
       '</div>';
 
-    /* Ocupação por unidade, e não por grupo: é a unidade que tem agenda e manutenção. */
+    /* Utilisation per unit, not per group: it is the unit that has a calendar and
+       maintenance. */
     var linhasOcupacao = ocupacao.map(function (o) {
       var largura = Math.min(100, Math.round(o.ocupacao * 100));
       return '<tr>' +
         '<td><div class="forte">' + e(o.equipamento.nome) + '</div>' +
           '<div class="sub">' + e(o.grupo) +
-          (o.equipamento.continuo ? ' · contínuo 24 h' : ' · ' + o.equipamento.horasDia + ' h/dia') +
-          (o.diasParados ? ' · ' + o.diasParados + ' d em manutenção' : '') + '</div></td>' +
+          (o.equipamento.continuo ? ' · 24 h continuous' : ' · ' + o.equipamento.horasDia + ' h/day') +
+          (o.diasParados ? ' · ' + o.diasParados + ' d under maintenance' : '') + '</div></td>' +
         '<td class="num">' + o.ensaios + '</td>' +
         '<td class="num">' + Math.round(o.horasPlanejadas) + ' h</td>' +
         '<td class="num">' + Math.round(o.capacidade) + ' h</td>' +
@@ -129,12 +130,12 @@
 
     container.innerHTML =
       '<div class="cabecalho">' +
-        '<div><h2>Painel do centro de testes</h2>' +
-        '<p>Volume e ocupação do mês, qualidade do relatório entregue ao cliente e para onde vai ' +
-        'o custo. As horas do mês vêm do planejamento; a conclusão e a validação do relatório ' +
-        'são registradas em cada demanda.</p></div>' +
+        '<div><h2>Test centre dashboard</h2>' +
+        '<p>Volume and utilisation for the month, the quality of the report delivered to the ' +
+        'customer, and where the cost goes. The month\'s hours come from the schedule; ' +
+        'completion and report sign-off are recorded on each request.</p></div>' +
         '<div class="acoes"><div class="campo" style="margin:0;min-width:190px">' +
-          '<label for="f-mes">Mês de referência</label><select id="f-mes">' +
+          '<label for="f-mes">Reference month</label><select id="f-mes">' +
           meses.map(function (m) {
             return '<option value="' + e(m) + '"' + (m === mes ? ' selected' : '') + '>' +
               e(nomeDoMes(m)) + '</option>';
@@ -143,47 +144,47 @@
       '</div>' +
       indicadores +
 
-      /* Sem data de conclusão o ensaio não pode ser atribuído a mês nenhum. Em vez de
-         inventar um mês, o painel cobra o preenchimento. */
+      /* With no completion date the test cannot be assigned to any month. Rather than
+         inventing one, the dashboard asks for it to be filled in. */
       (semData.length
         ? '<div class="cartao"><div class="cartao-corpo"><div class="aviso alerta" style="margin:0">' +
-          '<strong>' + semData.length + ' teste(s) marcados como concluídos sem data de conclusão.</strong> ' +
-          'Eles não entram em nenhum mês do painel até a data ser informada na demanda: ' +
+          '<strong>' + semData.length + ' test(s) marked as completed with no completion date.</strong> ' +
+          'They stay out of every month on the dashboard until the date is entered on the request: ' +
           e(semData.slice(0, 6).map(function (d) { return d.lti || d.id; }).join(', ')) +
-          (semData.length > 6 ? ' e mais ' + (semData.length - 6) + '.' : '.') +
+          (semData.length > 6 ? ' and ' + (semData.length - 6) + ' more.' : '.') +
           '</div></div></div>'
         : '') +
 
       '<div class="cartao">' +
-        '<div class="cartao-topo"><h3>Ocupação por equipamento — ' + e(nomeDoMes(mes)) + '</h3>' +
-          '<span class="sub">horas planejadas contra as horas que a bancada tem no mês</span></div>' +
+        '<div class="cartao-topo"><h3>Utilisation by equipment — ' + e(nomeDoMes(mes)) + '</h3>' +
+          '<span class="sub">hours scheduled against the hours the rig has in the month</span></div>' +
         (linhasOcupacao
-          ? '<div class="tabela-rolagem"><table><thead><tr><th>Equipamento</th>' +
-            '<th class="num">Ensaios</th><th class="num">Planejadas</th>' +
-            '<th class="num">Disponíveis</th><th style="width:34%">Ocupação</th>' +
+          ? '<div class="tabela-rolagem"><table><thead><tr><th>Equipment</th>' +
+            '<th class="num">Tests</th><th class="num">Scheduled</th>' +
+            '<th class="num">Available</th><th style="width:34%">Utilisation</th>' +
             '</tr></thead><tbody>' + linhasOcupacao + '</tbody></table></div>'
-          : ui.vazio('Nenhum equipamento cadastrado', 'Cadastre as bancadas para medir a ocupação.')) +
+          : ui.vazio('No equipment registered', 'Register the rigs to measure utilisation.')) +
       '</div>' +
 
-      '<div class="cartao"><div class="cartao-topo"><h3>Custo por projeto</h3>' +
-        '<span class="sub">tudo que está confirmado, cotações à parte</span></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Cost by project</h3>' +
+        '<span class="sub">everything confirmed, quotes aside</span></div>' +
         '<div class="tabela-rolagem">' +
-        tabelaDeCusto(porProjeto, 'Projeto',
-          ['Sem custo por projeto', 'Confirme testes no catálogo para alimentar o painel.']) +
+        tabelaDeCusto(porProjeto, 'Project',
+          ['No cost by project', 'Confirm tests in the catalogue to feed the dashboard.']) +
         '</div></div>' +
 
-      '<div class="cartao"><div class="cartao-topo"><h3>Custo por cliente</h3></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Cost by customer</h3></div>' +
         '<div class="tabela-rolagem">' +
-        tabelaDeCusto(porCliente, 'Cliente',
-          ['Sem custo por cliente', 'Confirme testes no catálogo para alimentar o painel.']) +
+        tabelaDeCusto(porCliente, 'Customer',
+          ['No cost by customer', 'Confirm tests in the catalogue to feed the dashboard.']) +
         '</div></div>' +
 
-      '<div class="cartao"><div class="cartao-topo"><h3>Testes concluídos em ' + e(nomeDoMes(mes)) + '</h3>' +
-        '<span class="sub">com a situação do relatório</span></div>' +
+      '<div class="cartao"><div class="cartao-topo"><h3>Tests completed in ' + e(nomeDoMes(mes)) + '</h3>' +
+        '<span class="sub">with the status of the report</span></div>' +
         (realizados.length
-          ? '<div class="tabela-rolagem"><table><thead><tr><th>Conclusão</th><th>Procedimento</th>' +
-            '<th>Projeto</th><th>Cliente</th><th>LTI</th><th>Relatório</th>' +
-            '<th class="num">Custo</th></tr></thead><tbody>' +
+          ? '<div class="tabela-rolagem"><table><thead><tr><th>Completion</th><th>Procedure</th>' +
+            '<th>Project</th><th>Customer</th><th>LTI</th><th>Report</th>' +
+            '<th class="num">Cost</th></tr></thead><tbody>' +
             realizados.map(function (a) {
               var d = a.demanda;
               var cliente = util.porId(estado.clientes, d.clienteId);
@@ -195,11 +196,11 @@
                 '<td>' + e(cliente ? cliente.nome : d.clienteId) + '</td>' +
                 '<td>' + ui.celulaLti(d) + '</td>' +
                 '<td>' + ui.etiquetaEstado('demanda', d.status) +
-                  (correcoes ? ' <span class="sub">' + correcoes + ' correção(ões)</span>' : '') + '</td>' +
+                  (correcoes ? ' <span class="sub">' + correcoes + ' rework round(s)</span>' : '') + '</td>' +
                 '<td class="num">' + e(util.formatarMoeda(a.custo.total)) + '</td></tr>';
             }).join('') + '</tbody></table></div>'
-          : ui.vazio('Nenhum teste concluído em ' + nomeDoMes(mes),
-              'Marque a demanda como concluída e informe a data para o indicador contar.')) +
+          : ui.vazio('No test completed in ' + nomeDoMes(mes),
+              'Mark the request as completed and enter the date for it to count.')) +
       '</div>';
 
     var seletor = container.querySelector('#f-mes');
