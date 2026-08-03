@@ -8,6 +8,7 @@
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
   if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
   if (!TC.manutencao && typeof require !== 'undefined') require('./manutencao.js');
+  if (!TC.calibracao && typeof require !== 'undefined') require('./calibracao.js');
   if (!TC.permissoes && typeof require !== 'undefined') require('./permissoes.js');
 
   var CHAVE = 'testing-center/v1';
@@ -117,6 +118,29 @@
       delete t.hourlyRate;
       if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
       delete t.custoBase;
+    });
+
+    /* Inventário de instrumentos sujeitos a calibração. Mesma mecânica do catálogo:
+       instrumento novo entra, e o que já existe fica com o plano de calibração que o
+       laboratório preencheu. */
+    estado.instrumentos = estado.instrumentos || [];
+    if ((Number(estado.instrumentosVersao) || 0) < TC.data.INSTRUMENTOS_VERSAO) {
+      TC.instrumentosPadrao().forEach(function (i) {
+        if (!util.porId(estado.instrumentos, i.id)) estado.instrumentos.push(i);
+      });
+      estado.instrumentosVersao = TC.data.INSTRUMENTOS_VERSAO;
+    }
+    estado.instrumentos.forEach(function (i) {
+      if (typeof i.periodicidadeMeses !== 'number') i.periodicidadeMeses = 12;
+      if (typeof i.ultimaCalibracao !== 'string') i.ultimaCalibracao = '';
+      if (typeof i.proximaCalibracao !== 'string') i.proximaCalibracao = '';
+      if (typeof i.certificado !== 'string') i.certificado = '';
+      if (typeof i.laboratorio !== 'string') i.laboratorio = '';
+      if (typeof i.observacao !== 'string') i.observacao = '';
+      if (typeof i.ultimoResultado !== 'string') i.ultimoResultado = '';
+      if (typeof i.situacao !== 'string') i.situacao = 'EM_USO';
+      if (typeof i.ativo !== 'boolean') i.ativo = true;
+      if (!Array.isArray(i.historico)) i.historico = [];
     });
 
     /* As paradas de manutenção passaram a ter duas vidas: planejada e realizada, com o
@@ -407,6 +431,67 @@
       if (!eq) return;
       eq.manutencao = (eq.manutencao || []).filter(function (m) { return m.id !== janelaId; });
       commit();
+    },
+
+    /* ---- Instrumentos e calibração ---- */
+    salvarInstrumento: function (instrumento) {
+      var existente = instrumento.id ? util.porId(estado.instrumentos, instrumento.id) : null;
+      if (existente) {
+        Object.keys(instrumento).forEach(function (k) { existente[k] = instrumento[k]; });
+        commit();
+        return existente;
+      }
+      instrumento.id = instrumento.id || util.id('INS');
+      instrumento.historico = instrumento.historico || [];
+      estado.instrumentos.push(instrumento);
+      commit();
+      return instrumento;
+    },
+    removerInstrumento: function (id) {
+      estado.instrumentos = estado.instrumentos.filter(function (i) { return i.id !== id; });
+      commit();
+    },
+
+    /* Registro de uma calibração: entra no histórico e passa a ser a vigente. O vencimento
+       vem do certificado quando informado; senão sai da periodicidade do instrumento.
+       Reprovado não renova a validade — o instrumento não pode voltar a medir por decurso
+       de prazo, então ele sai de uso até alguém decidir o que fazer. */
+    registrarCalibracao: function (instrumentoId, dados) {
+      var i = util.porId(estado.instrumentos, instrumentoId);
+      if (!i) return { ok: false, motivo: 'Instrumento não encontrado.' };
+      if (!dados.data) return { ok: false, motivo: 'Informe a data da calibração.' };
+
+      var resultado = dados.resultado || 'APROVADO';
+      var registro = {
+        id: util.id('CAL'),
+        data: dados.data,
+        resultado: resultado,
+        certificado: (dados.certificado || '').trim(),
+        laboratorio: (dados.laboratorio || '').trim(),
+        proximaCalibracao: dados.proximaCalibracao || '',
+        observacao: (dados.observacao || '').trim(),
+        registradoEm: util.hoje()
+      };
+      i.historico = i.historico || [];
+      i.historico.push(registro);
+
+      i.ultimaCalibracao = registro.data;
+      i.ultimoResultado = resultado;
+      i.certificado = registro.certificado;
+      i.laboratorio = registro.laboratorio;
+      if (typeof dados.periodicidadeMeses === 'number' && dados.periodicidadeMeses > 0) {
+        i.periodicidadeMeses = dados.periodicidadeMeses;
+      }
+      if (resultado === 'REPROVADO') {
+        i.proximaCalibracao = '';
+        i.situacao = 'FORA_DE_USO';
+      } else {
+        i.proximaCalibracao = registro.proximaCalibracao ||
+          TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
+        i.situacao = 'EM_USO';
+      }
+      commit();
+      return { ok: true, instrumento: i, registro: registro };
     },
 
     /* ---- Peças ---- */

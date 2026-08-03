@@ -87,6 +87,8 @@ Dois jeitos de criar as listas:
 | `TC_Clientes` | Código, nome e segmento | 9 |
 | `TC_Equipamentos` | Bancadas, grupo, posições, regime e calendário | 11 |
 | `TC_Manutencoes` | Paradas por equipamento: previstas e realizadas, com o que foi feito | 0 |
+| `TC_Instrumentos` | Inventário de sensores e instrumentos, com o plano de calibração | 229 |
+| `TC_Calibracoes` | Um registro por certificado emitido, com resultado e validade | 0 |
 | `TC_Pecas` | Tipos de peça e custo por amostra | 5 |
 | `TC_Procedimentos` | O catálogo: norma, revisão, horas, insumos, bancada | 73 |
 | `TC_Demandas` | A necessidade confirmada e o resultado do planejamento | 0 |
@@ -114,6 +116,9 @@ Os dois fluxos (`src/fluxo.js`) traduzem-se bem para lá, e é onde a Power Plat
   aprovação do Power Automate, respondida do Outlook ou do Teams, sem abrir o app.
 * **Histórico**: cada passagem vira um item numa lista `TC_Historico` (registro, de, para,
   quem, quando, nota) — o mesmo conteúdo que a versão atual guarda embutido.
+* **Aviso de calibração vencendo**: um fluxo agendado varre `TC_Instrumentos` toda segunda
+  e manda a lista do que vence no mês para quem cuida da metrologia. Hoje esse alerta só
+  aparece para quem abre a janela de calibração.
 
 ## O caminho
 

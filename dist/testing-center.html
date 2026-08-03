@@ -505,12 +505,291 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
+/* Inventário de instrumentos e sensores sujeitos a calibração.
+   Transcrição da planilha "Gerenciamento de calibração para centro de teste". Cada linha é
+   [código, código antigo, nome, setor, local/posto, back-up, marca, modelo, nº de série,
+   range de utilização, resolução/capacidade, situação].
+
+   O plano de calibração — periodicidade, última e próxima calibração, certificado — não vem
+   da planilha: é preenchido na plataforma, instrumento a instrumento. Ver src/calibracao.js. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+
+  var LINHAS = [
+    ["TCL-AC-012", "", "Acelerômetro Monoaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4384", "31642", "12.5Hz - 3000Hz", "200 km/s² (20000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-014", "", "Acelerômetro Monoaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4384", "31644", "12.5Hz - 3000Hz", "200 km/s² (20000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-003", "", "Acelerômetro Monoaxial PCB", "Tech Center", "Instrumentação", "Não", "PCB", "M 353 B16", "128498", "12.5Hz - 3000Hz", "±500 g pk (±4905 m/s² pk) - (±5%)1 to 10000 Hz", "EM_USO"],
+    ["TCL-AC-002", "", "Acelerômetro Monoaxial PCB", "Tech Center", "Instrumentação", "Não", "PCB", "M 353 B16", "128496", "12.5Hz - 3000Hz", "±500 g pk (±4905 m/s² pk) - (±5%)1 to 10000 Hz", "EM_USO"],
+    ["TCL-AC-017", "", "Acelerômetro Monoaxial PCB", "Tech Center", "Instrumentação", "Não", "PCB", "M 353 B16", "128497", "12.5Hz - 3000Hz", "±500 g pk (±4905 m/s² pk) - (±5%)1 to 10000 Hz", "EM_USO"],
+    ["TCL-AC-018", "", "Acelerômetro Monoaxial PCB", "Tech Center", "Instrumentação", "Não", "PCB", "M 353 B16", "128499", "12.5Hz - 3000Hz", "±500 g pk (±4905 m/s² pk) - (±5%)1 to 10000 Hz", "EM_USO"],
+    ["TCL-AC-001", "", "Acelerômetro Monoaxial PCB", "Tech Center", "Instrumentação", "Não", "PCB", "M 353 B16", "128495", "12.5Hz - 3000Hz", "±500 g pk (±4905 m/s² pk) - (±5%)1 to 10000 Hz", "EM_USO"],
+    ["TCL-AC-015", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4520", "59084", "12.5Hz - 3000Hz", "4900 m/s² (500g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-016", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4520", "59237", "12.5Hz - 3000Hz", "4900 m/s² (500g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-009", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "33472", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-007", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "33095", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-011", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "33096", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-008", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "33480", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-004", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "37282", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-005", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "37283", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-010", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "37095", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-AC-006", "", "Acelerômetro Triaxial B&K", "Tech Center", "Instrumentação", "Não", "B&K", "4326 A001", "37284", "12.5Hz - 3000Hz", "30 km/s² (3000g peak) | 8000 Hz", "EM_USO"],
+    ["TCL-BA-001", "", "Balança Toledo - WT 3000", "Tech Center", "Pós teste", "Não", "Toledo", "WT3000", "PI272A10405697/2010", "0 - 30kg", "5g", "EM_USO"],
+    ["TCL-CA-001", "", "Calibrador acústico Tipo 4231", "Tech Center", "Instrumentação", "Não", "B&K", "4231", "2730378", "", "94dB± 0,2 - 1kHz", "EM_CALIBRACAO"],
+    ["TCL-PT-001", "", "Canal de temperatura PT100 - 1", "Tech Center", "ColdFlow", "Sim", "IMS", "PT-100", "-", "0 - 200°C", "0 - 200°C", "EM_USO"],
+    ["TCL-PT-002", "", "Canal de temperatura PT100 - 2", "Tech Center", "ColdFlow", "Não", "IMS", "PT-100", "-", "0 - 200°C", "0 - 200°C", "EM_USO"],
+    ["TCL-TK-001", "", "Canal de temperatura TCK - 1", "Tech Center", "ColdFlow", "Sim", "IMS", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-002", "", "Canal de temperatura TCK - 2", "Tech Center", "ColdFlow", "Sim", "IMS", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-003", "T. DESCARGA 1", "Canal temp. escape 01 - termopar tipo K", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-004", "T. DESCARGA 2", "Canal temp. escape 02 - termopar tipo K", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-005", "T. DESCARGA 3", "Canal temp. escape 03 - termopar tipo K", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-006", "T. DESCARGA 4", "Canal temp. escape 04 - termopar tipo K", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-PT-005", "", "Canal temperatura combustível PT-100", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 200°C", "0 - 200°C", "EM_USO"],
+    ["TCL-TK-007", "T. OLEO", "Canal temperatura óleo - termopar tipo K", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-PT-006", "", "Canal temperatura PT-100 - Água de entrada", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 200°C", "0 - 200°C", "EM_USO"],
+    ["TCL-PT-007", "", "Canal temperatura PT-100 - Água de saída", "Tech Center", "Dinamômetro", "Não", "Apicom", "-", "-", "0 - 200°C", "0 - 200°C", "EM_USO"],
+    ["TCL-CC-004", "", "Célula de carga +/- 10kN", "Tech Center", "Hydro pulse 4", "Não", "MTS", "661.19F-02", "489997", "-10kN a +10kN", "-10kN a +10kN", "EM_CALIBRACAO"],
+    ["TCL-CC-001", "", "Célula de carga +/- 5kN", "Tech Center", "Hydro pulse 3", "Não", "MTS", "661.19F-01", "364084", "-5kN a +5kN", "-5kN a +5kN", "EM_CALIBRACAO"],
+    ["TCL-CC-002", "", "Célula de carga +/- 5kN", "Tech Center", "Hydro pulse 2", "Não", "MTS", "661.19F-01", "364083", "-5kN a +5kN", "-5kN a +5kN", "EM_CALIBRACAO"],
+    ["TCL-CC-003", "", "Célula de carga +/- 5kN", "Tech Center", "Hydro pulse 1", "Sim", "MTS", "661.19F-01", "355393", "-5kN a +5kN", "-5kN a +5kN", "EM_CALIBRACAO"],
+    ["TCL-EC-001", "", "Escala 0-150", "Tech Center", "Instrumentação", "Não", "KingTools", "600.003", "", "0-150mm", "0-150mm", "EM_USO"],
+    ["TCL-EC-002", "", "Escala 0-150", "Tech Center", "Instrumentação", "Não", "KingTools", "600.003", "", "0-150mm", "0-150mm", "EM_USO"],
+    ["TCL-EC-003", "", "Escala 0-300", "Tech Center", "Instrumentação", "Não", "KingTools", "600.004", "", "0-300mm", "0-300mm", "EM_USO"],
+    ["TCL-EC-004", "", "Escala 0-300", "Tech Center", "Instrumentação", "Não", "KingTools", "600.004", "", "0-300mm", "0-300mm", "EM_USO"],
+    ["TCL-IH-001", "", "Impact Hammer", "Tech Center", "Instrumentação", "Não", "B&K", "8206-003", "56290", "222N", "1,14mV/N", "EM_USO"],
+    ["TCL-MD-001", "", "Malha de pressão diferencial (Down stream)", "Tech Center", "ColdFlow", "Não", "Yokogawa", "EJX", "91VB22546 946 7", "0 a 1000 mbar", "0 a 1000 mbar", "EM_USO"],
+    ["TCL-MD-002", "", "Malha de pressão diferencial (up stream)", "Tech Center", "ColdFlow", "Não", "Yokogawa", "EJX", "91VB22545 946 7", "0 a 1000 mbar", "0 a 1000 mbar", "EM_USO"],
+    ["TCL-MA-003", "P. ATM", "Malha pressão barométrica 800 a 1200 mbar (absoluto)", "Tech Center", "Dinamômetro", "Não", "GE", "UNIK 500", "3379838", "800 a 1200 mbar", "800 a 1200 mbar", "EM_USO"],
+    ["TCL-MD-003", "PRESS. COMB", "Malha pressão combustível - Pressão 0 a 10 bar", "Tech Center", "Dinamômetro", "Não", "GE", "UNIK 500", "3423082", "0 a 10 bar", "0 a 10 bar", "EM_USO"],
+    ["TCL-MD-004", "PRESS. OLEO", "Malha pressão óleo - Pressão 0 a 10 bar", "Tech Center", "Dinamômetro", "Não", "GE", "UNIK 500", "3423072", "0 a 10 bar", "0 a 10 bar", "EM_USO"],
+    ["TCL-MA-002", "", "Manômetro digital de pressão absoluta (Auxiliar)", "Tech Center", "ColdFlow", "Não", "Yokogawa", "16.00.06.04.00", "1090155", "800 a 1200 mbar", "800 a 1200 mbar", "EM_USO"],
+    ["TCL-MA-001", "", "Manômetro digital de pressão absoluta (baro)", "Tech Center", "ColdFlow", "Não", "Yokogawa", "PAA-33X/0794", "1090214", "0 a 3000 mbar", "0 a 3000 mbar", "EM_USO"],
+    ["TCL-PS-003", "10417", "Massa calibração de torque - Peso padrão - 0,0475kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "50g", "10417", "50g", "50g", "EM_USO"],
+    ["TCL-PS-002", "10423", "Massa calibração de torque - Peso padrão - 0,047kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "50g", "10423", "50g", "50g", "EM_USO"],
+    ["TCL-PS-004", "10418", "Massa calibração de torque - Peso padrão - 0,047kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "50g", "10418", "50g", "50g", "EM_USO"],
+    ["TCL-PS-001", "10422", "Massa calibração de torque - Peso padrão - 0,047kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "50g", "10422", "50g", "50g", "EM_USO"],
+    ["TCL-PS-006", "10424", "Massa calibração de torque - Peso padrão - 0,100kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "100g", "10424", "100g", "100g", "EM_USO"],
+    ["TCL-PS-008", "10416", "Massa calibração de torque - Peso padrão - 0,100kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "100g", "10416", "100g", "100g", "EM_USO"],
+    ["TCL-PS-005", "10421", "Massa calibração de torque - Peso padrão - 0,100kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "100g", "10421", "100g", "100g", "EM_USO"],
+    ["TCL-PS-007", "10415", "Massa calibração de torque - Peso padrão - 0,101kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "100g", "10415", "100g", "100g", "EM_USO"],
+    ["TCL-PS-012", "10419", "Massa calibração de torque - Peso padrão - 0,264kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "260g", "10419", "260g", "260g", "EM_USO"],
+    ["TCL-PS-009", "10426", "Massa calibração de torque - Peso padrão - 0,267kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "260g", "10426", "260g", "260g", "EM_USO"],
+    ["TCL-PS-011", "10420", "Massa calibração de torque - Peso padrão - 0,273kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "260g", "10420", "260g", "260g", "EM_USO"],
+    ["TCL-PS-010", "10425", "Massa calibração de torque - Peso padrão - 0,276kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "260g", "10425", "260g", "260g", "EM_USO"],
+    ["TCL-PS-013", "10430", "Massa calibração de torque - Peso padrão - 10kg", "Tech Center", "MTS", "Não", "Apicom", "10Kg", "10430", "10kg", "10kg", "EM_USO"],
+    ["TCL-PS-014", "10432", "Massa calibração de torque - Peso padrão - 10kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "10kg", "10432", "10kg", "10kg", "EM_USO"],
+    ["TCL-PS-015", "10428", "Massa calibração de torque - Peso padrão - 20kg", "Tech Center", "MTS", "Não", "Apicom", "20kg", "10428", "20kg", "20kg", "EM_USO"],
+    ["TCL-PS-018", "10427", "Massa calibração de torque - Peso padrão - 20kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "20kg", "10427", "20kg", "20kg", "EM_USO"],
+    ["TCL-PS-016", "10431", "Massa calibração de torque - Peso padrão - 20kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "20kg", "10431", "20kg", "20kg", "EM_USO"],
+    ["TCL-PS-017", "10429", "Massa calibração de torque - Peso padrão - 20kg", "Tech Center", "Dinamômetro", "Não", "Apicom", "20kg", "10429", "20kg", "20kg", "EM_USO"],
+    ["TCL-TA-002", "", "Medidor de angulo digital (Goniometro)", "Tech Center", "Pós teste", "Não", "Digimess", "272.32", "230700035", "0 - 360°", "0 - 360°", "EM_USO"],
+    ["TCL-TA-003", "", "Medidor de angulo digital (Goniometro)", "Tech Center", "Pós teste", "Não", "Digimess", "272.32", "231000145", "0 - 360°", "0 - 360°", "EM_USO"],
+    ["TCL-TA-001", "", "Medidor de angulo digital (Goniometro)", "Tech Center", "Pós teste", "Não", "Mitutoyo", "PRO 360", "15120802", "0 - 360°", "0 - 360°", "EM_USO"],
+    ["TCL-LD-001", "", "Medidor de deslocamento - Atuador 01", "Tech Center", "Hydro pulse 1", "Não", "MTS", "LVDT", "10349375", "-50mm a +50mm", "100mm", "EM_CALIBRACAO"],
+    ["TCL-LD-002", "", "Medidor de deslocamento - Atuador 02", "Tech Center", "Hydro pulse 2", "Não", "MTS", "LVDT", "10349377", "-50mm a +50mm", "100mm", "EM_CALIBRACAO"],
+    ["TCL-LD-003", "", "Medidor de deslocamento - Atuador 03", "Tech Center", "Hydro pulse 3", "Não", "MTS", "LVDT", "10349478", "-50mm a +50mm", "100mm", "EM_CALIBRACAO"],
+    ["TCL-LD-004", "", "Medidor de deslocamento - Atuador 04", "Tech Center", "Hydro pulse 4", "Sim", "MTS", "LVDT", "10349376", "-50mm a +50mm", "100mm", "EM_CALIBRACAO"],
+    ["TCL-TU-001", "", "Medidor de Temperatura e Umidade", "Tech Center", "ColdFlow", "Não", "Regeltechnik", "RPFTF Modbus -T3", "1201-6246-1000-000", "0 - 100% | -35 a +80°C", "0 - 200°C", "EM_USO"],
+    ["TLC-VM-S004", "", "Medidor massico termico (Vazão de ar Massico)", "Tech Center", "ColdFlow", "Não", "ABB", "FMT700-P", "245366136X003 | 439", "40 - 700kg/h", "40 - 1200kg/h", "EM_USO"],
+    ["TCL-MF-001", "", "Microfone e Pre amplificador type 26CA", "Tech Center", "Instrumentação", "Não", "G.R.A.S", "46AE", "229457", "17dBA to 138dB | 3,15 Hz - 20kHz", "26 dB", "EM_CALIBRACAO"],
+    ["TCL-MF-002", "", "Microfone e Pre amplificador type 26CA", "Tech Center", "Instrumentação", "Sim", "G.R.A.S", "40AE", "106073", "14dBA to 146dB | 3,15 Hz - 20kHz", "26 dB", "EM_CALIBRACAO"],
+    ["TCL-MF-003", "", "Microfone e Pre amplificador type 26CA", "Tech Center", "Instrumentação", "Não", "G.R.A.S", "40AE", "106074", "14dBA to 146dB | 3,15 Hz - 20kHz", "26 dB", "EM_CALIBRACAO"],
+    ["TCL-MF-004", "", "Microfone e Pre amplificador type 26CA", "Tech Center", "Instrumentação", "Não", "G.R.A.S", "40AE", "106077", "14dBA to 146dB | 3,15 Hz - 20kHz", "26 dB", "EM_CALIBRACAO"],
+    ["TCL-MF-005", "", "Microfone e Pre amplificador type 26CA", "Tech Center", "Instrumentação", "Não", "G.R.A.S", "40AE", "106078", "14dBA to 146dB | 3,15 Hz - 20kHz", "26 dB", "EM_CALIBRACAO"],
+    ["TCL-MT-001", "", "Multimetro digital Fluke 87v (escala de temperatura)", "Tech Center", "Instrumentação", "Não", "Fluke", "87V", "18940200", "0 - 1200°C", "0 - 1200°C", "EM_CALIBRACAO"],
+    ["TCL-PA-001", "", "Paquimetro 150mm", "Tech Center", "Instrumentação", "Não", "Mitutoyo", "530-320", "8821991", "0 a 150mm", "0 a 150mm", "EM_USO"],
+    ["TCL-PA-002", "", "Paquimetro 300mm", "Tech Center", "Instrumentação", "Não", "Mitutoyo", "530-115", "80480253", "0 a 300mm", "0 a 300mm", "EM_USO"],
+    ["TCL-PA-003", "", "Paquimetro 500mm", "Tech Center", "Instrumentação", "Sim", "Mitutoyo", "530-501", "15007183", "0 a 500mm", "0 a 500mm", "EM_USO"],
+    ["TCL-PA-004", "", "Paquimetro de profundidade 150mm", "Tech Center", "Instrumentação", "Não", "Mitutoyo", "527-201", "408308", "0 a 150mm", "0 a 150mm", "EM_USO"],
+    ["TCL-TO-003", "", "Torquimetro com relogio 25 - 135 Nm", "Tech Center", "Instrumentação", "Não", "Gedore", "2652-26", "", "25 a 135 Nm", "25 a 135 Nm", "EM_USO"],
+    ["TCL-TO-002", "", "Torquimetro com relogio 5 - 25 Nm", "Tech Center", "Instrumentação", "Não", "Gedore", "4506-R25N", "594", "5 a 25 Nm", "5 a 25 Nm", "EM_USO"],
+    ["TCL-TO-001", "", "Torquimetro estalo 100Nm", "Tech Center", "Instrumentação", "Não", "Gedore", "3550-10", "B159086", "10 a 100 Nm", "10 a 100 Nm", "EM_USO"],
+    ["TCL-TP-001", "", "Transdutor de pressão 0 a 2,5 bar", "Tech Center", "Instrumentação", "Não", "Wika", "S-10", "1103PN9T", "0 a 2,5 bar", "0 a 2,5 bar", "EM_USO"],
+    ["TCL-TP-002", "", "Transdutor de pressão 0 a 2,5 bar", "Tech Center", "Instrumentação", "Não", "Wika", "S-10", "1103PN9Q", "0 a 2,5 bar", "0 a 2,5 bar", "EM_USO"],
+    ["TCL-TP-003", "", "Transdutor de pressão 0 a 2,5 bar", "Tech Center", "Instrumentação", "Não", "Wika", "S-10", "1103PN9S", "0 a 2,5 bar", "0 a 2,5 bar", "EM_USO"],
+    ["TCL-TP-004", "", "Transdutor de pressão 0 a 2,5 bar", "Tech Center", "Instrumentação", "Não", "Wika", "S-10", "1103PN9R", "0 a 2,5 bar", "0 a 2,5 bar", "EM_USO"],
+    ["TCL-TP-005", "", "Transdutor de pressão 0 a 1,0 bar", "Tech Center", "Instrumentação", "Não", "Warme", "WTP-401", "107448", "0 a 1,0 bar", "0 a 1,0 bar", "EM_USO"],
+    ["TCL-TP-006", "", "Transdutor de pressão 0 a 200 mbar", "Tech Center", "Instrumentação", "Sim", "Warme", "WTP-401", "TP.3774", "0 a 200 mbar", "0 a 200 mbar", "EM_USO"],
+    ["TCL-UR-001", "", "Umidade relativa 0 a 100% UR", "Tech Center", "Dinamômetro", "Não", "", "", "-", "0 a 100%", "0 a 100%", "EM_USO"],
+    ["TLC-VR-001", "", "VR - Vibração - Controlador 01", "Tech Center", "Shaker", "Não", "VR", "VR9500", "950B0987", "10Hz | 2500kHz", "110dB | 200kHz", "EM_USO"],
+    ["TLC-VR-002", "", "VR - Vibração - Controlador 02", "Tech Center", "Shaker", "Não", "VR", "VR9500", "95078BB1", "10Hz | 2500kHz", "110dB | 200kHz", "EM_USO"],
+    ["TCL-TKC-B3-001", "7244", "Temperatura tipo K - Controlador", "Tech Center", "Burner 03", "Não", "Onrom", "E5AC", "7244", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TKC-B1-001", "6703", "Temperatura tipo K - Controlador", "Tech Center", "Burner 01", "Sim", "Chonalox", "2104-AO140", "6703", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TKC-B2-001", "6704", "Temperatura tipo K - Controlador", "Tech Center", "Burner 02", "Não", "Chonalox", "2104-AO140", "6704", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["SEM-CODIGO-01", "", "Sensor de gás GLP (calibrado por segurança, não utilizado em teste)", "Tech Center", "Sensores de Gas", "Não", "MSA", "Série Ultima X", "J12-4165550-50-002", "0 a 100%", "0 a 100%", "EM_USO"],
+    ["SEM-CODIGO-02", "", "Sensor de gás GLP (calibrado por segurança, não utilizado em teste)", "Tech Center", "Sensores de Gas", "Não", "MSA", "Série Ultima X", "H20-4502772600-10-001", "0 a 100%", "0 a 100%", "EM_USO"],
+    ["SEM-CODIGO-03", "", "Sensor de gás GLP (calibrado por segurança, não utilizado em teste)", "Tech Center", "Sensores de Gas", "Não", "MSA", "Série Ultima X5000", "1002000172039A", "0 a 100%", "0 a 100%", "EM_USO"],
+    ["TCL-ICP-001", "", "Amplificador / Conversor Carga-ICP - 01", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801813", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-002", "", "Amplificador / Conversor Carga-ICP - 02", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801814", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-003", "", "Amplificador / Conversor Carga-ICP - 03", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801815", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-004", "", "Amplificador / Conversor Carga-ICP - 04", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801817", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-005", "", "Amplificador / Conversor Carga-ICP - 05", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801818", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-006", "", "Amplificador / Conversor Carga-ICP - 06", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801819", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-007", "", "Amplificador / Conversor Carga-ICP - 07", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801820", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-ICP-008", "", "Amplificador / Conversor Carga-ICP - 08", "Tech Center", "Instrumentação", "Não", "B&K", "2647-A", "2801821", "1mV/pC | 0,25 Hz a 47,0 kHz", "1mV/pC ±2,5%", "EM_USO"],
+    ["TCL-HBT-001", "", "Hardware HBM - Tensão - Canal 01", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-002", "", "Hardware HBM - Tensão - Canal 02", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-003", "", "Hardware HBM - Tensão - Canal 03", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-004", "", "Hardware HBM - Tensão - Canal 04", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-005", "", "Hardware HBM - Tensão - Canal 05", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-006", "", "Hardware HBM - Tensão - Canal 06", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-007", "", "Hardware HBM - Tensão - Canal 07", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-008", "", "Hardware HBM - Tensão - Canal 08", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-009", "", "Hardware HBM - Tensão - Canal 09", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-010", "", "Hardware HBM - Tensão - Canal 10", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-011", "", "Hardware HBM - Tensão - Canal 11", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-012", "", "Hardware HBM - Tensão - Canal 12", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-013", "", "Hardware HBM - Tensão - Canal 13", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-014", "", "Hardware HBM - Tensão - Canal 14", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-015", "", "Hardware HBM - Tensão - Canal 15", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-016", "", "Hardware HBM - Tensão - Canal 16", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6298", "", "", "EM_USO"],
+    ["TCL-HBT-017", "", "Hardware HBM - Tensão - Canal 1", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-018", "", "Hardware HBM - Tensão - Canal 2", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-019", "", "Hardware HBM - Tensão - Canal 3", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-020", "", "Hardware HBM - Tensão - Canal 4", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-021", "", "Hardware HBM - Tensão - Canal 5", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-022", "", "Hardware HBM - Tensão - Canal 6", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-023", "", "Hardware HBM - Tensão - Canal 7", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-024", "", "Hardware HBM - Tensão - Canal 8", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-025", "", "Hardware HBM - Tensão - Canal 9", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-026", "", "Hardware HBM - Tensão - Canal 10", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-027", "", "Hardware HBM - Tensão - Canal 11", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-028", "", "Hardware HBM - Tensão - Canal 12", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-029", "", "Hardware HBM - Tensão - Canal 13", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-030", "", "Hardware HBM - Tensão - Canal 14", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-031", "", "Hardware HBM - Tensão - Canal 15", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-HBT-032", "", "Hardware HBM - Tensão - Canal 16", "Tech Center", "Instrumentação", "Não", "HBM", "Somat E-Daq", "MSHLS.03-6337", "", "", "EM_USO"],
+    ["TCL-LICP-001", "", "Hardware LMS - ICP - Canal 01", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-002", "", "Hardware LMS - ICP - Canal 02", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-003", "", "Hardware LMS - ICP - Canal 03", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-004", "", "Hardware LMS - ICP - Canal 04", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-005", "", "Hardware LMS - ICP - Canal 05", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-006", "", "Hardware LMS - ICP - Canal 06", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-007", "", "Hardware LMS - ICP - Canal 07", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-LICP-008", "", "Hardware LMS - ICP - Canal 08", "Tech Center", "Instrumentação", "Não", "Siemens", "SCM05", "46084702", "", "", "EM_USO"],
+    ["TCL-TK-PC-001", "", "Picolog - Temperatura Tipo K - Canal 01", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-002", "", "Picolog - Temperatura Tipo K - Canal 02", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-003", "", "Picolog - Temperatura Tipo K - Canal 03", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-004", "", "Picolog - Temperatura Tipo K - Canal 04", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-005", "", "Picolog - Temperatura Tipo K - Canal 05", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-006", "", "Picolog - Temperatura Tipo K - Canal 06", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-007", "", "Picolog - Temperatura Tipo K - Canal 07", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-PC-008", "", "Picolog - Temperatura Tipo K - Canal 08", "Tech Center", "Instrumentação", "Não", "Picolog", "TC-08", "KJE35/010", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-001", "BURNER1-TC1", "Temperatura tipo K - Canal 01", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-002", "BURNER1-TC2", "Temperatura tipo K - Canal 02", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-003", "BURNER1-TC3", "Temperatura tipo K - Canal 03", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-004", "BURNER1-TC4", "Temperatura tipo K - Canal 04", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-005", "BURNER1-TC5", "Temperatura tipo K - Canal 05", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-006", "BURNER1-TC6", "Temperatura tipo K - Canal 06", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-007", "BURNER1-TC7", "Temperatura tipo K - Canal 07", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-008", "BURNER1-TC8", "Temperatura tipo K - Canal 08", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-009", "BURNER1-TC9", "Temperatura tipo K - Canal 09", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-010", "BURNER1-TC10", "Temperatura tipo K - Canal 10", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-011", "BURNER1-TC11", "Temperatura tipo K - Canal 11", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-012", "BURNER1-TC12", "Temperatura tipo K - Canal 12", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-013", "BURNER1-TC13", "Temperatura tipo K - Canal 13", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-014", "BURNER1-TC14", "Temperatura tipo K - Canal 14", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-015", "BURNER1-TC15", "Temperatura tipo K - Canal 15", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-016", "BURNER1-TC16", "Temperatura tipo K - Canal 16", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-017", "BURNER1-TC17", "Temperatura tipo K - Canal 17", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-018", "BURNER1-TC18", "Temperatura tipo K - Canal 18", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-019", "BURNER1-TC19", "Temperatura tipo K - Canal 19", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-020", "BURNER1-TC20", "Temperatura tipo K - Canal 20", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-021", "BURNER1-TC21", "Temperatura tipo K - Canal 21", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-022", "BURNER1-TC22", "Temperatura tipo K - Canal 22", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-023", "BURNER1-TC23", "Temperatura tipo K - Canal 23", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B1-024", "BURNER1-TC24", "Temperatura tipo K - Canal 24", "Tech Center", "Burner 01", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-002", "BURNER2-TC2", "Temperatura tipo K - Canal 02", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-003", "BURNER2-TC3", "Temperatura tipo K - Canal 03", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-004", "BURNER2-TC4", "Temperatura tipo K - Canal 04", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-005", "BURNER2-TC5", "Temperatura tipo K - Canal 05", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-006", "BURNER2-TC6", "Temperatura tipo K - Canal 06", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-007", "BURNER2-TC7", "Temperatura tipo K - Canal 07", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-008", "BURNER2-TC8", "Temperatura tipo K - Canal 08", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-009", "BURNER2-TC9", "Temperatura tipo K - Canal 09", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-010", "BURNER2-TC10", "Temperatura tipo K - Canal 10", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-011", "BURNER2-TC11", "Temperatura tipo K - Canal 11", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-012", "BURNER2-TC12", "Temperatura tipo K - Canal 12", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-013", "BURNER2-TC13", "Temperatura tipo K - Canal 13", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-014", "BURNER2-TC14", "Temperatura tipo K - Canal 14", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-015", "BURNER2-TC15", "Temperatura tipo K - Canal 15", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-016", "BURNER2-TC16", "Temperatura tipo K - Canal 16", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-017", "BURNER2-TC17", "Temperatura tipo K - Canal 17", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-018", "BURNER2-TC18", "Temperatura tipo K - Canal 18", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-019", "BURNER2-TC19", "Temperatura tipo K - Canal 19", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-020", "BURNER2-TC20", "Temperatura tipo K - Canal 20", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-021", "BURNER2-TC21", "Temperatura tipo K - Canal 21", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-022", "BURNER2-TC22", "Temperatura tipo K - Canal 22", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-023", "BURNER2-TC23", "Temperatura tipo K - Canal 23", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B2-024", "BURNER2-TC24", "Temperatura tipo K - Canal 24", "Tech Center", "Burner 02", "Não", "National Instruments", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-001", "BURNER3-Tk1", "Temperatura tipo K - Canal 01", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-002", "BURNER3-Tk2", "Temperatura tipo K - Canal 02", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-003", "BURNER3-Tk3", "Temperatura tipo K - Canal 03", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-004", "BURNER3-Tk4", "Temperatura tipo K - Canal 04", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-005", "BURNER3-Tk5", "Temperatura tipo K - Canal 05", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-006", "BURNER3-Tk6", "Temperatura tipo K - Canal 06", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-007", "BURNER3-Tk7", "Temperatura tipo K - Canal 07", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-008", "BURNER3-Tk8", "Temperatura tipo K - Canal 08", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-009", "BURNER3-Tk9", "Temperatura tipo K - Canal 09", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-010", "BURNER3-Tk10", "Temperatura tipo K - Canal 10", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-011", "BURNER3-Tk11", "Temperatura tipo K - Canal 11", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-012", "BURNER3-Tk12", "Temperatura tipo K - Canal 12", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-013", "BURNER3-Tk13", "Temperatura tipo K - Canal 13", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-014", "BURNER3-Tk14", "Temperatura tipo K - Canal 14", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-015", "BURNER3-Tk15", "Temperatura tipo K - Canal 15", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-016", "BURNER3-Tk16", "Temperatura tipo K - Canal 16", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-017", "BURNER3-Tk17", "Temperatura tipo K - Canal 17", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-018", "BURNER3-Tk18", "Temperatura tipo K - Canal 18", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-019", "BURNER3-Tk19", "Temperatura tipo K - Canal 19", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-020", "BURNER3-Tk20", "Temperatura tipo K - Canal 20", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-021", "BURNER3-Tk21", "Temperatura tipo K - Canal 21", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-022", "BURNER3-Tk22", "Temperatura tipo K - Canal 22", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-023", "BURNER3-Tk23", "Temperatura tipo K - Canal 23", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"],
+    ["TCL-TK-B3-024", "BURNER3-Tk24", "Temperatura tipo K - Canal 24", "Tech Center", "Burner 03", "Não", "Siemens", "TC-K", "-", "0 - 1200°C", "0 - 1200°C", "EM_USO"]
+  ];
+
+  /* "Sim"/"Não" da planilha vira booleano; o resto entra como texto, do jeito que o
+     laboratório escreve. O plano de calibração começa vazio. */
+  TC.instrumentosPadrao = function () {
+    return LINHAS.map(function (l) {
+      return {
+        id: l[0],
+        codigoAntigo: l[1],
+        nome: l[2],
+        setor: l[3],
+        local: l[4],
+        backup: l[5] === 'Sim',
+        marca: l[6],
+        modelo: l[7],
+        serie: l[8],
+        faixa: l[9],
+        resolucao: l[10],
+        situacao: l[11],
+        ativo: true,
+        periodicidadeMeses: 12,
+        ultimaCalibracao: '',
+        proximaCalibracao: '',
+        ultimoResultado: '',
+        certificado: '',
+        laboratorio: '',
+        observacao: '',
+        historico: []
+      };
+    });
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = TC.instrumentosPadrao;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
 /* Dados de partida: clientes, classificação de LTI, equipamentos, catálogo de testes e peças.
    Tudo é editável na aplicação — isto é apenas o estado inicial. */
 (function (global) {
   'use strict';
 
   var TC = (global.TC = global.TC || {});
+  if (!TC.instrumentosPadrao && typeof require !== 'undefined') require('./instrumentos-padrao.js');
 
   /* Fases de projeto. Não classificam o procedimento (qualquer teste pode rodar em
      qualquer fase); classificam a LTI que abre a demanda. */
@@ -552,6 +831,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     clientes: { ver: ['TESTES'], editar: ['TESTES'] },
     equipamentos: { ver: ['TESTES'], editar: ['TESTES'] },
     pecas: { ver: ['TESTES'], editar: ['TESTES'] },
+    calibracao: { ver: ['TESTES'], editar: ['TESTES'] },
     permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
   };
 
@@ -784,8 +1064,14 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
      aditiva e preserva o que já foi preenchido. */
   var CATALOGO_VERSAO = 9;
 
+  /* Versão do inventário de instrumentos, com a mesma mecânica do catálogo: subir este
+     número leva os instrumentos novos a quem já tem dados salvos, sem tocar no que foi
+     preenchido de plano de calibração. */
+  var INSTRUMENTOS_VERSAO = 1;
+
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
+    INSTRUMENTOS_VERSAO: INSTRUMENTOS_VERSAO,
     HOURLY_RATE: HOURLY_RATE,
     HOURLY_RATE_VIGENCIA: HOURLY_RATE_VIGENCIA,
     PERFIS: PERFIS,
@@ -799,12 +1085,14 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     seed: function () {
       return {
         catalogoVersao: CATALOGO_VERSAO,
+        instrumentosVersao: INSTRUMENTOS_VERSAO,
         hourlyRate: HOURLY_RATE,
         hourlyRateVigencia: HOURLY_RATE_VIGENCIA,
         clientes: JSON.parse(JSON.stringify(CLIENTES)),
         equipamentos: JSON.parse(JSON.stringify(EQUIPAMENTOS)),
         testes: JSON.parse(JSON.stringify(TESTES)),
         pecas: JSON.parse(JSON.stringify(PECAS)),
+        instrumentos: TC.instrumentosPadrao(),
         demandas: [],
         cotacoes: [],
         permissoes: JSON.parse(JSON.stringify(PERMISSOES_PADRAO)),
@@ -1609,6 +1897,174 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
+/* Gestão da calibração dos instrumentos.
+   Responde as perguntas do gestor: o que está calibrado, o que vence este mês, o que já
+   venceu e está em uso — este último é o caso grave, porque significa ensaio rodando com
+   instrumento fora da validade. Puro e testado; a tela só desenha. */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util || (typeof require !== 'undefined' ? require('./util.js') : null);
+
+  /* Situação operacional do instrumento, na coluna "Observações" da planilha de origem. */
+  var SITUACOES = [
+    { id: 'EM_USO', nome: 'Em uso', cor: 'ok' },
+    { id: 'EM_CALIBRACAO', nome: 'Em calibração', cor: 'alerta' },
+    { id: 'AGUARDANDO', nome: 'Aguardando calibração', cor: 'alerta' },
+    { id: 'FORA_DE_USO', nome: 'Fora de uso', cor: '' }
+  ];
+
+  /* Resultado de uma calibração. "Aprovado com restrição" existe porque é comum: o
+     certificado sai com desvio dentro da tolerância de uso, mas fora da nominal. */
+  var RESULTADOS = [
+    { id: 'APROVADO', nome: 'Aprovado', cor: 'ok' },
+    { id: 'APROVADO_RESTRICAO', nome: 'Aprovado com restrição', cor: 'alerta' },
+    { id: 'REPROVADO', nome: 'Reprovado', cor: 'erro' }
+  ];
+
+  /* Situação do prazo de calibração — é isto que a tela colore.
+     SEM_PLANO não é um erro do instrumento, é uma lacuna do cadastro: alguém precisa
+     informar quando ele foi calibrado pela última vez. */
+  var VENCIDO = 'VENCIDO';
+  var A_VENCER = 'A_VENCER';
+  var EM_DIA = 'EM_DIA';
+  var SEM_PLANO = 'SEM_PLANO';
+
+  var DIAS_DE_ALERTA = 30;
+
+  function nomeSituacao(id) {
+    var s = util.porId(SITUACOES, id);
+    return s ? s.nome : id;
+  }
+
+  function nomeResultado(id) {
+    var r = util.porId(RESULTADOS, id);
+    return r ? r.nome : id;
+  }
+
+  /* Soma meses a uma data ISO sem depender de fuso: o dia é preservado, salvo quando o mês
+     de destino é mais curto (31/01 + 1 mês = 28/02). */
+  function somaMeses(iso, meses) {
+    if (!iso) return '';
+    var ano = Number(iso.slice(0, 4));
+    var mes = Number(iso.slice(5, 7)) - 1 + Number(meses || 0);
+    var dia = Number(iso.slice(8, 10));
+    var anoFinal = ano + Math.floor(mes / 12);
+    var mesFinal = ((mes % 12) + 12) % 12;
+    var ultimoDoMes = new Date(Date.UTC(anoFinal, mesFinal + 1, 0)).getUTCDate();
+    return anoFinal + '-' + String(mesFinal + 1).padStart(2, '0') + '-' +
+      String(Math.min(dia, ultimoDoMes)).padStart(2, '0');
+  }
+
+  /* O vencimento informado tem precedência sobre o calculado: o certificado às vezes traz
+     uma validade que não é a periodicidade padrão do instrumento.
+
+     Reprovado não tem validade nenhuma. Sem esta guarda, a data da própria reprovação mais
+     a periodicidade renderia um vencimento futuro — o instrumento apareceria "em dia" por
+     ter sido reprovado, que é o oposto do que aconteceu. */
+  function vencimento(instrumento) {
+    if (instrumento.ultimoResultado === 'REPROVADO') return '';
+    if (instrumento.proximaCalibracao) return instrumento.proximaCalibracao;
+    if (instrumento.ultimaCalibracao && instrumento.periodicidadeMeses) {
+      return somaMeses(instrumento.ultimaCalibracao, instrumento.periodicidadeMeses);
+    }
+    return '';
+  }
+
+  function situacaoDoPrazo(instrumento, hoje) {
+    var vence = vencimento(instrumento);
+    if (!vence) return SEM_PLANO;
+    var dias = util.diffDias(hoje, vence);
+    if (dias < 0) return VENCIDO;
+    if (dias <= DIAS_DE_ALERTA) return A_VENCER;
+    return EM_DIA;
+  }
+
+  /* Tudo que a linha da tabela e os indicadores precisam de um instrumento. */
+  function estado(instrumento, hoje) {
+    var vence = vencimento(instrumento);
+    var prazo = situacaoDoPrazo(instrumento, hoje);
+    return {
+      instrumento: instrumento,
+      vencimento: vence,
+      prazo: prazo,
+      diasParaVencer: vence ? util.diffDias(hoje, vence) : null,
+      /* Instrumento vencido e em uso é o achado que a auditoria procura: ensaio rodando
+         com medição fora da validade. Back-up e fora de uso não pesam do mesmo jeito. */
+      criticidade: prazo === VENCIDO && instrumento.situacao === 'EM_USO' && instrumento.ativo
+        ? 'CRITICO' : prazo === VENCIDO ? 'ATENCAO' : '',
+      ultimaCalibracao: instrumento.ultimaCalibracao || '',
+      ultimoRegistro: (instrumento.historico || []).slice().sort(function (a, b) {
+        return util.diffDias(b.data, a.data);
+      })[0] || null
+    };
+  }
+
+  function lista(instrumentos, hoje) {
+    return (instrumentos || []).map(function (i) { return estado(i, hoje); });
+  }
+
+  /* Contagens do cabeçalho da janela. */
+  function resumo(instrumentos, hoje) {
+    var contas = {
+      total: 0, ativos: 0, emUso: 0, emCalibracao: 0, backup: 0,
+      vencidos: 0, aVencer: 0, emDia: 0, semPlano: 0, criticos: 0
+    };
+    lista(instrumentos, hoje).forEach(function (e) {
+      var i = e.instrumento;
+      contas.total++;
+      if (i.ativo) contas.ativos++;
+      if (i.situacao === 'EM_USO') contas.emUso++;
+      if (i.situacao === 'EM_CALIBRACAO') contas.emCalibracao++;
+      if (i.backup) contas.backup++;
+      if (e.prazo === VENCIDO) contas.vencidos++;
+      if (e.prazo === A_VENCER) contas.aVencer++;
+      if (e.prazo === EM_DIA) contas.emDia++;
+      if (e.prazo === SEM_PLANO) contas.semPlano++;
+      if (e.criticidade === 'CRITICO') contas.criticos++;
+    });
+    /* Cobertura: dos que têm plano, quantos estão dentro da validade. */
+    var comPlano = contas.total - contas.semPlano;
+    contas.cobertura = comPlano ? (contas.emDia + contas.aVencer) / comPlano : null;
+    return contas;
+  }
+
+  /* O que vence dentro do horizonte, do mais urgente para o menos — é a fila de trabalho
+     de quem manda instrumento para calibrar. */
+  function agenda(instrumentos, hoje, dias) {
+    var limite = dias || 90;
+    return lista(instrumentos, hoje)
+      .filter(function (e) {
+        return e.prazo === VENCIDO ||
+          (e.diasParaVencer !== null && e.diasParaVencer <= limite);
+      })
+      .sort(function (a, b) { return a.diasParaVencer - b.diasParaVencer; });
+  }
+
+  TC.calibracao = {
+    SITUACOES: SITUACOES,
+    RESULTADOS: RESULTADOS,
+    VENCIDO: VENCIDO,
+    A_VENCER: A_VENCER,
+    EM_DIA: EM_DIA,
+    SEM_PLANO: SEM_PLANO,
+    DIAS_DE_ALERTA: DIAS_DE_ALERTA,
+    nomeSituacao: nomeSituacao,
+    nomeResultado: nomeResultado,
+    somaMeses: somaMeses,
+    vencimento: vencimento,
+    situacaoDoPrazo: situacaoDoPrazo,
+    estado: estado,
+    lista: lista,
+    resumo: resumo,
+    agenda: agenda
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = TC.calibracao;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
 /* Indicadores do centro de testes.
    Módulo puro: recebe estado e plano, devolve números. Roda no Node, é testado, e não
    toca em interface — é aqui que mora a definição de cada KPI, para o painel não virar
@@ -2220,6 +2676,7 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
   var scheduler = TC.scheduler || (typeof require !== 'undefined' ? require('./scheduler.js') : null);
   if (!TC.fluxo && typeof require !== 'undefined') require('./fluxo.js');
   if (!TC.manutencao && typeof require !== 'undefined') require('./manutencao.js');
+  if (!TC.calibracao && typeof require !== 'undefined') require('./calibracao.js');
   if (!TC.permissoes && typeof require !== 'undefined') require('./permissoes.js');
 
   var CHAVE = 'testing-center/v1';
@@ -2329,6 +2786,29 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       delete t.hourlyRate;
       if (typeof t.custoInsumos !== 'number') t.custoInsumos = t.custoBase || 0;
       delete t.custoBase;
+    });
+
+    /* Inventário de instrumentos sujeitos a calibração. Mesma mecânica do catálogo:
+       instrumento novo entra, e o que já existe fica com o plano de calibração que o
+       laboratório preencheu. */
+    estado.instrumentos = estado.instrumentos || [];
+    if ((Number(estado.instrumentosVersao) || 0) < TC.data.INSTRUMENTOS_VERSAO) {
+      TC.instrumentosPadrao().forEach(function (i) {
+        if (!util.porId(estado.instrumentos, i.id)) estado.instrumentos.push(i);
+      });
+      estado.instrumentosVersao = TC.data.INSTRUMENTOS_VERSAO;
+    }
+    estado.instrumentos.forEach(function (i) {
+      if (typeof i.periodicidadeMeses !== 'number') i.periodicidadeMeses = 12;
+      if (typeof i.ultimaCalibracao !== 'string') i.ultimaCalibracao = '';
+      if (typeof i.proximaCalibracao !== 'string') i.proximaCalibracao = '';
+      if (typeof i.certificado !== 'string') i.certificado = '';
+      if (typeof i.laboratorio !== 'string') i.laboratorio = '';
+      if (typeof i.observacao !== 'string') i.observacao = '';
+      if (typeof i.ultimoResultado !== 'string') i.ultimoResultado = '';
+      if (typeof i.situacao !== 'string') i.situacao = 'EM_USO';
+      if (typeof i.ativo !== 'boolean') i.ativo = true;
+      if (!Array.isArray(i.historico)) i.historico = [];
     });
 
     /* As paradas de manutenção passaram a ter duas vidas: planejada e realizada, com o
@@ -2619,6 +3099,67 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       if (!eq) return;
       eq.manutencao = (eq.manutencao || []).filter(function (m) { return m.id !== janelaId; });
       commit();
+    },
+
+    /* ---- Instrumentos e calibração ---- */
+    salvarInstrumento: function (instrumento) {
+      var existente = instrumento.id ? util.porId(estado.instrumentos, instrumento.id) : null;
+      if (existente) {
+        Object.keys(instrumento).forEach(function (k) { existente[k] = instrumento[k]; });
+        commit();
+        return existente;
+      }
+      instrumento.id = instrumento.id || util.id('INS');
+      instrumento.historico = instrumento.historico || [];
+      estado.instrumentos.push(instrumento);
+      commit();
+      return instrumento;
+    },
+    removerInstrumento: function (id) {
+      estado.instrumentos = estado.instrumentos.filter(function (i) { return i.id !== id; });
+      commit();
+    },
+
+    /* Registro de uma calibração: entra no histórico e passa a ser a vigente. O vencimento
+       vem do certificado quando informado; senão sai da periodicidade do instrumento.
+       Reprovado não renova a validade — o instrumento não pode voltar a medir por decurso
+       de prazo, então ele sai de uso até alguém decidir o que fazer. */
+    registrarCalibracao: function (instrumentoId, dados) {
+      var i = util.porId(estado.instrumentos, instrumentoId);
+      if (!i) return { ok: false, motivo: 'Instrumento não encontrado.' };
+      if (!dados.data) return { ok: false, motivo: 'Informe a data da calibração.' };
+
+      var resultado = dados.resultado || 'APROVADO';
+      var registro = {
+        id: util.id('CAL'),
+        data: dados.data,
+        resultado: resultado,
+        certificado: (dados.certificado || '').trim(),
+        laboratorio: (dados.laboratorio || '').trim(),
+        proximaCalibracao: dados.proximaCalibracao || '',
+        observacao: (dados.observacao || '').trim(),
+        registradoEm: util.hoje()
+      };
+      i.historico = i.historico || [];
+      i.historico.push(registro);
+
+      i.ultimaCalibracao = registro.data;
+      i.ultimoResultado = resultado;
+      i.certificado = registro.certificado;
+      i.laboratorio = registro.laboratorio;
+      if (typeof dados.periodicidadeMeses === 'number' && dados.periodicidadeMeses > 0) {
+        i.periodicidadeMeses = dados.periodicidadeMeses;
+      }
+      if (resultado === 'REPROVADO') {
+        i.proximaCalibracao = '';
+        i.situacao = 'FORA_DE_USO';
+      } else {
+        i.proximaCalibracao = registro.proximaCalibracao ||
+          TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
+        i.situacao = 'EM_USO';
+      }
+      commit();
+      return { ok: true, instrumento: i, registro: registro };
     },
 
     /* ---- Peças ---- */
@@ -5159,6 +5700,450 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 })(typeof globalThis !== 'undefined' ? globalThis : this);
   </script>
   <script>
+/* Calibração: o inventário de instrumentos e sensores e o controle da validade de cada um.
+   A pergunta que esta janela responde é uma só — algum ensaio está rodando com instrumento
+   fora da validade? Por isso "vencido e em uso" tem tratamento próprio, separado de
+   "vencido, mas é back-up ou está fora de uso". */
+(function (global) {
+  'use strict';
+
+  var TC = (global.TC = global.TC || {});
+  var util = TC.util, ui = TC.ui, e = util.escapar;
+
+  function cal() { return TC.calibracao; }
+
+  function etiquetaPrazo(estadoDoItem) {
+    var mapa = {
+      VENCIDO: ['erro', 'Vencida'],
+      A_VENCER: ['alerta', 'A vencer'],
+      EM_DIA: ['ok', 'Em dia'],
+      SEM_PLANO: ['', 'Sem plano']
+    };
+    var m = mapa[estadoDoItem.prazo];
+    return '<span class="etiqueta ' + m[0] + '">' + e(m[1]) + '</span>';
+  }
+
+  function etiquetaSituacao(id) {
+    var s = util.porId(cal().SITUACOES, id);
+    return '<span class="etiqueta ' + (s ? s.cor : '') + '">' + e(s ? s.nome : id) + '</span>';
+  }
+
+  /* ---- Filtros ---- */
+
+  function opcoesDistintas(instrumentos, campo) {
+    var vistos = {};
+    instrumentos.forEach(function (i) {
+      var v = (i[campo] || '').trim();
+      if (v) vistos[v] = true;
+    });
+    return Object.keys(vistos).sort().map(function (v) { return { id: v, nome: v }; });
+  }
+
+  function filtrar(estados, f) {
+    var busca = (f.buscaCal || '').toLowerCase();
+    return estados.filter(function (x) {
+      var i = x.instrumento;
+      if (f.localCal && i.local !== f.localCal) return false;
+      if (f.marcaCal && i.marca !== f.marcaCal) return false;
+      if (f.situacaoCal && i.situacao !== f.situacaoCal) return false;
+      if (f.prazoCal && x.prazo !== f.prazoCal) return false;
+      if (busca) {
+        var alvo = (i.id + ' ' + i.codigoAntigo + ' ' + i.nome + ' ' + i.marca + ' ' +
+          i.modelo + ' ' + i.serie + ' ' + i.local).toLowerCase();
+        if (alvo.indexOf(busca) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  /* ---- Cadastro ---- */
+
+  function abrirEdicao(instrumento) {
+    var novo = !instrumento;
+    instrumento = instrumento || {
+      id: '', codigoAntigo: '', nome: '', setor: 'Tech Center', local: '', backup: false,
+      marca: '', modelo: '', serie: '', faixa: '', resolucao: '', situacao: 'EM_USO',
+      ativo: true, periodicidadeMeses: 12, ultimaCalibracao: '', proximaCalibracao: '',
+      certificado: '', laboratorio: '', observacao: '', historico: []
+    };
+
+    var corpo =
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Código atual</label><input name="id" value="' + e(instrumento.id) + '"' +
+          (novo ? ' placeholder="TCL-XX-001" required' : ' readonly') + '></div>' +
+        '<div class="campo"><label>Código antigo</label>' +
+          '<input name="codigoAntigo" value="' + e(instrumento.codigoAntigo || '') + '"></div>' +
+        '<div class="campo"><label>Setor / área</label>' +
+          '<input name="setor" value="' + e(instrumento.setor || '') + '"></div>' +
+        '<div class="campo"><label>Local / posto</label>' +
+          '<input name="local" value="' + e(instrumento.local || '') + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Instrumento / equipamento</label>' +
+        '<input name="nome" value="' + e(instrumento.nome) + '" required></div>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Marca</label><input name="marca" value="' + e(instrumento.marca || '') + '"></div>' +
+        '<div class="campo"><label>Modelo</label><input name="modelo" value="' + e(instrumento.modelo || '') + '"></div>' +
+        '<div class="campo"><label>Nº de série</label><input name="serie" value="' + e(instrumento.serie || '') + '"></div>' +
+      '</div>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Range de utilização</label>' +
+          '<input name="faixa" value="' + e(instrumento.faixa || '') + '"></div>' +
+        '<div class="campo"><label>Resolução / capacidade</label>' +
+          '<input name="resolucao" value="' + e(instrumento.resolucao || '') + '"></div>' +
+        '<div class="campo"><label>Situação</label><select name="situacao">' +
+          ui.opcoes(cal().SITUACOES, instrumento.situacao) + '</select></div>' +
+        '<div class="campo"><label>Periodicidade (meses)</label>' +
+          '<input type="number" min="1" max="120" name="periodicidadeMeses" value="' +
+          e(String(instrumento.periodicidadeMeses || 12)) + '"></div>' +
+      '</div>' +
+      '<p class="sub" style="margin:0 0 10px">A última e a próxima calibração normalmente ' +
+        'vêm do botão <strong>Calibrar</strong>, que guarda o certificado no histórico. ' +
+        'Os campos abaixo existem para lançar o que já estava em planilha.</p>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Última calibração</label>' +
+          '<input type="date" name="ultimaCalibracao" value="' + e(instrumento.ultimaCalibracao || '') + '"></div>' +
+        '<div class="campo"><label>Próxima calibração <span class="sub" style="font-weight:400">(vazio = calculada)</span></label>' +
+          '<input type="date" name="proximaCalibracao" value="' + e(instrumento.proximaCalibracao || '') + '"></div>' +
+        '<div class="campo"><label>Certificado</label>' +
+          '<input name="certificado" value="' + e(instrumento.certificado || '') + '"></div>' +
+        '<div class="campo"><label>Laboratório</label>' +
+          '<input name="laboratorio" value="' + e(instrumento.laboratorio || '') + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
+        '<input type="checkbox" name="backup" style="width:auto"' + (instrumento.backup ? ' checked' : '') + '>' +
+        'É um instrumento back-up</label></div>' +
+      '<div class="campo"><label style="display:flex;align-items:center;gap:7px;color:var(--texto)">' +
+        '<input type="checkbox" name="ativo" style="width:auto"' + (instrumento.ativo ? ' checked' : '') + '>' +
+        'Ativo no parque</label></div>' +
+      '<div class="campo"><label>Observações</label>' +
+        '<textarea name="observacao" rows="2">' + e(instrumento.observacao || '') + '</textarea></div>';
+
+    ui.modal({
+      titulo: novo ? 'Novo instrumento' : instrumento.id + ' — ' + instrumento.nome,
+      corpo: corpo,
+      largura: 'min(880px, 100%)',
+      confirmar: 'Salvar instrumento',
+      aoConfirmar: function (v) {
+        if (!v.id.trim() || !v.nome.trim()) { ui.notificar('Informe código e nome.'); return false; }
+        if (novo && util.porId(TC.store.get().instrumentos, v.id.trim())) {
+          ui.notificar('Já existe um instrumento com o código ' + v.id.trim() + '.');
+          return false;
+        }
+        TC.store.salvarInstrumento({
+          id: v.id.trim(), codigoAntigo: v.codigoAntigo.trim(), nome: v.nome.trim(),
+          setor: v.setor.trim(), local: v.local.trim(), backup: !!v.backup, ativo: !!v.ativo,
+          marca: v.marca.trim(), modelo: v.modelo.trim(), serie: v.serie.trim(),
+          faixa: v.faixa.trim(), resolucao: v.resolucao.trim(), situacao: v.situacao,
+          periodicidadeMeses: Number(v.periodicidadeMeses) || 12,
+          ultimaCalibracao: v.ultimaCalibracao, proximaCalibracao: v.proximaCalibracao,
+          certificado: v.certificado.trim(), laboratorio: v.laboratorio.trim(),
+          observacao: v.observacao.trim(),
+          historico: instrumento.historico || []
+        });
+        ui.notificar('Instrumento salvo.');
+      }
+    });
+  }
+
+  /* ---- Registro de calibração ---- */
+
+  function abrirCalibracao(instrumento, hoje) {
+    var estadoItem = cal().estado(instrumento, hoje);
+    var historico = (instrumento.historico || []).slice().sort(function (a, b) {
+      return util.diffDias(b.data, a.data);
+    });
+
+    var corpo =
+      '<div class="aviso' + (estadoItem.prazo === 'VENCIDO' ? ' erro' : '') + '">' +
+        '<strong>' + e(instrumento.id) + '</strong> · ' + e(instrumento.nome) +
+        '<div class="sub" style="margin-top:4px">' +
+          (instrumento.marca ? e(instrumento.marca) + ' ' + e(instrumento.modelo) + ' · ' : '') +
+          (instrumento.serie ? 'série ' + e(instrumento.serie) + ' · ' : '') +
+          e(instrumento.local) + '</div>' +
+        '<div style="margin-top:6px">' +
+          (estadoItem.ultimaCalibracao
+            ? 'Última calibração em <strong>' + e(util.formatarData(estadoItem.ultimaCalibracao, true)) + '</strong>. '
+            : 'Sem calibração registrada. ') +
+          (estadoItem.vencimento
+            ? 'Validade até <strong>' + e(util.formatarData(estadoItem.vencimento, true)) + '</strong>' +
+              (estadoItem.diasParaVencer < 0
+                ? ' — <strong>vencida há ' + Math.abs(estadoItem.diasParaVencer) + ' dias</strong>.'
+                : ' — faltam ' + estadoItem.diasParaVencer + ' dias.')
+            : 'Sem validade definida.') +
+        '</div>' +
+      '</div>' +
+      '<div class="grade-campos">' +
+        '<div class="campo"><label>Data da calibração</label>' +
+          '<input type="date" name="data" value="' + e(hoje) + '"></div>' +
+        '<div class="campo"><label>Resultado</label><select name="resultado">' +
+          ui.opcoes(cal().RESULTADOS, 'APROVADO') + '</select></div>' +
+        '<div class="campo"><label>Certificado nº</label>' +
+          '<input name="certificado" placeholder="Ex.: RBC-2026-0481"></div>' +
+        '<div class="campo"><label>Laboratório</label>' +
+          '<input name="laboratorio" value="' + e(instrumento.laboratorio || '') + '"></div>' +
+        '<div class="campo"><label>Periodicidade (meses)</label>' +
+          '<input type="number" min="1" max="120" name="periodicidadeMeses" value="' +
+          e(String(instrumento.periodicidadeMeses || 12)) + '"></div>' +
+        '<div class="campo"><label>Próxima calibração <span class="sub" style="font-weight:400">(vazio = calculada)</span></label>' +
+          '<input type="date" name="proximaCalibracao"></div>' +
+      '</div>' +
+      '<div class="campo"><label>Observação</label>' +
+        '<textarea name="observacao" rows="2" placeholder="Desvios encontrados, ajustes, restrições de uso"></textarea></div>' +
+      '<div id="previa-validade"></div>' +
+      (historico.length
+        ? '<div class="campo" style="margin-top:14px"><label>Histórico de calibrações</label>' +
+          '<div class="lista-selecao" style="max-height:200px">' +
+          historico.map(function (h) {
+            var r = util.porId(cal().RESULTADOS, h.resultado);
+            return '<div class="linha-selecao" style="display:block">' +
+              '<div><span class="mono sub">' + e(util.formatarData(h.data, true)) + '</span> · ' +
+              '<span class="etiqueta ' + (r ? r.cor : '') + '">' + e(r ? r.nome : h.resultado) + '</span>' +
+              (h.certificado ? ' <span class="sub">certificado ' + e(h.certificado) + '</span>' : '') +
+              (h.laboratorio ? ' <span class="sub">· ' + e(h.laboratorio) + '</span>' : '') +
+              '</div>' +
+              (h.observacao ? '<div class="sub">' + e(h.observacao) + '</div>' : '') +
+              '</div>';
+          }).join('') + '</div></div>'
+        : '<p class="sub" style="margin-top:14px">Nenhuma calibração registrada na plataforma ainda.</p>');
+
+    var janela = ui.modal({
+      titulo: 'Registrar calibração',
+      corpo: corpo,
+      largura: 'min(760px, 100%)',
+      confirmar: 'Registrar calibração',
+      aoConfirmar: function (v) {
+        var resultado = TC.store.registrarCalibracao(instrumento.id, {
+          data: v.data, resultado: v.resultado,
+          certificado: v.certificado, laboratorio: v.laboratorio,
+          periodicidadeMeses: Number(v.periodicidadeMeses) || 0,
+          proximaCalibracao: v.proximaCalibracao, observacao: v.observacao
+        });
+        if (!resultado.ok) { ui.notificar(resultado.motivo); return false; }
+        ui.notificar(v.resultado === 'REPROVADO'
+          ? 'Calibração reprovada — o instrumento foi marcado como fora de uso.'
+          : 'Calibração registrada. Próxima em ' +
+            util.formatarData(resultado.instrumento.proximaCalibracao, true) + '.');
+      }
+    });
+
+    /* A validade calculada aparece enquanto se preenche: é o número que vai para a tabela. */
+    var previa = janela.querySelector('#previa-validade');
+    function atualizar() {
+      function valor(nome) { return janela.querySelector('[name=' + nome + ']').value; }
+      var resultado = valor('resultado');
+      if (resultado === 'REPROVADO') {
+        previa.innerHTML = '<div class="aviso erro">Reprovado não renova a validade: o ' +
+          'instrumento sai de uso até alguém decidir entre ajuste, reparo ou descarte.</div>';
+        return;
+      }
+      var vence = valor('proximaCalibracao') ||
+        cal().somaMeses(valor('data'), Number(valor('periodicidadeMeses')) || 0);
+      previa.innerHTML = '<div class="aviso">Validade até <strong>' +
+        e(vence ? util.formatarData(vence, true) : '—') + '</strong>.</div>';
+    }
+    ['data', 'resultado', 'periodicidadeMeses', 'proximaCalibracao'].forEach(function (campo) {
+      var alvo = janela.querySelector('[name=' + campo + ']');
+      alvo.addEventListener('change', atualizar);
+      alvo.addEventListener('input', atualizar);
+    });
+    atualizar();
+  }
+
+  /* ---- Tela ---- */
+
+  function render(container, ctx) {
+    var estado = ctx.estado, hoje = ctx.hoje, f = ctx.filtros;
+    var podeEditar = ctx.podeEditar;
+    var instrumentos = estado.instrumentos || [];
+
+    var resumo = cal().resumo(instrumentos, hoje);
+    var todos = cal().lista(instrumentos, hoje);
+    var lista = filtrar(todos, f);
+    var criticos = todos.filter(function (x) { return x.criticidade === 'CRITICO'; });
+
+    var linhas = lista.map(function (x) {
+      var i = x.instrumento;
+      return '<tr data-instrumento="' + e(i.id) + '">' +
+        '<td><div class="mono forte">' + e(i.id) + '</div>' +
+          (i.codigoAntigo ? '<div class="sub mono">' + e(i.codigoAntigo) + '</div>' : '') + '</td>' +
+        '<td><div class="forte">' + e(i.nome) + '</div>' +
+          '<div class="sub">' + e([i.marca, i.modelo].filter(Boolean).join(' ') || '—') +
+          (i.serie && i.serie !== '-' ? ' · série ' + e(i.serie) : '') + '</div></td>' +
+        '<td><div>' + e(i.local || '—') + '</div>' +
+          '<div class="sub">' + e(i.setor || '') + '</div></td>' +
+        '<td><div class="sub">' + e(i.faixa || '—') + '</div>' +
+          '<div class="sub">' + e(i.resolucao || '') + '</div></td>' +
+        '<td>' + etiquetaSituacao(i.situacao) +
+          (i.backup ? '<div><span class="etiqueta">back-up</span></div>' : '') +
+          (i.ativo ? '' : '<div><span class="etiqueta erro">desativado</span></div>') + '</td>' +
+        '<td>' + (x.ultimaCalibracao
+          ? '<div>' + e(util.formatarData(x.ultimaCalibracao, true)) + '</div>' +
+            (i.certificado ? '<div class="sub">' + e(i.certificado) + '</div>' : '')
+          : '<span class="sub">—</span>') + '</td>' +
+        '<td>' + (i.ultimoResultado === 'REPROVADO' && !x.vencimento
+          ? '<span class="etiqueta erro">reprovada</span>'
+          : x.vencimento
+          ? '<div class="forte">' + e(util.formatarData(x.vencimento, true)) + '</div>' +
+            '<div class="sub">' + (x.diasParaVencer < 0
+              ? 'vencida há ' + Math.abs(x.diasParaVencer) + ' d'
+              : 'em ' + x.diasParaVencer + ' d') + '</div>'
+          : '<span class="sub">—</span>') + '</td>' +
+        '<td>' + etiquetaPrazo(x) +
+          (x.criticidade === 'CRITICO'
+            ? '<div><span class="etiqueta erro">em uso vencido</span></div>' : '') + '</td>' +
+        '<td class="num" style="white-space:nowrap">' +
+          (podeEditar
+            ? '<button class="botao pequeno primario calibrar">Calibrar</button> ' +
+              '<button class="botao pequeno editar">Editar</button> ' +
+              '<button class="botao pequeno perigo excluir" title="Remover instrumento">✕</button>'
+            : '<span class="sub">—</span>') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="cabecalho">' +
+        '<div><h2>Gerenciamento de calibração</h2>' +
+        '<p>Instrumentos e sensores do centro de testes, com a validade da calibração de cada um. ' +
+        'A validade sai da última calibração mais a periodicidade, salvo quando o certificado ' +
+        'traz uma data própria.</p></div>' +
+        (podeEditar ? '<div class="acoes">' +
+          '<button class="botao" id="csv-cal">Exportar CSV</button> ' +
+          '<button class="botao primario" id="novo-instrumento">+ Novo instrumento</button></div>' : '') +
+      '</div>' +
+
+      '<div class="indicadores">' +
+        '<div class="indicador"><div class="rotulo">Instrumentos</div><div class="valor">' +
+          resumo.total + '</div><div class="nota">' + resumo.emUso + ' em uso · ' +
+          resumo.backup + ' back-up</div></div>' +
+        '<div class="indicador"><div class="rotulo">Calibração vencida</div>' +
+          '<div class="valor" style="color:' + (resumo.vencidos ? 'var(--erro)' : 'var(--ok)') + '">' +
+          resumo.vencidos + '</div><div class="nota">' + resumo.criticos +
+          ' em uso agora</div></div>' +
+        '<div class="indicador"><div class="rotulo">Vencem em ' + cal().DIAS_DE_ALERTA + ' dias</div>' +
+          '<div class="valor"' + (resumo.aVencer ? ' style="color:var(--alerta)"' : '') + '>' +
+          resumo.aVencer + '</div><div class="nota">a programar com o laboratório</div></div>' +
+        '<div class="indicador"><div class="rotulo">Sem plano</div><div class="valor">' +
+          resumo.semPlano + '</div><div class="nota">sem data de calibração informada</div></div>' +
+        '<div class="indicador"><div class="rotulo">Cobertura</div><div class="valor">' +
+          (resumo.cobertura === null ? '—' : Math.round(resumo.cobertura * 100) + '%') +
+          '</div><div class="nota">dos que têm plano, dentro da validade</div></div>' +
+      '</div>' +
+
+      /* Vencido e em uso é o achado grave: ensaio medindo com instrumento fora da validade. */
+      (criticos.length
+        ? '<div class="cartao"><div class="cartao-corpo"><div class="aviso erro" style="margin:0">' +
+          '<strong>' + criticos.length + ' instrumento(s) em uso com calibração vencida.</strong> ' +
+          'Um ensaio rodando com eles mede fora da validade: ' +
+          e(criticos.slice(0, 8).map(function (x) { return x.instrumento.id; }).join(', ')) +
+          (criticos.length > 8 ? ' e mais ' + (criticos.length - 8) + '.' : '.') +
+          '</div></div></div>'
+        : '') +
+
+      '<div class="cartao">' +
+        '<div class="cartao-topo"><div class="filtros" style="flex:1">' +
+          '<div class="campo busca"><label>Buscar</label><input id="f-cal-busca" ' +
+            'placeholder="código, nome, marca, modelo, série ou posto" value="' + e(f.buscaCal || '') + '"></div>' +
+          '<div class="campo"><label>Local / posto</label><select id="f-cal-local">' +
+            ui.opcoes(opcoesDistintas(instrumentos, 'local'), f.localCal, 'Todos') + '</select></div>' +
+          '<div class="campo"><label>Marca</label><select id="f-cal-marca">' +
+            ui.opcoes(opcoesDistintas(instrumentos, 'marca'), f.marcaCal, 'Todas') + '</select></div>' +
+          '<div class="campo"><label>Situação</label><select id="f-cal-situacao">' +
+            ui.opcoes(cal().SITUACOES, f.situacaoCal, 'Todas') + '</select></div>' +
+          '<div class="campo"><label>Calibração</label><select id="f-cal-prazo">' +
+            ui.opcoes([
+              { id: 'VENCIDO', nome: 'Vencida' },
+              { id: 'A_VENCER', nome: 'A vencer' },
+              { id: 'EM_DIA', nome: 'Em dia' },
+              { id: 'SEM_PLANO', nome: 'Sem plano' }
+            ], f.prazoCal, 'Todas') + '</select></div>' +
+        '</div></div>' +
+        (lista.length
+          ? '<div class="tabela-rolagem"><table><thead><tr>' +
+            '<th>Código</th><th>Instrumento</th><th>Local</th><th>Range / resolução</th>' +
+            '<th>Situação</th><th>Última calibração</th><th>Validade</th><th>Prazo</th><th></th>' +
+            '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+            '<div class="cartao-corpo sub">' + lista.length + ' de ' + resumo.total +
+            ' instrumentos listados.</div>'
+          : ui.vazio('Nenhum instrumento encontrado', 'Ajuste os filtros ou cadastre um novo.')) +
+      '</div>';
+
+    var novo = container.querySelector('#novo-instrumento');
+    if (novo) novo.onclick = function () { abrirEdicao(null); };
+
+    var csv = container.querySelector('#csv-cal');
+    if (csv) csv.onclick = function () { exportarCsv(lista); };
+
+    function liga(id, campo) {
+      var alvo = container.querySelector(id);
+      alvo.addEventListener('change', function () { f[campo] = alvo.value; ctx.atualizar(); });
+    }
+    liga('#f-cal-local', 'localCal');
+    liga('#f-cal-marca', 'marcaCal');
+    liga('#f-cal-situacao', 'situacaoCal');
+    liga('#f-cal-prazo', 'prazoCal');
+
+    var busca = container.querySelector('#f-cal-busca');
+    var atraso;
+    busca.addEventListener('input', function () {
+      clearTimeout(atraso);
+      atraso = setTimeout(function () {
+        f.buscaCal = busca.value;
+        ctx.atualizar();
+        var novoCampo = container.querySelector('#f-cal-busca');
+        if (novoCampo) { novoCampo.focus(); novoCampo.setSelectionRange(novoCampo.value.length, novoCampo.value.length); }
+      }, 250);
+    });
+
+    container.querySelectorAll('tr[data-instrumento]').forEach(function (tr) {
+      var i = util.porId(instrumentos, tr.dataset.instrumento);
+      var calibrar = tr.querySelector('.calibrar');
+      if (!calibrar) return;
+      calibrar.onclick = function () { abrirCalibracao(i, hoje); };
+      tr.querySelector('.editar').onclick = function () { abrirEdicao(i); };
+      tr.querySelector('.excluir').onclick = function () {
+        ui.confirmarAcao('Remover ' + i.id + ' — ' + i.nome + '? O histórico de calibração vai junto.',
+          function () {
+            TC.store.removerInstrumento(i.id);
+            ui.notificar('Instrumento removido.');
+          });
+      };
+    });
+  }
+
+  /* O CSV sai com o que está filtrado na tela: é assim que se manda a lista de um posto
+     para o laboratório de calibração. */
+  function exportarCsv(lista) {
+    var colunas = ['Codigo', 'Codigo antigo', 'Instrumento', 'Setor', 'Local', 'Back-up',
+      'Marca', 'Modelo', 'Serie', 'Range', 'Resolucao', 'Situacao', 'Ultima calibracao',
+      'Validade', 'Prazo', 'Certificado', 'Laboratorio'];
+    var linhas = lista.map(function (x) {
+      var i = x.instrumento;
+      return [i.id, i.codigoAntigo, i.nome, i.setor, i.local, i.backup ? 'Sim' : 'Não',
+        i.marca, i.modelo, i.serie, i.faixa, i.resolucao, cal().nomeSituacao(i.situacao),
+        i.ultimaCalibracao, x.vencimento, x.prazo, i.certificado, i.laboratorio];
+    });
+    var csv = [colunas].concat(linhas).map(function (l) {
+      return l.map(function (c) {
+        var t = String(c == null ? '' : c);
+        return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+      }).join(';');
+    }).join('\r\n');
+
+    var url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'calibracao-' + util.hoje() + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    ui.notificar(lista.length + ' instrumento(s) exportados.');
+  }
+
+  TC.views = TC.views || {};
+  TC.views.calibracao = { render: render };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+  </script>
+  <script>
 /* Painel: os indicadores de gestão do centro de testes.
    Volume do mês, ocupação de cada bancada contra a capacidade dela, qualidade do relatório
    entregue ao cliente, e para onde vai o dinheiro — por projeto, por cliente e no ano.
@@ -5466,15 +6451,23 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     { id: 'clientes', nome: 'Clientes', icone: '🏢', grupo: 'Cadastros' },
     { id: 'equipamentos', nome: 'Equipamentos', icone: '⚙️', grupo: 'Cadastros' },
     { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' },
+    { id: 'calibracao', nome: 'Calibração', icone: '📏', grupo: 'Cadastros' },
     { id: 'permissoes', nome: 'Perfis e permissões', icone: '🔐', grupo: 'Administração' }
   ];
 
   /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
      demandas e planejamento pela classificação da LTI (inclui Cotação). */
-  var filtros = { busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '' };
+  var filtros = {
+    busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '',
+    /* Filtros da janela de calibração. */
+    buscaCal: '', localCal: '', marcaCal: '', situacaoCal: '', prazoCal: ''
+  };
   var rotaAtual = 'catalogo';
 
   function contadores(estado, plano) {
+    /* O contador da calibração mostra o que exige ação: vencido ou a vencer. */
+    var cal = TC.calibracao.resumo(estado.instrumentos, util.hoje());
+    var calibracaoPendente = cal.vencidos + cal.aVencer;
     return {
       catalogo: estado.testes.length,
       /* O contador mostra o que está em aberto no fluxo: ainda há algo a fazer enquanto
@@ -5486,7 +6479,8 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       cotacoes: estado.cotacoes.length,
       clientes: estado.clientes.length,
       equipamentos: estado.equipamentos.length,
-      pecas: estado.pecas.length
+      pecas: estado.pecas.length,
+      calibracao: calibracaoPendente
     };
   }
 

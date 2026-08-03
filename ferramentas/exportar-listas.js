@@ -92,6 +92,43 @@ arquivos['TC_Manutencoes'] = csv(
     'OQueFoiFeito', 'Responsavel'],
   manutencoes);
 
+/* Inventário de instrumentos e sensores. O plano de calibração fica no próprio
+   instrumento (última calibração, periodicidade e vencimento); cada certificado emitido
+   entra em TC_Calibracoes. */
+arquivos['TC_Instrumentos'] = csv(
+  ['Title', 'CodigoAntigo', 'Nome', 'Setor', 'Local', 'Backup', 'Marca', 'Modelo', 'Serie',
+    'Faixa', 'Resolucao', 'Situacao', 'Ativo', 'PeriodicidadeMeses', 'UltimaCalibracao',
+    'ProximaCalibracao', 'UltimoResultado', 'Certificado', 'Laboratorio', 'Observacao'],
+  (estado.instrumentos || []).map((i) => ({
+    Title: i.id, CodigoAntigo: i.codigoAntigo || '', Nome: i.nome, Setor: i.setor || '',
+    Local: i.local || '', Backup: simNao(i.backup), Marca: i.marca || '',
+    Modelo: i.modelo || '', Serie: i.serie || '', Faixa: i.faixa || '',
+    Resolucao: i.resolucao || '', Situacao: i.situacao, Ativo: simNao(i.ativo),
+    PeriodicidadeMeses: i.periodicidadeMeses || 12,
+    UltimaCalibracao: i.ultimaCalibracao || '', ProximaCalibracao: i.proximaCalibracao || '',
+    UltimoResultado: i.ultimoResultado || '', Certificado: i.certificado || '',
+    Laboratorio: i.laboratorio || '', Observacao: i.observacao || ''
+  }))
+);
+
+/* Um registro por certificado: é o histórico que a auditoria pede, e o que permite provar
+   que o instrumento estava dentro da validade na data do ensaio. */
+const calibracoes = [];
+(estado.instrumentos || []).forEach((i) => {
+  (i.historico || []).forEach((c) => {
+    calibracoes.push({
+      Title: i.id + ' ' + c.data, InstrumentoId: i.id, Data: c.data,
+      Resultado: c.resultado, ProximaCalibracao: c.proximaCalibracao || '',
+      Certificado: c.certificado || '', Laboratorio: c.laboratorio || '',
+      Responsavel: c.responsavel || '', Observacao: c.observacao || ''
+    });
+  });
+});
+arquivos['TC_Calibracoes'] = csv(
+  ['Title', 'InstrumentoId', 'Data', 'Resultado', 'ProximaCalibracao', 'Certificado',
+    'Laboratorio', 'Responsavel', 'Observacao'],
+  calibracoes);
+
 arquivos['TC_Pecas'] = csv(
   ['Title', 'Nome', 'Descricao', 'CustoAmostra'],
   estado.pecas.map((p) => ({

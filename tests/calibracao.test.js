@@ -1,0 +1,235 @@
+/* Testes da gestão de calibração: validade, vencimento, criticidade e o registro do
+   certificado. */
+const test = require('node:test');
+const assert = require('node:assert');
+
+const util = require('../src/util.js');
+const dados = require('../src/data.js');
+const calibracao = require('../src/calibracao.js');
+require('../src/store.js');
+
+const store = globalThis.TC.store;
+const HOJE = '2026-08-10';
+
+function instrumento(extra) {
+  return Object.assign({
+    id: 'TCL-XX-001', codigoAntigo: '', nome: 'Instrumento', setor: 'Tech Center',
+    local: 'Instrumentação', backup: false, marca: 'ACME', modelo: 'M1', serie: '123',
+    faixa: '0 - 10', resolucao: '0,1', situacao: 'EM_USO', ativo: true,
+    periodicidadeMeses: 12, ultimaCalibracao: '', proximaCalibracao: '',
+    certificado: '', laboratorio: '', observacao: '', historico: []
+  }, extra);
+}
+
+/* ---- Soma de meses ---- */
+
+test('a validade é somada em meses, respeitando mês curto e virada de ano', () => {
+  assert.equal(calibracao.somaMeses('2026-03-10', 12), '2027-03-10');
+  assert.equal(calibracao.somaMeses('2026-01-31', 1), '2026-02-28', 'fevereiro não tem dia 31');
+  assert.equal(calibracao.somaMeses('2028-01-31', 1), '2028-02-29', 'ano bissexto');
+  assert.equal(calibracao.somaMeses('2026-11-15', 6), '2027-05-15', 'atravessa o ano');
+  assert.equal(calibracao.somaMeses('', 12), '', 'sem data não há validade');
+});
+
+/* ---- Vencimento ---- */
+
+test('sem última calibração o instrumento fica sem plano, não vencido', () => {
+  const e = calibracao.estado(instrumento(), HOJE);
+  assert.equal(e.prazo, 'SEM_PLANO');
+  assert.equal(e.vencimento, '');
+  assert.equal(e.criticidade, '', 'lacuna de cadastro não é o mesmo que instrumento vencido');
+});
+
+test('a validade sai da última calibração mais a periodicidade', () => {
+  const e = calibracao.estado(
+    instrumento({ ultimaCalibracao: '2026-03-10', periodicidadeMeses: 12 }), HOJE);
+  assert.equal(e.vencimento, '2027-03-10');
+  assert.equal(e.prazo, 'EM_DIA');
+});
+
+test('a data do certificado tem precedência sobre a calculada', () => {
+  const e = calibracao.estado(instrumento({
+    ultimaCalibracao: '2026-03-10', periodicidadeMeses: 12, proximaCalibracao: '2026-09-30'
+  }), HOJE);
+  assert.equal(e.vencimento, '2026-09-30', 'o certificado pode trazer validade própria');
+});
+
+test('vence dentro de 30 dias entra em "a vencer"', () => {
+  const emDia = calibracao.estado(instrumento({ proximaCalibracao: '2026-10-01' }), HOJE);
+  const aVencer = calibracao.estado(instrumento({ proximaCalibracao: '2026-09-05' }), HOJE);
+  const vencido = calibracao.estado(instrumento({ proximaCalibracao: '2026-08-09' }), HOJE);
+
+  assert.equal(emDia.prazo, 'EM_DIA');
+  assert.equal(aVencer.prazo, 'A_VENCER');
+  assert.equal(vencido.prazo, 'VENCIDO');
+  assert.equal(vencido.diasParaVencer, -1);
+});
+
+test('o dia do vencimento ainda conta como dentro da validade', () => {
+  const e = calibracao.estado(instrumento({ proximaCalibracao: HOJE }), HOJE);
+  assert.equal(e.prazo, 'A_VENCER');
+  assert.equal(e.diasParaVencer, 0);
+});
+
+/* ---- Criticidade ---- */
+
+test('vencido e em uso é crítico; vencido fora de uso ou back-up é só atenção', () => {
+  const emUso = calibracao.estado(
+    instrumento({ proximaCalibracao: '2026-01-01', situacao: 'EM_USO' }), HOJE);
+  const foraDeUso = calibracao.estado(
+    instrumento({ proximaCalibracao: '2026-01-01', situacao: 'FORA_DE_USO' }), HOJE);
+  const desativado = calibracao.estado(
+    instrumento({ proximaCalibracao: '2026-01-01', situacao: 'EM_USO', ativo: false }), HOJE);
+
+  assert.equal(emUso.criticidade, 'CRITICO', 'ensaio medindo fora da validade');
+  assert.equal(foraDeUso.criticidade, 'ATENCAO');
+  assert.equal(desativado.criticidade, 'ATENCAO');
+});
+
+/* ---- Resumo e agenda ---- */
+
+test('o resumo separa vencido, a vencer, em dia e sem plano', () => {
+  const lista = [
+    instrumento({ id: 'A', proximaCalibracao: '2026-01-01' }),
+    instrumento({ id: 'B', proximaCalibracao: '2026-08-20' }),
+    instrumento({ id: 'C', proximaCalibracao: '2027-01-01' }),
+    instrumento({ id: 'D' }),
+    instrumento({ id: 'E', proximaCalibracao: '2026-01-01', situacao: 'FORA_DE_USO' })
+  ];
+  const r = calibracao.resumo(lista, HOJE);
+
+  assert.equal(r.total, 5);
+  assert.equal(r.vencidos, 2);
+  assert.equal(r.criticos, 1, 'só o vencido que segue em uso');
+  assert.equal(r.aVencer, 1);
+  assert.equal(r.emDia, 1);
+  assert.equal(r.semPlano, 1);
+  assert.equal(r.cobertura, 2 / 4, 'a cobertura só olha quem tem plano');
+});
+
+test('a agenda traz o que já venceu e o que vence no horizonte, do mais urgente', () => {
+  const lista = [
+    instrumento({ id: 'DEPOIS', proximaCalibracao: '2027-06-01' }),
+    instrumento({ id: 'PERTO', proximaCalibracao: '2026-09-01' }),
+    instrumento({ id: 'VENCIDO', proximaCalibracao: '2026-05-01' }),
+    instrumento({ id: 'SEM_PLANO' })
+  ];
+  const agenda = calibracao.agenda(lista, HOJE, 90);
+
+  assert.deepEqual(agenda.map((x) => x.instrumento.id), ['VENCIDO', 'PERTO']);
+});
+
+/* ---- Inventário de partida ---- */
+
+test('o inventário de partida traz os instrumentos da planilha, sem código repetido', () => {
+  const base = dados.seed();
+  assert.equal(base.instrumentos.length, 229);
+  assert.equal(new Set(base.instrumentos.map((i) => i.id)).size, base.instrumentos.length);
+
+  const acelerometro = util.porId(base.instrumentos, 'TCL-AC-012');
+  assert.equal(acelerometro.nome, 'Acelerômetro Monoaxial B&K');
+  assert.equal(acelerometro.marca, 'B&K');
+  assert.equal(acelerometro.modelo, '4384');
+  assert.equal(acelerometro.serie, '31642');
+  assert.equal(acelerometro.local, 'Instrumentação');
+  assert.equal(acelerometro.situacao, 'EM_USO');
+
+  const celula = util.porId(base.instrumentos, 'TCL-CC-003');
+  assert.equal(celula.situacao, 'EM_CALIBRACAO', 'a coluna Observações vira situação');
+  assert.equal(celula.backup, true, 'a coluna de back-up vira booleano');
+  assert.equal(celula.local, 'Hydro pulse 1');
+});
+
+test('todo instrumento começa sem plano de calibração, para ser preenchido', () => {
+  dados.seed().instrumentos.forEach((i) => {
+    assert.equal(i.ultimaCalibracao, '', i.id + ' já veio com data');
+    assert.equal(i.periodicidadeMeses, 12);
+    assert.deepEqual(i.historico, []);
+    assert.equal(i.ativo, true);
+  });
+});
+
+/* ---- Registro pelo store ---- */
+
+test('registrar calibração renova a validade e guarda o certificado', () => {
+  store.restaurarPadrao();
+  const r = store.registrarCalibracao('TCL-AC-012', {
+    data: '2026-03-10', resultado: 'APROVADO',
+    certificado: 'RBC-2026-0481', laboratorio: 'Metrologia XPTO'
+  });
+
+  assert.equal(r.ok, true);
+  const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
+  assert.equal(i.ultimaCalibracao, '2026-03-10');
+  assert.equal(i.proximaCalibracao, '2027-03-10');
+  assert.equal(i.certificado, 'RBC-2026-0481');
+  assert.equal(i.situacao, 'EM_USO');
+  assert.equal(i.historico.length, 1);
+  assert.equal(i.historico[0].resultado, 'APROVADO');
+});
+
+test('a periodicidade informada no registro passa a valer para o instrumento', () => {
+  store.restaurarPadrao();
+  store.registrarCalibracao('TCL-AC-012', {
+    data: '2026-03-10', resultado: 'APROVADO', periodicidadeMeses: 24
+  });
+  const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
+
+  assert.equal(i.periodicidadeMeses, 24);
+  assert.equal(i.proximaCalibracao, '2028-03-10');
+});
+
+test('calibração reprovada não renova a validade e tira o instrumento de uso', () => {
+  store.restaurarPadrao();
+  store.registrarCalibracao('TCL-AC-012', { data: '2026-03-10', resultado: 'APROVADO' });
+  store.registrarCalibracao('TCL-AC-012', {
+    data: '2027-03-12', resultado: 'REPROVADO', observacao: 'desvio acima da tolerância'
+  });
+
+  const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
+  assert.equal(i.situacao, 'FORA_DE_USO');
+  assert.equal(i.proximaCalibracao, '', 'reprovado não ganha validade nova');
+  assert.equal(i.historico.length, 2, 'a reprovação fica registrada');
+  assert.equal(calibracao.estado(i, '2027-04-01').prazo, 'SEM_PLANO');
+});
+
+test('registrar sem data é recusado', () => {
+  store.restaurarPadrao();
+  const r = store.registrarCalibracao('TCL-AC-012', { resultado: 'APROVADO' });
+  assert.equal(r.ok, false);
+  assert.match(r.motivo, /data/i);
+});
+
+test('o instrumento cadastrado à mão convive com o inventário de partida', () => {
+  store.restaurarPadrao();
+  const total = store.get().instrumentos.length;
+  store.salvarInstrumento({
+    id: 'TCL-NV-001', nome: 'Instrumento novo', local: 'Instrumentação',
+    situacao: 'EM_USO', ativo: true, periodicidadeMeses: 6
+  });
+  assert.equal(store.get().instrumentos.length, total + 1);
+
+  store.salvarInstrumento({ id: 'TCL-NV-001', nome: 'Instrumento novo (revisado)' });
+  assert.equal(store.get().instrumentos.length, total + 1, 'editar não duplica');
+  assert.equal(util.porId(store.get().instrumentos, 'TCL-NV-001').nome,
+    'Instrumento novo (revisado)');
+});
+
+test('dados salvos sem inventário recebem os instrumentos sem perder o que foi preenchido', () => {
+  const base = dados.seed();
+  delete base.instrumentosVersao;
+  base.instrumentos = [
+    Object.assign(instrumento({ id: 'TCL-AC-012' }), {
+      ultimaCalibracao: '2026-02-01', certificado: 'MEU-123', periodicidadeMeses: 6
+    })
+  ];
+
+  store.importar(JSON.stringify(base));
+  const estado = store.get();
+
+  assert.equal(estado.instrumentos.length, 229, 'os que faltavam entram');
+  const meu = util.porId(estado.instrumentos, 'TCL-AC-012');
+  assert.equal(meu.ultimaCalibracao, '2026-02-01', 'o plano preenchido não é sobrescrito');
+  assert.equal(meu.certificado, 'MEU-123');
+  assert.equal(meu.periodicidadeMeses, 6);
+});

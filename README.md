@@ -106,6 +106,7 @@ Dias não úteis dentro da janela continuam ocupando a posição, porque a peça
 | **Clientes** | Quem exige a validação, com procedimentos obrigatórios, peças e custo confirmado de cada um. |
 | **Equipamentos** | Capacidade instalada: grupo, posições, calendário e paradas. É restrição de agenda, não de custo. |
 | **Peças e amostras** | Os tipos de peça que o laboratório ensaia, com o custo unitário da amostra e o consumo acumulado. |
+| **Calibração** | Inventário de sensores e instrumentos, validade de cada calibração, o que vence no mês e o que já venceu estando em uso. |
 | **Perfis e permissões** | Matriz de quem vê e quem edita cada janela. |
 
 ## Perfis e permissões
@@ -205,6 +206,32 @@ com os equipamentos sem próxima manutenção agendada.
 Uma parada planejada que venceu **não** vira "a próxima": ela é atraso, e fica separada até
 alguém registrar o que foi feito ou removê-la. As datas podem mudar no registro — manutenção
 raramente termina no dia previsto.
+
+### Calibração dos instrumentos
+
+A janela **Calibração** parte do inventário do centro de testes: **229 instrumentos** —
+acelerômetros, células de carga, termopares, transdutores de pressão, canais de aquisição das
+bancadas — com código, marca, modelo, série, faixa, resolução e posto de uso.
+
+A validade sai da **última calibração mais a periodicidade** (12 meses por padrão, ajustável
+por instrumento), salvo quando o certificado traz uma **data própria** — aí é ela que vale.
+Cada instrumento cai em uma de quatro situações de prazo:
+
+* **Vencida** — passou da validade.
+* **A vencer** — vence nos próximos 30 dias; é a fila de quem manda instrumento para o
+  laboratório.
+* **Em dia**.
+* **Sem plano** — ninguém informou ainda quando foi calibrado. Não é o mesmo que vencido: é
+  lacuna de cadastro, e é assim que o inventário começa.
+
+O topo da tela separa o caso grave: **instrumento vencido e em uso**. Significa ensaio
+rodando com medição fora da validade — é o achado que a auditoria procura. Vencido que está
+como back-up ou fora de uso aparece, mas não no alerta vermelho.
+
+Registrar uma calibração grava data, resultado, certificado, laboratório e responsável, e
+renova a validade. **Reprovado não renova nada**: o instrumento sai de uso e fica sem plano
+até alguém decidir entre ajuste, reparo ou descarte — sem essa regra ele apareceria "em dia"
+justamente por ter sido reprovado. Cada certificado fica no histórico do instrumento.
 
 Os **equipamentos** são as bancadas reais do laboratório: Burner 1/2/3, Shaker, MTS 1/2/3/4,
 LMS / PTA, ColdFlow e Dynamometer. Cada um tem posições em paralelo e calendário — são
@@ -376,7 +403,7 @@ mesa: entra na fatura, não prende a bancada. Quem define a janela no Gantt é s
 ## Dados
 
 O estado fica no `localStorage` do navegador. O catálogo que vem junto (73 procedimentos,
-11 equipamentos, 5 tipos de peça, 9 clientes) é um ponto de partida — tudo é editável pela
+11 equipamentos, 5 tipos de peça, 9 clientes, 229 instrumentos) é um ponto de partida — tudo é editável pela
 interface.
 
 **Mudança de catálogo.** `TC.data.CATALOGO_VERSAO` marca a versão do catálogo de partida.
@@ -389,6 +416,10 @@ novos na próxima carga (`migrar()` em `src/store.js`):
 * **Substituição, apenas até a versão 2.** Dados anteriores a ela carregam o catálogo de
   exemplo, de vários clientes, que sai inteiro; as demandas dos procedimentos que deixaram
   de existir são descartadas, porque sem procedimento não têm custo nem bancada.
+
+**Inventário de instrumentos.** `TC.data.INSTRUMENTOS_VERSAO` faz o mesmo pelo inventário da
+calibração, sempre de forma aditiva: instrumentos que ainda não existem entram, e o plano já
+preenchido (última calibração, periodicidade, certificado, histórico) nunca é sobrescrito.
 
 Em qualquer caso, cotações arquivadas ficam intactas (têm preço congelado) e os cadastros de
 equipamento, peça, cliente e as permissões não são tocados — só o cliente exigido por um
@@ -411,8 +442,10 @@ src/util.js           datas em UTC, moeda, escape de HTML
 docs/hospedagem.md    onde hospedar e como controlar acesso (documento para a TI)
 src/fluxo.js          os fluxos de demanda e de cotação: estados, quem move e o que exige
 src/manutencao.js     última e próxima manutenção de cada bancada, e o que está vencido
+src/calibracao.js     validade, vencimento e criticidade dos instrumentos
 src/kpi.js            os indicadores do painel
 src/data.js           catálogo inicial (clientes, equipamentos, testes, peças)
+src/instrumentos-padrao.js  inventário de partida: 229 sensores e instrumentos
 src/scheduler.js      motor de alocação e cálculo de custo — sem dependência de DOM
 src/permissoes.js     perfil em uso e o que ele vê/edita
 src/xlsx.js           gerador de .xlsx (ZIP + XML) sem dependências

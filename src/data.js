@@ -4,6 +4,7 @@
   'use strict';
 
   var TC = (global.TC = global.TC || {});
+  if (!TC.instrumentosPadrao && typeof require !== 'undefined') require('./instrumentos-padrao.js');
 
   /* Fases de projeto. Não classificam o procedimento (qualquer teste pode rodar em
      qualquer fase); classificam a LTI que abre a demanda. */
@@ -45,6 +46,7 @@
     clientes: { ver: ['TESTES'], editar: ['TESTES'] },
     equipamentos: { ver: ['TESTES'], editar: ['TESTES'] },
     pecas: { ver: ['TESTES'], editar: ['TESTES'] },
+    calibracao: { ver: ['TESTES'], editar: ['TESTES'] },
     permissoes: { ver: ['TESTES'], editar: ['TESTES'] }
   };
 
@@ -277,8 +279,14 @@
      aditiva e preserva o que já foi preenchido. */
   var CATALOGO_VERSAO = 9;
 
+  /* Versão do inventário de instrumentos, com a mesma mecânica do catálogo: subir este
+     número leva os instrumentos novos a quem já tem dados salvos, sem tocar no que foi
+     preenchido de plano de calibração. */
+  var INSTRUMENTOS_VERSAO = 1;
+
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
+    INSTRUMENTOS_VERSAO: INSTRUMENTOS_VERSAO,
     HOURLY_RATE: HOURLY_RATE,
     HOURLY_RATE_VIGENCIA: HOURLY_RATE_VIGENCIA,
     PERFIS: PERFIS,
@@ -292,12 +300,14 @@
     seed: function () {
       return {
         catalogoVersao: CATALOGO_VERSAO,
+        instrumentosVersao: INSTRUMENTOS_VERSAO,
         hourlyRate: HOURLY_RATE,
         hourlyRateVigencia: HOURLY_RATE_VIGENCIA,
         clientes: JSON.parse(JSON.stringify(CLIENTES)),
         equipamentos: JSON.parse(JSON.stringify(EQUIPAMENTOS)),
         testes: JSON.parse(JSON.stringify(TESTES)),
         pecas: JSON.parse(JSON.stringify(PECAS)),
+        instrumentos: TC.instrumentosPadrao(),
         demandas: [],
         cotacoes: [],
         permissoes: JSON.parse(JSON.stringify(PERMISSOES_PADRAO)),

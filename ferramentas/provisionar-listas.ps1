@@ -56,6 +56,41 @@ $listas = [ordered]@{
     @{ Nome = 'OQueFoiFeito';  Tipo = 'Note' },
     @{ Nome = 'Responsavel';   Tipo = 'Text' }
   )
+  # Inventário de instrumentos e sensores. Title = código do instrumento (TCL-AC-012).
+  # O plano de calibração fica aqui; cada certificado emitido entra em TC_Calibracoes.
+  'TC_Instrumentos' = @(
+    @{ Nome = 'CodigoAntigo';       Tipo = 'Text' },
+    @{ Nome = 'Nome';               Tipo = 'Text' },
+    @{ Nome = 'Setor';              Tipo = 'Text' },
+    @{ Nome = 'Local';              Tipo = 'Text' },
+    @{ Nome = 'Backup';             Tipo = 'Choice'; Opcoes = @('Sim', 'Não') },
+    @{ Nome = 'Marca';              Tipo = 'Text' },
+    @{ Nome = 'Modelo';             Tipo = 'Text' },
+    @{ Nome = 'Serie';              Tipo = 'Text' },
+    @{ Nome = 'Faixa';              Tipo = 'Text' },
+    @{ Nome = 'Resolucao';          Tipo = 'Text' },
+    @{ Nome = 'Situacao';           Tipo = 'Choice'; Opcoes = @('EM_USO', 'EM_CALIBRACAO', 'AGUARDANDO', 'FORA_DE_USO') },
+    @{ Nome = 'Ativo';              Tipo = 'Choice'; Opcoes = @('Sim', 'Não') },
+    @{ Nome = 'PeriodicidadeMeses'; Tipo = 'Number' },
+    @{ Nome = 'UltimaCalibracao';   Tipo = 'DateTime' },
+    # Vem do certificado quando ele traz validade própria; senão é última + periodicidade.
+    @{ Nome = 'ProximaCalibracao';  Tipo = 'DateTime' },
+    @{ Nome = 'UltimoResultado';    Tipo = 'Choice'; Opcoes = @('APROVADO', 'APROVADO_RESTRICAO', 'REPROVADO') },
+    @{ Nome = 'Certificado';        Tipo = 'Text' },
+    @{ Nome = 'Laboratorio';        Tipo = 'Text' },
+    @{ Nome = 'Observacao';         Tipo = 'Note' }
+  )
+  # Um registro por certificado: prova que o instrumento estava na validade no dia do ensaio.
+  'TC_Calibracoes' = @(
+    @{ Nome = 'InstrumentoId';     Tipo = 'Text' },
+    @{ Nome = 'Data';              Tipo = 'DateTime' },
+    @{ Nome = 'Resultado';         Tipo = 'Choice'; Opcoes = @('APROVADO', 'APROVADO_RESTRICAO', 'REPROVADO') },
+    @{ Nome = 'ProximaCalibracao'; Tipo = 'DateTime' },
+    @{ Nome = 'Certificado';       Tipo = 'Text' },
+    @{ Nome = 'Laboratorio';       Tipo = 'Text' },
+    @{ Nome = 'Responsavel';       Tipo = 'Text' },
+    @{ Nome = 'Observacao';        Tipo = 'Note' }
+  )
   'TC_Pecas' = @(
     @{ Nome = 'Nome';         Tipo = 'Text' },
     @{ Nome = 'Descricao';    Tipo = 'Note' },

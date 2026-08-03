@@ -14,15 +14,23 @@
     { id: 'clientes', nome: 'Clientes', icone: '🏢', grupo: 'Cadastros' },
     { id: 'equipamentos', nome: 'Equipamentos', icone: '⚙️', grupo: 'Cadastros' },
     { id: 'pecas', nome: 'Peças e amostras', icone: '🔩', grupo: 'Cadastros' },
+    { id: 'calibracao', nome: 'Calibração', icone: '📏', grupo: 'Cadastros' },
     { id: 'permissoes', nome: 'Perfis e permissões', icone: '🔐', grupo: 'Administração' }
   ];
 
   /* fase filtra o catálogo por fase de aplicação do procedimento; tipoLti filtra
      demandas e planejamento pela classificação da LTI (inclui Cotação). */
-  var filtros = { busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '' };
+  var filtros = {
+    busca: '', clienteId: '', area: '', fase: '', tipoLti: '', status: '', equipamentoId: '',
+    /* Filtros da janela de calibração. */
+    buscaCal: '', localCal: '', marcaCal: '', situacaoCal: '', prazoCal: ''
+  };
   var rotaAtual = 'catalogo';
 
   function contadores(estado, plano) {
+    /* O contador da calibração mostra o que exige ação: vencido ou a vencer. */
+    var cal = TC.calibracao.resumo(estado.instrumentos, util.hoje());
+    var calibracaoPendente = cal.vencidos + cal.aVencer;
     return {
       catalogo: estado.testes.length,
       /* O contador mostra o que está em aberto no fluxo: ainda há algo a fazer enquanto
@@ -34,7 +42,8 @@
       cotacoes: estado.cotacoes.length,
       clientes: estado.clientes.length,
       equipamentos: estado.equipamentos.length,
-      pecas: estado.pecas.length
+      pecas: estado.pecas.length,
+      calibracao: calibracaoPendente
     };
   }
 
