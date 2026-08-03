@@ -2046,8 +2046,116 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       .sort(function (a, b) { return a.diasParaVencer - b.diasParaVencer; });
   }
 
+  /* ---- Lançamento em lote --------------------------------------------------------------
+
+     São 229 instrumentos. Abrir um modal por instrumento para digitar a data da última
+     calibração é trabalho de um dia inteiro, então o lote existe: cola-se o recorte da
+     planilha (código e data, opcionalmente certificado e laboratório) e a plataforma
+     confere linha a linha antes de gravar qualquer coisa. */
+
+  var DIAS_NO_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  function diasDoMes(ano, mes) {
+    if (mes !== 2) return DIAS_NO_MES[mes - 1];
+    return (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0 ? 29 : 28;
+  }
+
+  function montarISO(ano, mes, dia) {
+    if (mes < 1 || mes > 12 || dia < 1 || dia > diasDoMes(ano, mes)) return '';
+    return ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+  }
+
+  /* Aceita o que sai de uma planilha brasileira (31/12/2025, 31-12-25, 31.12.2025) e
+     também o ISO. Data impossível — 31/02, mês 13 — devolve vazio em vez de virar outro
+     dia: a data errada de calibração é pior que a data ausente. */
+  function interpretarData(texto) {
+    var t = String(texto == null ? '' : texto).trim();
+    if (!t) return '';
+    var iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+    if (iso) return montarISO(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+    var br = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(t);
+    if (br) {
+      var ano = Number(br[3]);
+      /* Ano de dois dígitos: certificado de calibração é documento recente. */
+      if (br[3].length === 2) ano += 2000;
+      return montarISO(ano, Number(br[2]), Number(br[1]));
+    }
+    return '';
+  }
+
+  /* Uma linha colada do Excel vem separada por tabulação; de um CSV, por ; ou ,. */
+  function separarCampos(linha) {
+    var campos = linha.split(/\t|;/);
+    if (campos.length === 1) campos = linha.split(',');
+    if (campos.length === 1) campos = linha.trim().split(/\s{2,}|\s+/);
+    return campos.map(function (c) { return c.trim(); });
+  }
+
+  /* Casa pelo código atual e, se não achar, pelo código antigo — a planilha de calibração
+     costuma estar na numeração velha. */
+  function acharInstrumento(instrumentos, codigo) {
+    var alvo = codigo.toUpperCase();
+    var porAntigo = null;
+    for (var n = 0; n < instrumentos.length; n++) {
+      var i = instrumentos[n];
+      if (String(i.id).toUpperCase() === alvo) return i;
+      if (!porAntigo && i.codigoAntigo && String(i.codigoAntigo).toUpperCase() === alvo) {
+        porAntigo = i;
+      }
+    }
+    return porAntigo;
+  }
+
+  /* Lê o texto colado e devolve o que será gravado e o que não dá para gravar, sem tocar
+     em nada — a tela mostra as duas listas e só grava depois da confirmação. */
+  function interpretarLote(texto, instrumentos) {
+    var linhas = [];
+    var jaVistos = {};
+    String(texto == null ? '' : texto).split(/\r?\n/).forEach(function (bruta, indice) {
+      if (!bruta.trim()) return;
+      var campos = separarCampos(bruta);
+      var codigo = campos[0] || '';
+      /* Cabeçalho copiado junto com os dados não é erro do usuário: é ignorado. */
+      if (/^c[oó]d/i.test(codigo)) return;
+
+      var registro = {
+        linha: indice + 1, codigo: codigo, data: interpretarData(campos[1]),
+        certificado: campos[2] || '', laboratorio: campos[3] || '',
+        instrumento: null, situacao: 'OK'
+      };
+      var instrumento = codigo ? acharInstrumento(instrumentos || [], codigo) : null;
+
+      if (!codigo) registro.situacao = 'SEM_CODIGO';
+      else if (!instrumento) registro.situacao = 'DESCONHECIDO';
+      else if (!registro.data) registro.situacao = 'DATA_INVALIDA';
+      else if (jaVistos[instrumento.id]) registro.situacao = 'REPETIDO';
+
+      if (instrumento) {
+        registro.instrumento = instrumento;
+        if (registro.situacao === 'OK') jaVistos[instrumento.id] = true;
+      }
+      linhas.push(registro);
+    });
+
+    return {
+      linhas: linhas,
+      aplicaveis: linhas.filter(function (l) { return l.situacao === 'OK'; }),
+      problemas: linhas.filter(function (l) { return l.situacao !== 'OK'; })
+    };
+  }
+
+  var MOTIVOS_DO_LOTE = {
+    SEM_CODIGO: 'linha sem código',
+    DESCONHECIDO: 'código não existe no inventário',
+    DATA_INVALIDA: 'data ausente ou inválida',
+    REPETIDO: 'código repetido na colagem'
+  };
+
   TC.calibracao = {
     SITUACOES: SITUACOES,
+    MOTIVOS_DO_LOTE: MOTIVOS_DO_LOTE,
+    interpretarData: interpretarData,
+    interpretarLote: interpretarLote,
     RESULTADOS: RESULTADOS,
     VENCIDO: VENCIDO,
     A_VENCER: A_VENCER,
@@ -3164,6 +3272,44 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       }
       commit();
       return { ok: true, instrumento: i, registro: registro };
+    },
+
+    /* Lançamento em lote das datas que já estavam em planilha. Grava tudo de uma vez —
+       229 commits seguidos redesenhariam a tela 229 vezes — e reaproveita a mesma regra
+       de validade do registro individual, para não haver dois jeitos de calcular a mesma
+       coisa. Linhas com problema são responsabilidade de quem chama: a tela só manda as
+       que interpretarLote() aprovou. */
+    lancarCalibracoesEmLote: function (linhas) {
+      var aplicados = [];
+      (linhas || []).forEach(function (l) {
+        var i = util.porId(estado.instrumentos, l.instrumentoId);
+        if (!i || !l.data) return;
+
+        var registro = {
+          id: util.id('CAL'),
+          data: l.data,
+          resultado: 'APROVADO',
+          certificado: (l.certificado || '').trim(),
+          laboratorio: (l.laboratorio || '').trim(),
+          proximaCalibracao: '',
+          observacao: l.observacao || 'Lançamento em lote a partir da planilha de calibração.',
+          registradoEm: util.hoje()
+        };
+        i.historico = i.historico || [];
+        i.historico.push(registro);
+        i.ultimaCalibracao = registro.data;
+        i.ultimoResultado = 'APROVADO';
+        if (registro.certificado) i.certificado = registro.certificado;
+        if (registro.laboratorio) i.laboratorio = registro.laboratorio;
+        i.periodicidadeMeses = i.periodicidadeMeses || 12;
+        i.proximaCalibracao = TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
+        /* A situação não muda no lote, ao contrário do registro individual: quem está
+           "em calibração" hoje continua em calibração, mesmo lançando a data anterior. */
+        aplicados.push(i.id);
+      });
+
+      if (aplicados.length) commit();
+      return { ok: true, aplicados: aplicados };
     },
 
     /* ---- Peças ---- */
@@ -5953,6 +6099,102 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
     atualizar();
   }
 
+  /* ---- Lançamento em lote ---- */
+
+  /* O caminho para tirar as datas da planilha e pôr na plataforma sem digitar 229 vezes.
+     Nada é gravado antes da conferência: o que vai entrar e o que foi recusado aparecem
+     lado a lado enquanto se cola. */
+  function abrirLote(instrumentos) {
+    var corpo =
+      '<div class="aviso">Cole aqui o recorte da planilha: <strong>uma linha por ' +
+        'instrumento</strong>, com o código na primeira coluna e a data da última ' +
+        'calibração na segunda. Certificado e laboratório, se houver, entram na terceira ' +
+        'e na quarta.' +
+        '<div class="sub" style="margin-top:6px">Datas em 31/12/2025 ou 2025-12-31. ' +
+        'O código antigo também é reconhecido. A validade sai da data lançada mais a ' +
+        'periodicidade do instrumento (12 meses, salvo se você já mudou).</div></div>' +
+      '<div class="campo"><label>Código e data</label>' +
+        '<textarea name="lote" rows="9" spellcheck="false" style="font-family:ui-monospace,' +
+        'Menlo,Consolas,monospace;font-size:12.5px" placeholder="TCL-AC-012&#9;12/03/2026&#10;' +
+        'TCL-CC-001&#9;05/11/2025&#9;RBC-2025-0481&#9;Metrologia XPTO"></textarea></div>' +
+      '<div id="previa-lote"></div>';
+
+    var janela = ui.modal({
+      titulo: 'Lançar calibrações em lote',
+      corpo: corpo,
+      largura: 'min(820px, 100%)',
+      confirmar: 'Lançar calibrações',
+      aoConfirmar: function (v) {
+        var leitura = cal().interpretarLote(v.lote, instrumentos);
+        if (!leitura.aplicaveis.length) {
+          ui.notificar('Nenhuma linha válida para lançar.');
+          return false;
+        }
+        var resultado = TC.store.lancarCalibracoesEmLote(leitura.aplicaveis.map(function (l) {
+          return {
+            instrumentoId: l.instrumento.id, data: l.data,
+            certificado: l.certificado, laboratorio: l.laboratorio
+          };
+        }));
+        ui.notificar(resultado.aplicados.length + ' calibração(ões) lançada(s)' +
+          (leitura.problemas.length ? ' · ' + leitura.problemas.length + ' linha(s) ignorada(s).' : '.'));
+      }
+    });
+
+    var previa = janela.querySelector('#previa-lote');
+    var campo = janela.querySelector('[name=lote]');
+    var botao = janela.querySelector('.confirmar');
+
+    function conferir() {
+      var leitura = cal().interpretarLote(campo.value, instrumentos);
+      botao.disabled = leitura.aplicaveis.length === 0;
+      if (!leitura.linhas.length) { previa.innerHTML = ''; return; }
+
+      previa.innerHTML =
+        '<div class="aviso' + (leitura.aplicaveis.length ? '' : ' alerta') + '">' +
+          '<strong>' + leitura.aplicaveis.length + '</strong> linha(s) prontas para lançar' +
+          (leitura.problemas.length
+            ? ' · <strong>' + leitura.problemas.length + '</strong> com problema'
+            : '') + '.</div>' +
+        (leitura.problemas.length
+          ? '<div class="lista-selecao" style="max-height:170px">' +
+            leitura.problemas.slice(0, 40).map(function (l) {
+              return '<div class="linha-selecao">' +
+                '<span class="sub mono">linha ' + l.linha + '</span>' +
+                '<span class="mono forte">' + e(l.codigo || '—') + '</span>' +
+                '<span class="etiqueta erro">' + e(cal().MOTIVOS_DO_LOTE[l.situacao]) + '</span>' +
+                '</div>';
+            }).join('') +
+            (leitura.problemas.length > 40
+              ? '<div class="linha-selecao sub">e mais ' + (leitura.problemas.length - 40) + '.</div>'
+              : '') +
+            '</div>'
+          : '') +
+        (leitura.aplicaveis.length
+          ? '<div class="campo" style="margin-top:12px"><label>Prévia das validades</label>' +
+            '<div class="lista-selecao" style="max-height:200px">' +
+            leitura.aplicaveis.slice(0, 40).map(function (l) {
+              var vence = cal().somaMeses(l.data, l.instrumento.periodicidadeMeses || 12);
+              return '<div class="linha-selecao">' +
+                '<span class="mono forte">' + e(l.instrumento.id) + '</span>' +
+                '<span class="sub" style="flex:1">' + e(util.recortar(l.instrumento.nome, 40)) + '</span>' +
+                '<span class="sub">' + e(util.formatarData(l.data, true)) + '</span>' +
+                '<span class="etiqueta ok">até ' + e(util.formatarData(vence, true)) + '</span>' +
+                '</div>';
+            }).join('') +
+            (leitura.aplicaveis.length > 40
+              ? '<div class="linha-selecao sub">e mais ' + (leitura.aplicaveis.length - 40) + '.</div>'
+              : '') +
+            '</div></div>'
+          : '');
+    }
+
+    campo.addEventListener('input', conferir);
+    campo.addEventListener('change', conferir);
+    botao.disabled = true;
+    campo.focus();
+  }
+
   /* ---- Tela ---- */
 
   function render(container, ctx) {
@@ -6009,10 +6251,12 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
       '<div class="cabecalho">' +
         '<div><h2>Gerenciamento de calibração</h2>' +
         '<p>Instrumentos e sensores do centro de testes, com a validade da calibração de cada um. ' +
-        'A validade sai da última calibração mais a periodicidade, salvo quando o certificado ' +
-        'traz uma data própria.</p></div>' +
+        'A validade sai da última calibração mais a periodicidade — <strong>12 meses</strong> ' +
+        'por padrão, ajustável por instrumento —, salvo quando o certificado traz uma data ' +
+        'própria.</p></div>' +
         (podeEditar ? '<div class="acoes">' +
           '<button class="botao" id="csv-cal">Exportar CSV</button> ' +
+          '<button class="botao" id="lote-cal">Lançar datas em lote</button> ' +
           '<button class="botao primario" id="novo-instrumento">+ Novo instrumento</button></div>' : '') +
       '</div>' +
 
@@ -6077,6 +6321,9 @@ tfoot td { border-top: 2px solid var(--border-forte); background: var(--surface-
 
     var csv = container.querySelector('#csv-cal');
     if (csv) csv.onclick = function () { exportarCsv(lista); };
+
+    var lote = container.querySelector('#lote-cal');
+    if (lote) lote.onclick = function () { abrirLote(instrumentos); };
 
     function liga(id, campo) {
       var alvo = container.querySelector(id);

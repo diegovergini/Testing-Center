@@ -200,6 +200,118 @@ test('registrar sem data é recusado', () => {
   assert.match(r.motivo, /data/i);
 });
 
+/* ---- Lançamento em lote ---- */
+
+test('a data é lida no formato da planilha brasileira e no ISO', () => {
+  assert.equal(calibracao.interpretarData('31/12/2025'), '2025-12-31');
+  assert.equal(calibracao.interpretarData('5/3/26'), '2026-03-05', 'dois dígitos são deste século');
+  assert.equal(calibracao.interpretarData('31.12.2025'), '2025-12-31');
+  assert.equal(calibracao.interpretarData('2025-12-31'), '2025-12-31');
+  assert.equal(calibracao.interpretarData('29/02/2028'), '2028-02-29', 'ano bissexto existe');
+});
+
+test('data impossível é recusada em vez de virar outro dia', () => {
+  assert.equal(calibracao.interpretarData('31/02/2026'), '', 'fevereiro não tem dia 31');
+  assert.equal(calibracao.interpretarData('10/13/2026'), '', 'não existe mês 13');
+  assert.equal(calibracao.interpretarData('29/02/2026'), '', '2026 não é bissexto');
+  assert.equal(calibracao.interpretarData('em breve'), '');
+  assert.equal(calibracao.interpretarData(''), '');
+});
+
+test('o lote aceita a colagem do Excel, com e sem certificado', () => {
+  const instrumentos = [
+    instrumento({ id: 'TCL-AC-012' }),
+    instrumento({ id: 'TCL-CC-001', periodicidadeMeses: 6 })
+  ];
+  const leitura = calibracao.interpretarLote(
+    'Código\tData\n' +
+    'TCL-AC-012\t12/03/2026\n' +
+    'TCL-CC-001\t05/11/2025\tRBC-2025-0481\tMetrologia XPTO\n',
+    instrumentos);
+
+  assert.equal(leitura.aplicaveis.length, 2, 'o cabeçalho colado junto é ignorado');
+  assert.equal(leitura.problemas.length, 0);
+  assert.equal(leitura.aplicaveis[0].instrumento.id, 'TCL-AC-012');
+  assert.equal(leitura.aplicaveis[0].data, '2026-03-12');
+  assert.equal(leitura.aplicaveis[1].certificado, 'RBC-2025-0481');
+  assert.equal(leitura.aplicaveis[1].laboratorio, 'Metrologia XPTO');
+});
+
+test('o lote separa por ponto e vírgula, vírgula ou espaço', () => {
+  const instrumentos = [instrumento({ id: 'TCL-AC-012' })];
+  ['TCL-AC-012;12/03/2026', 'TCL-AC-012,12/03/2026', 'TCL-AC-012 12/03/2026'].forEach((linha) => {
+    const leitura = calibracao.interpretarLote(linha, instrumentos);
+    assert.equal(leitura.aplicaveis.length, 1, linha);
+    assert.equal(leitura.aplicaveis[0].data, '2026-03-12');
+  });
+});
+
+test('o lote reconhece o código antigo da planilha', () => {
+  const instrumentos = [instrumento({ id: 'TCL-AC-012', codigoAntigo: 'INS-0345' })];
+  const leitura = calibracao.interpretarLote('INS-0345\t12/03/2026', instrumentos);
+
+  assert.equal(leitura.aplicaveis.length, 1);
+  assert.equal(leitura.aplicaveis[0].instrumento.id, 'TCL-AC-012');
+});
+
+test('o lote aponta cada linha que não dá para lançar, sem descartar as boas', () => {
+  const instrumentos = [instrumento({ id: 'TCL-AC-012' }), instrumento({ id: 'TCL-CC-001' })];
+  const leitura = calibracao.interpretarLote(
+    'TCL-AC-012\t12/03/2026\n' +
+    'TCL-XX-999\t12/03/2026\n' +
+    'TCL-CC-001\t31/02/2026\n' +
+    'TCL-AC-012\t01/01/2026\n',
+    instrumentos);
+
+  assert.equal(leitura.aplicaveis.length, 1, 'só a primeira linha sobrevive');
+  assert.deepEqual(leitura.problemas.map((l) => l.situacao),
+    ['DESCONHECIDO', 'DATA_INVALIDA', 'REPETIDO']);
+  assert.deepEqual(leitura.problemas.map((l) => l.linha), [2, 3, 4],
+    'o número da linha é o da colagem, para o usuário achar o erro');
+});
+
+test('lançar em lote preenche a última calibração e a validade de 12 meses', () => {
+  store.restaurarPadrao();
+  const antes = store.get().instrumentos.length;
+  const r = store.lancarCalibracoesEmLote([
+    { instrumentoId: 'TCL-AC-012', data: '2026-03-10' },
+    { instrumentoId: 'TCL-AC-014', data: '2024-11-05', certificado: 'RBC-2024-0481' }
+  ]);
+
+  assert.equal(r.aplicados.length, 2);
+  assert.equal(store.get().instrumentos.length, antes, 'lote não cria instrumento');
+
+  const a = util.porId(store.get().instrumentos, 'TCL-AC-012');
+  assert.equal(a.ultimaCalibracao, '2026-03-10');
+  assert.equal(a.proximaCalibracao, '2027-03-10', '12 meses é o padrão');
+  assert.equal(a.historico.length, 1, 'o lançamento fica no histórico');
+
+  const b = util.porId(store.get().instrumentos, 'TCL-AC-014');
+  assert.equal(b.certificado, 'RBC-2024-0481');
+  assert.equal(b.proximaCalibracao, '2025-11-05');
+  assert.equal(calibracao.estado(b, '2026-08-10').prazo, 'VENCIDO',
+    'data antiga entra vencida, que é a informação que interessa');
+});
+
+test('o lote respeita a periodicidade já ajustada no instrumento', () => {
+  store.restaurarPadrao();
+  store.salvarInstrumento({ id: 'TCL-AC-012', periodicidadeMeses: 6 });
+  store.lancarCalibracoesEmLote([{ instrumentoId: 'TCL-AC-012', data: '2026-03-10' }]);
+
+  const i = util.porId(store.get().instrumentos, 'TCL-AC-012');
+  assert.equal(i.periodicidadeMeses, 6);
+  assert.equal(i.proximaCalibracao, '2026-09-10');
+});
+
+test('o lote não muda a situação de quem está em calibração', () => {
+  store.restaurarPadrao();
+  const emCalibracao = store.get().instrumentos.find((i) => i.situacao === 'EM_CALIBRACAO');
+  store.lancarCalibracoesEmLote([{ instrumentoId: emCalibracao.id, data: '2026-03-10' }]);
+
+  assert.equal(util.porId(store.get().instrumentos, emCalibracao.id).situacao, 'EM_CALIBRACAO',
+    'lançar a data anterior não devolve o instrumento ao uso');
+});
+
 test('o instrumento cadastrado à mão convive com o inventário de partida', () => {
   store.restaurarPadrao();
   const total = store.get().instrumentos.length;

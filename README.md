@@ -228,6 +228,14 @@ O topo da tela separa o caso grave: **instrumento vencido e em uso**. Significa 
 rodando com medição fora da validade — é o achado que a auditoria procura. Vencido que está
 como back-up ou fora de uso aparece, mas não no alerta vermelho.
 
+**Lançar datas em lote** existe porque são 229 instrumentos: cola-se o recorte da planilha —
+código na primeira coluna, data da última calibração na segunda, certificado e laboratório
+opcionais na terceira e na quarta — e a plataforma confere linha a linha **antes de gravar
+qualquer coisa**. Datas em `31/12/2025` ou `2025-12-31`; o código antigo também é reconhecido.
+O que não dá para lançar aparece com o número da linha e o motivo (código inexistente, data
+impossível, código repetido na colagem) e é ignorado, sem impedir o resto. Uma data lançada
+em lote não muda a situação do instrumento: quem está *em calibração* continua em calibração.
+
 Registrar uma calibração grava data, resultado, certificado, laboratório e responsável, e
 renova a validade. **Reprovado não renova nada**: o instrumento sai de uso e fica sem plano
 até alguém decidir entre ajuste, reparo ou descarte — sem essa regra ele apareceria "em dia"

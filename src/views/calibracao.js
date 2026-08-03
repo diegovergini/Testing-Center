@@ -247,6 +247,102 @@
     atualizar();
   }
 
+  /* ---- Lançamento em lote ---- */
+
+  /* O caminho para tirar as datas da planilha e pôr na plataforma sem digitar 229 vezes.
+     Nada é gravado antes da conferência: o que vai entrar e o que foi recusado aparecem
+     lado a lado enquanto se cola. */
+  function abrirLote(instrumentos) {
+    var corpo =
+      '<div class="aviso">Cole aqui o recorte da planilha: <strong>uma linha por ' +
+        'instrumento</strong>, com o código na primeira coluna e a data da última ' +
+        'calibração na segunda. Certificado e laboratório, se houver, entram na terceira ' +
+        'e na quarta.' +
+        '<div class="sub" style="margin-top:6px">Datas em 31/12/2025 ou 2025-12-31. ' +
+        'O código antigo também é reconhecido. A validade sai da data lançada mais a ' +
+        'periodicidade do instrumento (12 meses, salvo se você já mudou).</div></div>' +
+      '<div class="campo"><label>Código e data</label>' +
+        '<textarea name="lote" rows="9" spellcheck="false" style="font-family:ui-monospace,' +
+        'Menlo,Consolas,monospace;font-size:12.5px" placeholder="TCL-AC-012&#9;12/03/2026&#10;' +
+        'TCL-CC-001&#9;05/11/2025&#9;RBC-2025-0481&#9;Metrologia XPTO"></textarea></div>' +
+      '<div id="previa-lote"></div>';
+
+    var janela = ui.modal({
+      titulo: 'Lançar calibrações em lote',
+      corpo: corpo,
+      largura: 'min(820px, 100%)',
+      confirmar: 'Lançar calibrações',
+      aoConfirmar: function (v) {
+        var leitura = cal().interpretarLote(v.lote, instrumentos);
+        if (!leitura.aplicaveis.length) {
+          ui.notificar('Nenhuma linha válida para lançar.');
+          return false;
+        }
+        var resultado = TC.store.lancarCalibracoesEmLote(leitura.aplicaveis.map(function (l) {
+          return {
+            instrumentoId: l.instrumento.id, data: l.data,
+            certificado: l.certificado, laboratorio: l.laboratorio
+          };
+        }));
+        ui.notificar(resultado.aplicados.length + ' calibração(ões) lançada(s)' +
+          (leitura.problemas.length ? ' · ' + leitura.problemas.length + ' linha(s) ignorada(s).' : '.'));
+      }
+    });
+
+    var previa = janela.querySelector('#previa-lote');
+    var campo = janela.querySelector('[name=lote]');
+    var botao = janela.querySelector('.confirmar');
+
+    function conferir() {
+      var leitura = cal().interpretarLote(campo.value, instrumentos);
+      botao.disabled = leitura.aplicaveis.length === 0;
+      if (!leitura.linhas.length) { previa.innerHTML = ''; return; }
+
+      previa.innerHTML =
+        '<div class="aviso' + (leitura.aplicaveis.length ? '' : ' alerta') + '">' +
+          '<strong>' + leitura.aplicaveis.length + '</strong> linha(s) prontas para lançar' +
+          (leitura.problemas.length
+            ? ' · <strong>' + leitura.problemas.length + '</strong> com problema'
+            : '') + '.</div>' +
+        (leitura.problemas.length
+          ? '<div class="lista-selecao" style="max-height:170px">' +
+            leitura.problemas.slice(0, 40).map(function (l) {
+              return '<div class="linha-selecao">' +
+                '<span class="sub mono">linha ' + l.linha + '</span>' +
+                '<span class="mono forte">' + e(l.codigo || '—') + '</span>' +
+                '<span class="etiqueta erro">' + e(cal().MOTIVOS_DO_LOTE[l.situacao]) + '</span>' +
+                '</div>';
+            }).join('') +
+            (leitura.problemas.length > 40
+              ? '<div class="linha-selecao sub">e mais ' + (leitura.problemas.length - 40) + '.</div>'
+              : '') +
+            '</div>'
+          : '') +
+        (leitura.aplicaveis.length
+          ? '<div class="campo" style="margin-top:12px"><label>Prévia das validades</label>' +
+            '<div class="lista-selecao" style="max-height:200px">' +
+            leitura.aplicaveis.slice(0, 40).map(function (l) {
+              var vence = cal().somaMeses(l.data, l.instrumento.periodicidadeMeses || 12);
+              return '<div class="linha-selecao">' +
+                '<span class="mono forte">' + e(l.instrumento.id) + '</span>' +
+                '<span class="sub" style="flex:1">' + e(util.recortar(l.instrumento.nome, 40)) + '</span>' +
+                '<span class="sub">' + e(util.formatarData(l.data, true)) + '</span>' +
+                '<span class="etiqueta ok">até ' + e(util.formatarData(vence, true)) + '</span>' +
+                '</div>';
+            }).join('') +
+            (leitura.aplicaveis.length > 40
+              ? '<div class="linha-selecao sub">e mais ' + (leitura.aplicaveis.length - 40) + '.</div>'
+              : '') +
+            '</div></div>'
+          : '');
+    }
+
+    campo.addEventListener('input', conferir);
+    campo.addEventListener('change', conferir);
+    botao.disabled = true;
+    campo.focus();
+  }
+
   /* ---- Tela ---- */
 
   function render(container, ctx) {
@@ -303,10 +399,12 @@
       '<div class="cabecalho">' +
         '<div><h2>Gerenciamento de calibração</h2>' +
         '<p>Instrumentos e sensores do centro de testes, com a validade da calibração de cada um. ' +
-        'A validade sai da última calibração mais a periodicidade, salvo quando o certificado ' +
-        'traz uma data própria.</p></div>' +
+        'A validade sai da última calibração mais a periodicidade — <strong>12 meses</strong> ' +
+        'por padrão, ajustável por instrumento —, salvo quando o certificado traz uma data ' +
+        'própria.</p></div>' +
         (podeEditar ? '<div class="acoes">' +
           '<button class="botao" id="csv-cal">Exportar CSV</button> ' +
+          '<button class="botao" id="lote-cal">Lançar datas em lote</button> ' +
           '<button class="botao primario" id="novo-instrumento">+ Novo instrumento</button></div>' : '') +
       '</div>' +
 
@@ -371,6 +469,9 @@
 
     var csv = container.querySelector('#csv-cal');
     if (csv) csv.onclick = function () { exportarCsv(lista); };
+
+    var lote = container.querySelector('#lote-cal');
+    if (lote) lote.onclick = function () { abrirLote(instrumentos); };
 
     function liga(id, campo) {
       var alvo = container.querySelector(id);

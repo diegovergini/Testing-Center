@@ -143,8 +143,116 @@
       .sort(function (a, b) { return a.diasParaVencer - b.diasParaVencer; });
   }
 
+  /* ---- Lançamento em lote --------------------------------------------------------------
+
+     São 229 instrumentos. Abrir um modal por instrumento para digitar a data da última
+     calibração é trabalho de um dia inteiro, então o lote existe: cola-se o recorte da
+     planilha (código e data, opcionalmente certificado e laboratório) e a plataforma
+     confere linha a linha antes de gravar qualquer coisa. */
+
+  var DIAS_NO_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  function diasDoMes(ano, mes) {
+    if (mes !== 2) return DIAS_NO_MES[mes - 1];
+    return (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0 ? 29 : 28;
+  }
+
+  function montarISO(ano, mes, dia) {
+    if (mes < 1 || mes > 12 || dia < 1 || dia > diasDoMes(ano, mes)) return '';
+    return ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+  }
+
+  /* Aceita o que sai de uma planilha brasileira (31/12/2025, 31-12-25, 31.12.2025) e
+     também o ISO. Data impossível — 31/02, mês 13 — devolve vazio em vez de virar outro
+     dia: a data errada de calibração é pior que a data ausente. */
+  function interpretarData(texto) {
+    var t = String(texto == null ? '' : texto).trim();
+    if (!t) return '';
+    var iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+    if (iso) return montarISO(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+    var br = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(t);
+    if (br) {
+      var ano = Number(br[3]);
+      /* Ano de dois dígitos: certificado de calibração é documento recente. */
+      if (br[3].length === 2) ano += 2000;
+      return montarISO(ano, Number(br[2]), Number(br[1]));
+    }
+    return '';
+  }
+
+  /* Uma linha colada do Excel vem separada por tabulação; de um CSV, por ; ou ,. */
+  function separarCampos(linha) {
+    var campos = linha.split(/\t|;/);
+    if (campos.length === 1) campos = linha.split(',');
+    if (campos.length === 1) campos = linha.trim().split(/\s{2,}|\s+/);
+    return campos.map(function (c) { return c.trim(); });
+  }
+
+  /* Casa pelo código atual e, se não achar, pelo código antigo — a planilha de calibração
+     costuma estar na numeração velha. */
+  function acharInstrumento(instrumentos, codigo) {
+    var alvo = codigo.toUpperCase();
+    var porAntigo = null;
+    for (var n = 0; n < instrumentos.length; n++) {
+      var i = instrumentos[n];
+      if (String(i.id).toUpperCase() === alvo) return i;
+      if (!porAntigo && i.codigoAntigo && String(i.codigoAntigo).toUpperCase() === alvo) {
+        porAntigo = i;
+      }
+    }
+    return porAntigo;
+  }
+
+  /* Lê o texto colado e devolve o que será gravado e o que não dá para gravar, sem tocar
+     em nada — a tela mostra as duas listas e só grava depois da confirmação. */
+  function interpretarLote(texto, instrumentos) {
+    var linhas = [];
+    var jaVistos = {};
+    String(texto == null ? '' : texto).split(/\r?\n/).forEach(function (bruta, indice) {
+      if (!bruta.trim()) return;
+      var campos = separarCampos(bruta);
+      var codigo = campos[0] || '';
+      /* Cabeçalho copiado junto com os dados não é erro do usuário: é ignorado. */
+      if (/^c[oó]d/i.test(codigo)) return;
+
+      var registro = {
+        linha: indice + 1, codigo: codigo, data: interpretarData(campos[1]),
+        certificado: campos[2] || '', laboratorio: campos[3] || '',
+        instrumento: null, situacao: 'OK'
+      };
+      var instrumento = codigo ? acharInstrumento(instrumentos || [], codigo) : null;
+
+      if (!codigo) registro.situacao = 'SEM_CODIGO';
+      else if (!instrumento) registro.situacao = 'DESCONHECIDO';
+      else if (!registro.data) registro.situacao = 'DATA_INVALIDA';
+      else if (jaVistos[instrumento.id]) registro.situacao = 'REPETIDO';
+
+      if (instrumento) {
+        registro.instrumento = instrumento;
+        if (registro.situacao === 'OK') jaVistos[instrumento.id] = true;
+      }
+      linhas.push(registro);
+    });
+
+    return {
+      linhas: linhas,
+      aplicaveis: linhas.filter(function (l) { return l.situacao === 'OK'; }),
+      problemas: linhas.filter(function (l) { return l.situacao !== 'OK'; })
+    };
+  }
+
+  var MOTIVOS_DO_LOTE = {
+    SEM_CODIGO: 'linha sem código',
+    DESCONHECIDO: 'código não existe no inventário',
+    DATA_INVALIDA: 'data ausente ou inválida',
+    REPETIDO: 'código repetido na colagem'
+  };
+
   TC.calibracao = {
     SITUACOES: SITUACOES,
+    MOTIVOS_DO_LOTE: MOTIVOS_DO_LOTE,
+    interpretarData: interpretarData,
+    interpretarLote: interpretarLote,
     RESULTADOS: RESULTADOS,
     VENCIDO: VENCIDO,
     A_VENCER: A_VENCER,

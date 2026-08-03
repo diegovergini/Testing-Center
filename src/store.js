@@ -494,6 +494,44 @@
       return { ok: true, instrumento: i, registro: registro };
     },
 
+    /* Lançamento em lote das datas que já estavam em planilha. Grava tudo de uma vez —
+       229 commits seguidos redesenhariam a tela 229 vezes — e reaproveita a mesma regra
+       de validade do registro individual, para não haver dois jeitos de calcular a mesma
+       coisa. Linhas com problema são responsabilidade de quem chama: a tela só manda as
+       que interpretarLote() aprovou. */
+    lancarCalibracoesEmLote: function (linhas) {
+      var aplicados = [];
+      (linhas || []).forEach(function (l) {
+        var i = util.porId(estado.instrumentos, l.instrumentoId);
+        if (!i || !l.data) return;
+
+        var registro = {
+          id: util.id('CAL'),
+          data: l.data,
+          resultado: 'APROVADO',
+          certificado: (l.certificado || '').trim(),
+          laboratorio: (l.laboratorio || '').trim(),
+          proximaCalibracao: '',
+          observacao: l.observacao || 'Lançamento em lote a partir da planilha de calibração.',
+          registradoEm: util.hoje()
+        };
+        i.historico = i.historico || [];
+        i.historico.push(registro);
+        i.ultimaCalibracao = registro.data;
+        i.ultimoResultado = 'APROVADO';
+        if (registro.certificado) i.certificado = registro.certificado;
+        if (registro.laboratorio) i.laboratorio = registro.laboratorio;
+        i.periodicidadeMeses = i.periodicidadeMeses || 12;
+        i.proximaCalibracao = TC.calibracao.somaMeses(registro.data, i.periodicidadeMeses);
+        /* A situação não muda no lote, ao contrário do registro individual: quem está
+           "em calibração" hoje continua em calibração, mesmo lançando a data anterior. */
+        aplicados.push(i.id);
+      });
+
+      if (aplicados.length) commit();
+      return { ok: true, aplicados: aplicados };
+    },
+
     /* ---- Peças ---- */
     salvarPeca: function (peca) {
       var existente = peca.id ? util.porId(estado.pecas, peca.id) : null;
