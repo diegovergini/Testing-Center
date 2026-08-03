@@ -126,7 +126,17 @@
     estado.instrumentos = estado.instrumentos || [];
     if ((Number(estado.instrumentosVersao) || 0) < TC.data.INSTRUMENTOS_VERSAO) {
       TC.instrumentosPadrao().forEach(function (i) {
-        if (!util.porId(estado.instrumentos, i.id)) estado.instrumentos.push(i);
+        var salvo = util.porId(estado.instrumentos, i.id);
+        if (!salvo) {
+          estado.instrumentos.push(i);
+          return;
+        }
+        /* A versão 2 trouxe a última calibração de cada instrumento, que o inventário
+           original não tinha. Ela só preenche lacuna: quem já lançou a data pela janela
+           sabe mais do que a planilha, e o histórico de calibração nunca é reescrito. */
+        if (!salvo.ultimaCalibracao && i.ultimaCalibracao && !(salvo.historico || []).length) {
+          salvo.ultimaCalibracao = i.ultimaCalibracao;
+        }
       });
       estado.instrumentosVersao = TC.data.INSTRUMENTOS_VERSAO;
     }

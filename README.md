@@ -211,7 +211,8 @@ raramente termina no dia previsto.
 
 A janela **Calibração** parte do inventário do centro de testes: **229 instrumentos** —
 acelerômetros, células de carga, termopares, transdutores de pressão, canais de aquisição das
-bancadas — com código, marca, modelo, série, faixa, resolução e posto de uso.
+bancadas — com código, marca, modelo, série, faixa, resolução, posto de uso e a **data da
+última calibração de cada um**, já transcrita da planilha do laboratório.
 
 A validade sai da **última calibração mais a periodicidade** (12 meses por padrão, ajustável
 por instrumento), salvo quando o certificado traz uma **data própria** — aí é ela que vale.
@@ -222,7 +223,7 @@ Cada instrumento cai em uma de quatro situações de prazo:
   laboratório.
 * **Em dia**.
 * **Sem plano** — ninguém informou ainda quando foi calibrado. Não é o mesmo que vencido: é
-  lacuna de cadastro, e é assim que o inventário começa.
+  lacuna de cadastro, e vale para instrumento cadastrado depois do inventário de partida.
 
 O topo da tela separa o caso grave: **instrumento vencido e em uso**. Significa ensaio
 rodando com medição fora da validade — é o achado que a auditoria procura. Vencido que está
@@ -427,7 +428,10 @@ novos na próxima carga (`migrar()` em `src/store.js`):
 
 **Inventário de instrumentos.** `TC.data.INSTRUMENTOS_VERSAO` faz o mesmo pelo inventário da
 calibração, sempre de forma aditiva: instrumentos que ainda não existem entram, e o plano já
-preenchido (última calibração, periodicidade, certificado, histórico) nunca é sobrescrito.
+preenchido (última calibração, periodicidade, certificado, histórico) nunca é sobrescrito. A
+versão 2 acrescentou a data da última calibração de cada instrumento; quem já tinha dados
+salvos recebe a data só onde ela estava em branco e não havia histórico — quem lançou pela
+plataforma sabe mais do que a planilha.
 
 Em qualquer caso, cotações arquivadas ficam intactas (têm preço congelado) e os cadastros de
 equipamento, peça, cliente e as permissões não são tocados — só o cliente exigido por um

@@ -140,13 +140,48 @@ test('o inventário de partida traz os instrumentos da planilha, sem código rep
   assert.equal(celula.local, 'Hydro pulse 1');
 });
 
-test('todo instrumento começa sem plano de calibração, para ser preenchido', () => {
+test('todo instrumento do inventário vem com a data da última calibração', () => {
   dados.seed().instrumentos.forEach((i) => {
-    assert.equal(i.ultimaCalibracao, '', i.id + ' já veio com data');
+    assert.match(i.ultimaCalibracao, /^\d{4}-\d{2}-\d{2}$/, i.id + ' sem data válida');
     assert.equal(i.periodicidadeMeses, 12);
+    assert.equal(i.proximaCalibracao, '', 'o vencimento é calculado, não transcrito');
     assert.deepEqual(i.historico, []);
     assert.equal(i.ativo, true);
   });
+});
+
+/* A segunda planilha traz a data por nome, e há nome repetido — 24 canais por burner, dez
+   acelerômetros triaxiais. O que sustenta o casamento é a ordem: cada campanha caiu num dia
+   só, então data errada aqui aparece como um burner com dois dias diferentes. */
+test('a data da última calibração casa com a campanha de cada posto', () => {
+  const base = dados.seed();
+  const porPosto = {};
+  base.instrumentos
+    .filter((i) => /^Temperatura tipo K - Canal /.test(i.nome))
+    .forEach((i) => {
+      porPosto[i.local] = porPosto[i.local] || new Set();
+      porPosto[i.local].add(i.ultimaCalibracao);
+    });
+
+  assert.deepEqual([...porPosto['Burner 01']], ['2026-05-04']);
+  assert.deepEqual([...porPosto['Burner 02']], ['2026-05-04']);
+  assert.deepEqual([...porPosto['Burner 03']], ['2026-05-05']);
+
+  assert.equal(util.porId(base.instrumentos, 'TCL-TKC-B3-001').ultimaCalibracao, '2026-05-05',
+    'o controlador do burner 03 foi junto com os canais dele');
+  assert.equal(util.porId(base.instrumentos, 'TCL-AC-015').ultimaCalibracao, '2026-05-15');
+  assert.equal(util.porId(base.instrumentos, 'TCL-AC-006').ultimaCalibracao, '2026-05-22');
+});
+
+/* Com o inventário datado ninguém mais fica sem plano, e a janela passa a mostrar o que a
+   planilha escondia: o que já venceu está medindo. */
+test('o inventário datado não deixa instrumento sem plano', () => {
+  const resumo = calibracao.resumo(dados.seed().instrumentos, '2026-08-03');
+
+  assert.equal(resumo.total, 229);
+  assert.equal(resumo.semPlano, 0);
+  assert.ok(resumo.vencidos > 0, 'a planilha traz datas fora da validade de 12 meses');
+  assert.equal(resumo.vencidos + resumo.aVencer + resumo.emDia, 229);
 });
 
 /* ---- Registro pelo store ---- */
@@ -344,4 +379,23 @@ test('dados salvos sem inventário recebem os instrumentos sem perder o que foi 
   assert.equal(meu.ultimaCalibracao, '2026-02-01', 'o plano preenchido não é sobrescrito');
   assert.equal(meu.certificado, 'MEU-123');
   assert.equal(meu.periodicidadeMeses, 6);
+});
+
+test('dados salvos antes das datas recebem a última calibração da planilha', () => {
+  const base = dados.seed();
+  base.instrumentosVersao = 1;
+  base.instrumentos = base.instrumentos.map((i) => Object.assign({}, i, { ultimaCalibracao: '' }));
+  /* Um já foi lançado na plataforma: tem data e histórico, e é ele quem manda. */
+  const lancado = util.porId(base.instrumentos, 'TCL-AC-014');
+  lancado.ultimaCalibracao = '2026-06-30';
+  lancado.historico = [{ data: '2026-06-30', resultado: 'APROVADO' }];
+
+  store.importar(JSON.stringify(base));
+  const estado = store.get();
+
+  assert.equal(util.porId(estado.instrumentos, 'TCL-AC-012').ultimaCalibracao, '2026-05-14',
+    'a lacuna é preenchida pela planilha');
+  assert.equal(util.porId(estado.instrumentos, 'TCL-AC-014').ultimaCalibracao, '2026-06-30',
+    'o que já foi lançado na plataforma não volta atrás');
+  assert.equal(calibracao.resumo(estado.instrumentos, '2026-08-03').semPlano, 0);
 });

@@ -282,7 +282,7 @@
   /* Versão do inventário de instrumentos, com a mesma mecânica do catálogo: subir este
      número leva os instrumentos novos a quem já tem dados salvos, sem tocar no que foi
      preenchido de plano de calibração. */
-  var INSTRUMENTOS_VERSAO = 1;
+  var INSTRUMENTOS_VERSAO = 2;
 
   TC.data = {
     CATALOGO_VERSAO: CATALOGO_VERSAO,
