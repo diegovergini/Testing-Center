@@ -155,8 +155,9 @@ Both workflows (`src/fluxo.js`) translate well, and this is where the Power Plat
 ## The path
 
 1. **Create the site and the lists** and load the CSVs. No code; you can do it on your own.
-2. **Power App v1**: catalogue (view and edit), new request, request list. It already replaces
-   the spreadsheet and already gives the sharing that is missing today.
+2. **Power App v1**: catalogue, new request, request list. It already replaces the spreadsheet
+   and already gives the sharing that is missing today. Full build guide, screen by screen,
+   with every Power Fx formula: [docs/power-app-v1.md](power-app-v1.md).
 3. **Scheduling**: Office Script with the current engine + a Power Automate flow that writes
    the result onto the requests.
 4. **Quotes**: the quote screen, automatic numbering by flow and Excel export (simpler here

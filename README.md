@@ -68,6 +68,9 @@ the same time requires shared data, sign-in and real permissions. Two paths were
   the database, a Power App as the interface, Office Script carrying the current scheduling
   engine. Company-standard tooling only, with the test area owning the tool.
   `node ferramentas/exportar-listas.js` already produces the CSVs that load the lists.
+  [docs/power-app-v1.md](docs/power-app-v1.md) is the build guide for the first version of the
+  app — catalogue, new request, request list — with a design system matched to this app's own
+  palette and every screen's Power Fx written out.
 * [docs/hospedagem.md](docs/hospedagem.md) — Azure App Service + Entra ID + PostgreSQL.
   Technically better, but it depends on provisioning and on IT taking on code support.
 
@@ -508,6 +511,8 @@ index.html            loads the scripts in order; no bundler
 assets/styles.css     light/dark theme
 src/util.js           UTC dates, currency, HTML escaping
 docs/hospedagem.md    where to host and how to control access (a document for IT)
+docs/power-platform.md   the SharePoint + Power Platform migration path
+docs/power-app-v1.md     Power App v1 build guide: design tokens and every screen's Power Fx
 src/fluxo.js          the request and quote workflows: states, who moves them, what they require
 src/manutencao.js     each rig's last and next maintenance, and what is overdue
 src/calibracao.js     instrument validity, due dates and criticality
