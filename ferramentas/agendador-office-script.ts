@@ -272,19 +272,30 @@ function groupEquipment(equipment: Equipment[]): Group[] {
 
 /* ---------------------------------------------------------------- hours and duration */
 
-/* Hours that actually hold the rig. Reporting is done afterwards, at a desk. */
-function rigHours(procedure: Procedure): number {
-  return (procedure.setupHours || 0) + (procedure.testHours || 0);
+/* Samples the calculation is for. Without one given, the procedure's own default. */
+function sampleCount(procedure: Procedure, quantity: number): number {
+  if (quantity > 0) return quantity;
+  return Math.max(1, procedure.samples || 1);
+}
+
+/* Hours that actually hold the rig.
+
+   Each sample is a separate run, so the test hours multiply by how many are being tested; the
+   setup is done once for the campaign, and the report is written afterwards, at a desk. The
+   duration therefore stretches with the quantity, not only the price — three samples of a 300 h
+   test hold the rig roughly three times as long. */
+function rigHours(procedure: Procedure, quantity: number): number {
+  return (procedure.setupHours || 0) + (procedure.testHours || 0) * sampleCount(procedure, quantity);
 }
 
 /* Hours billed to the customer: rig time + writing the report. */
-function billableHours(procedure: Procedure): number {
-  return rigHours(procedure) + (procedure.reportingHours || 0);
+function billableHours(procedure: Procedure, quantity: number): number {
+  return rigHours(procedure, quantity) + (procedure.reportingHours || 0);
 }
 
-function operatingDaysNeeded(procedure: Procedure, units: Equipment[]): number {
+function operatingDaysNeeded(procedure: Procedure, units: Equipment[], quantity: number): number {
   const hoursPerDay = units.length ? combinedHoursPerDay(units) : 8;
-  return Math.max(1, Math.ceil(rigHours(procedure) / hoursPerDay));
+  return Math.max(1, Math.ceil(rigHours(procedure, quantity) / hoursPerDay));
 }
 
 /* ---------------------------------------------------------------- window search */
@@ -393,13 +404,13 @@ function unitCombinations(groups: Group[]): Equipment[][] {
 function bestAcrossGroups(groups: Group[], procedure: Procedure,
                           reservations: { [id: string]: Window[][] },
                           earliest: string, pinnedStart: string,
-                          maintenance: Maintenance[]): Candidate | null {
+                          maintenance: Maintenance[], quantity: number): Candidate | null {
   let best: Candidate | null = null;
   const combinations = unitCombinations(groups);
 
   for (let c = 0; c < combinations.length; c++) {
     const units = combinations[c];
-    const days = operatingDaysNeeded(procedure, units);
+    const days = operatingDaysNeeded(procedure, units, quantity);
     let found: Placement | null = null;
 
     if (pinnedStart) {
@@ -437,8 +448,8 @@ function bestAcrossGroups(groups: Group[], procedure: Procedure,
 function requestCost(request: Request, procedure: Procedure | null,
                      partType: PartType | null, hourlyRate: number): number {
   if (!procedure) return 0;
-  const quantity = request.quantity ? request.quantity : procedure.samples;
-  const hoursCost = billableHours(procedure) * hourlyRate;
+  const quantity = sampleCount(procedure, request.quantity);
+  const hoursCost = billableHours(procedure, quantity) * hourlyRate;
   const consumables = procedure.consumablesCost || 0;
   const samplesCost = quantity * (partType ? (partType.costPerSample || 0) : 0);
   return hoursCost + consumables + samplesCost;
@@ -656,7 +667,8 @@ function plan(raw: RawPayload): Output {
     out.blockingReason = "Quote — takes no rig.";
     const resolved = resolveGroups(procedure);
     if (procedure && resolved.groups.length) {
-      out.operatingDays = operatingDaysNeeded(procedure, resolved.groups.map((g) => g.members[0]));
+      out.operatingDays = operatingDaysNeeded(procedure, resolved.groups.map((g) => g.members[0]),
+        request.quantity);
     }
     results.push(out);
   }
@@ -692,14 +704,15 @@ function plan(raw: RawPayload): Output {
     if (request.forcedStart) earliest = request.forcedStart;
 
     const best = bestAcrossGroups(resolved.groups, procedure, reservations, earliest,
-                                  request.forcedStart, maintenance);
+                                  request.forcedStart, maintenance, request.quantity);
 
     if (!best) {
       out.blockingReason = request.forcedStart
         ? "Start pinned to " + formatDate(request.forcedStart) + " unavailable on " +
           groupNames(resolved.groups) + "."
         : "No free slot on " + groupNames(resolved.groups) + " within the planning horizon.";
-      out.operatingDays = operatingDaysNeeded(procedure, resolved.groups.map((g) => g.members[0]));
+      out.operatingDays = operatingDaysNeeded(procedure, resolved.groups.map((g) => g.members[0]),
+        request.quantity);
       results.push(out);
       return;
     }

@@ -70,21 +70,35 @@
     return false;
   }
 
-  /* Hours that actually hold the rig. Reporting is done afterwards, at a desk. */
-  function horasDeBancada(teste) {
-    return (teste.horasSetup || 0) + (teste.horasEnsaio || 0);
+  /* Samples the calculation is for. Without one given, the procedure's own default — which is
+     what the catalogue shows as a reference price. */
+  function quantidadeDe(teste, quantidade) {
+    var q = Number(quantidade);
+    if (q > 0) return q;
+    return Math.max(1, Number(teste && teste.amostras) || 1);
+  }
+
+  /* Hours that actually hold the rig.
+
+     Each sample is a separate run, so the test hours multiply by how many are being tested;
+     the setup is done once for the campaign, and the report is written afterwards, at a desk.
+     This is why three samples of a 300 h test occupy the rig for far longer than one — the
+     duration stretches with the quantity, not only the price. */
+  function horasDeBancada(teste, quantidade) {
+    if (!teste) return 0;
+    return (teste.horasSetup || 0) + (teste.horasEnsaio || 0) * quantidadeDe(teste, quantidade);
   }
 
   /* Hours billed to the customer: rig time + writing the report. */
-  function horasFaturaveis(teste) {
-    return horasDeBancada(teste) + (teste.horasReport || 0);
+  function horasFaturaveis(teste, quantidade) {
+    return horasDeBancada(teste, quantidade) + ((teste && teste.horasReport) || 0);
   }
 
   /* How many operating days the test consumes across the set of rigs. */
-  function diasDeOperacao(teste, equipamentos) {
+  function diasDeOperacao(teste, equipamentos, quantidade) {
     var lista = [].concat(equipamentos || []);
     var horasPorDia = lista.length ? horasPorDiaCombinadas(lista) : 8;
-    return Math.max(1, Math.ceil(horasDeBancada(teste) / horasPorDia));
+    return Math.max(1, Math.ceil(horasDeBancada(teste, quantidade) / horasPorDia));
   }
 
   /* From a start date, returns the calendar window the test occupies.
@@ -188,10 +202,10 @@
   /* Among every possible unit, looks for the one that starts earliest.
      A tie on the start is broken by whichever finishes first — a rig with a longer shift
      delivers the same test in fewer days. */
-  function melhorEntreGrupos(grupos, teste, reservasPorEquipamento, dataMinima, inicioFixo) {
+  function melhorEntreGrupos(grupos, teste, reservasPorEquipamento, dataMinima, inicioFixo, quantidade) {
     var melhor = null;
     combinacoesDeUnidades(grupos).forEach(function (unidades) {
-      var dias = diasDeOperacao(teste, unidades);
+      var dias = diasDeOperacao(teste, unidades, quantidade);
       var achado = null;
 
       if (inicioFixo) {
@@ -244,15 +258,15 @@
         custoHoras: 0, custoInsumos: 0, custoAmostras: 0, custoProcedimento: 0, total: 0
       };
     }
-    var quantidade = demanda && demanda.quantidade ? demanda.quantidade : teste.amostras;
-    var horas = horasFaturaveis(teste);
+    var quantidade = quantidadeDe(teste, demanda && demanda.quantidade);
+    var horas = horasFaturaveis(teste, quantidade);
     var rate = typeof hourlyRate === 'number' ? hourlyRate : taxaHoraria(null);
     var custoHoras = horas * rate;
     var custoInsumos = teste.custoInsumos || 0;
     var custoProcedimento = custoHoras + custoInsumos;
     var custoAmostras = quantidade * (peca ? peca.custoAmostra || 0 : 0);
     return {
-      horasBancada: horasDeBancada(teste),
+      horasBancada: horasDeBancada(teste, quantidade),
       horasReport: teste.horasReport || 0,
       horasFaturaveis: horas,
       hourlyRate: rate,
@@ -352,7 +366,8 @@
       base.motivo = 'Quote — takes no rig.';
       if (base.teste && base.grupos.length) {
         /* Estimated from the first unit of each group, only to give the duration. */
-        base.diasOperacao = diasDeOperacao(base.teste, base.grupos.map(function (g) { return g.membros[0]; }));
+        base.diasOperacao = diasDeOperacao(base.teste,
+          base.grupos.map(function (g) { return g.membros[0]; }), demanda.quantidade);
       }
       alocacoes.push(base);
     }
@@ -387,14 +402,16 @@
       var dataMinima = util.maiorData(hoje, disponibilidadePeca);
       if (demanda.inicioFixo) dataMinima = demanda.inicioFixo;
 
-      var melhor = melhorEntreGrupos(base.grupos, teste, reservas, dataMinima, demanda.inicioFixo);
+      var melhor = melhorEntreGrupos(base.grupos, teste, reservas, dataMinima, demanda.inicioFixo,
+        demanda.quantidade);
 
       if (!melhor) {
         base.motivo = demanda.inicioFixo
           ? 'Start pinned to ' + util.formatarData(demanda.inicioFixo, true) +
             ' unavailable on ' + nomesDosGrupos(base.grupos) + '.'
           : 'No free slot on ' + nomesDosGrupos(base.grupos) + ' within the planning horizon.';
-        base.diasOperacao = diasDeOperacao(teste, base.grupos.map(function (g) { return g.membros[0]; }));
+        base.diasOperacao = diasDeOperacao(teste,
+          base.grupos.map(function (g) { return g.membros[0]; }), demanda.quantidade);
         alocacoes.push(base);
         return;
       }
@@ -438,6 +455,7 @@
 
   TC.scheduler = {
     planejar: planejar,
+    quantidadeDe: quantidadeDe,
     custoDemanda: custoDemanda,
     custoCatalogo: custoCatalogo,
     taxaHoraria: taxaHoraria,

@@ -153,6 +153,26 @@ component (`comNavRail`) reused on all three screens — build it once, not per 
   `Fill: If(App.ActiveScreen = scrCatalogue, clrBrandWeak, clrSurface)`,
   `Color: If(App.ActiveScreen = scrCatalogue, clrBrand, clrText)`.
 
+## How a cost is worked out
+
+Every cost formula in this app is the same one, and it is worth reading once before copying it
+around:
+
+```
+billable hours = SetupHours + TestHours × samples + ReportingHours
+cost           = billable hours × hourly rate + ConsumablesCost + samples × CostPerSample
+```
+
+**Only the test hours multiply by the sample count.** Each sample is a separate run of the test;
+the setup is done once for the campaign and the report is written once at the end. Consumables
+are a one-off too. The part cost is per sample, because the lab consumes one part per run — and
+it is the only term that appears on a request but not on a quote, since a quote prices the test
+centre's service and the parts are the customer's.
+
+The same rule drives the schedule, not only the price: three samples hold the rig for roughly
+three times as long. `src/scheduler.js` and the Office Script both implement it, and a parity
+test fails if they ever disagree.
+
 ## Screen 1 — Test Catalogue (`scrCatalogue`)
 
 ### Header row
@@ -209,11 +229,16 @@ lblName.Text             = ThisItem.ProcedureName
 lblStandard.Text         = ThisItem.Standard & " · " & ThisItem.Revision
 pillSystemEnd            = (system-end pill, formula above)
 lblEquipment.Text         = Substitute(ThisItem.EquipmentGroups, "; ", " + ")
-lblHours.Text             = Text(ThisItem.SetupHours + ThisItem.TestHours + ThisItem.ReportingHours, "0") & " h"
-lblCost.Text              = Text(
-                              (ThisItem.SetupHours + ThisItem.TestHours + ThisItem.ReportingHours)
-                                * colHourlyRate + ThisItem.ConsumablesCost,
-                              "[$-en-US]$#,##0"
+lblHours.Text             = Text(
+                              ThisItem.SetupHours + ThisItem.TestHours * ThisItem.Samples
+                                + ThisItem.ReportingHours,
+                              "0"
+                            ) & " h"
+lblCost.Text              = "R$ " & Text(
+                              (ThisItem.SetupHours + ThisItem.TestHours * ThisItem.Samples
+                                + ThisItem.ReportingHours) * colHourlyRate
+                                + ThisItem.ConsumablesCost,
+                              "[$-pt-BR]#.##0"
                             )
 btnConfirm.Text           = "Confirm need"
 btnConfirm.OnSelect       = Set(varProcedimentoSelecionado, ThisItem); Navigate(scrNewRequest)
@@ -265,15 +290,16 @@ lblCostPreview.Text =
   With(
     {
       qtd: If(IsBlank(txtQuantity.Text), varProcedimentoSelecionado.Samples, Value(txtQuantity.Text)),
-      partType: LookUp(TC_Pecas, Title = ddPartType.Selected.Title),
-      horas: varProcedimentoSelecionado.SetupHours + varProcedimentoSelecionado.TestHours
-        + varProcedimentoSelecionado.ReportingHours
+      partType: LookUp(TC_Pecas, Title = ddPartType.Selected.Title)
     },
-    "Estimated cost " &
+    "Estimated cost R$ " &
     Text(
-      horas * colHourlyRate + varProcedimentoSelecionado.ConsumablesCost
+      (varProcedimentoSelecionado.SetupHours
+        + varProcedimentoSelecionado.TestHours * qtd
+        + varProcedimentoSelecionado.ReportingHours) * colHourlyRate
+        + varProcedimentoSelecionado.ConsumablesCost
         + qtd * partType.CostPerSample,
-      "[$-en-US]$#,##0"
+      "[$-pt-BR]#.##0"
     ) &
     If(ddLtiClass.Selected.Key = "COTACAO",
       " · as a quote, no rig is reserved.",
@@ -367,10 +393,11 @@ lblCost.Text      = Text(
                       With(
                         { proc: LookUp(TC_Procedimentos, Title = ThisItem.ProcedureId),
                           part: LookUp(TC_Pecas, Title = ThisItem.PartTypeId) },
-                        (proc.SetupHours + proc.TestHours + proc.ReportingHours) * colHourlyRate
+                        (proc.SetupHours + proc.TestHours * ThisItem.Quantity
+                          + proc.ReportingHours) * colHourlyRate
                           + proc.ConsumablesCost + ThisItem.Quantity * part.CostPerSample
                       ),
-                      "[$-en-US]$#,##0"
+                      "[$-pt-BR]#.##0"
                     )
 pillStatus         = (status pill, formula above)
 ```

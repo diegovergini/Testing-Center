@@ -31,17 +31,22 @@ current price is the right answer. Same data, two different correct behaviours.
 Taken from the web version (`src/views/cotacoes.js`), which the Power App has to match:
 
 ```
-BillableHours   = SetupHours + TestHours + ReportingHours
+BillableHours   = SetupHours + TestHours × Samples + ReportingHours
 HoursCost       = BillableHours × HourlyRate
-ConsumablesCost = the procedure's ConsumablesCost
-UnitCost        = HoursCost + ConsumablesCost
-Total           = UnitCost × Samples
+ConsumablesCost = the procedure's ConsumablesCost, once
+Total           = HoursCost + ConsumablesCost
+UnitCost        = Total ÷ Samples          (the average price per sample)
 ```
 
-Two things that surprise people:
+Three things that surprise people:
 
-* **The whole procedure cost multiplies by the sample count.** Each sample is one run of the
-  test, not a shared setup — so three samples cost three times the procedure, hours included.
+* **Only the test hours multiply by the sample count.** Each sample is a separate run, so the
+  test hours repeat; the setup is done once for the campaign and the report written once at the
+  end. Consumables are a one-off too.
+* **The unit price therefore falls as the quantity rises**, because the setup and the report are
+  spread across more samples. That is a real argument for testing a campaign together rather
+  than one sample at a time, and it is worth the customer being able to see it — which is why
+  `UnitCost` is stored as the average rather than as a fixed per-run price.
 * **The part itself is not in the quote.** A request adds `Quantity × CostPerSample` because the
   lab consumes the customer's parts; a quote prices the test centre's service. That is why the
   same procedure quotes lower than the request that follows it, and it is correct.
@@ -246,12 +251,12 @@ With(
   },
   With(
     {
-      horas: proc.SetupHours + proc.TestHours + proc.ReportingHours
+      horas: proc.SetupHours + proc.TestHours * qtd + proc.ReportingHours,
+      insumos: proc.ConsumablesCost
     },
     With(
       {
-        custoHoras: horas * rate,
-        insumos: proc.ConsumablesCost
+        total: horas * rate + insumos
       },
       Patch(
         TC_CotacaoItens,
@@ -265,11 +270,11 @@ With(
           Standard: proc.Standard,
           BillableHours: horas,
           HourlyRate: rate,
-          HoursCost: custoHoras,
+          HoursCost: horas * rate,
           ConsumablesCost: insumos,
-          UnitCost: custoHoras + insumos,
+          UnitCost: total / qtd,
           Samples: qtd,
-          Total: (custoHoras + insumos) * qtd
+          Total: total
         }
       )
     )
@@ -281,7 +286,7 @@ Notify("Added.", NotificationType.Success)
 ```
 
 The nested `With()` is not decoration: Power Fx cannot refer to one name inside the same `With`
-that declares it, so `horas` has to exist before `custoHoras` can use it. Writing it flat means
+that declares it, so `horas` has to exist before `total` can use it. Writing it flat means
 repeating the hours expression four times, and the day someone corrects one of the four is the
 day the quote stops adding up.
 
@@ -306,7 +311,7 @@ Row template, height 48:
 | `lblItemRate` | X:360 Y:14, W:110 H:20 | `"R$ " & Text(ThisItem.HourlyRate, "[$-pt-BR]#.##0,00")` |
 | `lblItemHoursCost` | X:480 Y:14, W:110 H:20 | `"R$ " & Text(ThisItem.HoursCost, "[$-pt-BR]#.##0")` |
 | `lblItemConsum` | X:600 Y:14, W:110 H:20 | `"R$ " & Text(ThisItem.ConsumablesCost, "[$-pt-BR]#.##0")` |
-| `lblItemUnit` | X:720 Y:14, W:110 H:20 | `"R$ " & Text(ThisItem.UnitCost, "[$-pt-BR]#.##0")` |
+| `lblItemUnit` | X:720 Y:14, W:110 H:20 | `"R$ " & Text(ThisItem.UnitCost, "[$-pt-BR]#.##0")` — the average per sample |
 | `lblItemSamples` | X:840 Y:14, W:60 H:20 | `Text(ThisItem.Samples)` |
 | `lblItemTotal` | X:910 Y:14, W:120 H:20 | `"R$ " & Text(ThisItem.Total, "[$-pt-BR]#.##0")` — Bold |
 | `btnRemoveItem` | X:1044 Y:10, W:90 H:28 | `Text`: `"Remove"` · `Visible`: `varCotacao.QuoteStatus = "RASCUNHO"` · `OnSelect`: `Remove(TC_CotacaoItens, ThisItem)` |
@@ -395,6 +400,9 @@ been sent.
 
 * A product engineer can create a draft, add three procedures with different sample counts, and
   see a total that matches the sum of the lines.
+* The same procedure added with 1 sample and with 3 shows a **lower unit price** on the second —
+  the setup and the report are spread across more runs. If the unit price is identical, the
+  formula multiplied the wrong term.
 * Changing `TC_Parametros.Value` (the hourly rate) afterwards leaves that quote's numbers exactly
   as they were — this is the test that proves the price freeze works, and it is worth doing
   deliberately.

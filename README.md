@@ -99,6 +99,11 @@ Duration in days comes from the procedure hours divided by the equipment regime:
 takes 3 days in a continuous chamber and 9 days on an 8 h/day rig. Non-working days inside the
 window still hold the position, because the part stays mounted.
 
+The hours themselves depend on how many samples are tested. Each sample is a separate run, so
+the test hours multiply by the quantity while the setup is done once and the report written
+once at the end. Three samples hold the rig for roughly three times as long — a scheduling fact
+before it is a pricing one.
+
 ## Screens
 
 | Screen | What for |

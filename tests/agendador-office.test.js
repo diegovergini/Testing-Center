@@ -351,6 +351,18 @@ test('a machine with two positions takes two requests at once, on both engines',
   ]);
 });
 
+/* Each sample is a separate run, so the quantity stretches the rig time as well as the price.
+   Both engines have to agree on that, or the Power App would quote one duration and the flow
+   would book another. */
+test('the sample count stretches the window identically on both engines', () => {
+  const resumo = conferirParidade('samples multiply', [
+    demanda('DM-1', 'TP-02', { quantidade: 1 }),
+    demanda('DM-2', 'TP-02', { quantidade: 3 })
+  ]);
+  assert.ok(resumo['DM-2'].dias > resumo['DM-1'].dias,
+    'three samples should hold the rig longer than one');
+});
+
 test('sample arrival delays the start the same way', () => {
   conferirParidade('samples', [
     demanda('DM-1', 'TP-02', { dataAmostras: '2026-10-01' }),

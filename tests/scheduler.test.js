@@ -231,17 +231,37 @@ test('a request with no equipment registered comes out blocked, it does not vani
   assert.match(plano.bloqueadas[0].motivo, /has no unit registered/);
 });
 
-test('procedure cost is (setup + test + reporting) x rate + consumables', () => {
+/* Each sample is a separate run of the test, so the test hours multiply by the quantity. The
+   setup is done once for the campaign and the report written once at the end — those do not.
+   Consumables are a one-off too. Getting this wrong understates a three-sample campaign by
+   roughly the cost of two extra runs. */
+test('only the test hours multiply by the number of samples', () => {
   const t = teste({ horasSetup: 2, horasEnsaio: 8, horasReport: 5, custoInsumos: 1000 });
   const c = scheduler.custoDemanda({ quantidade: 3 }, t, null, peca({ custoAmostra: 500 }), 200);
 
-  assert.equal(c.horasBancada, 10, 'setup + ensaio');
-  assert.equal(c.horasFaturaveis, 15, 'setup + ensaio + report');
-  assert.equal(c.custoHoras, 15 * 200);
-  assert.equal(c.custoInsumos, 1000);
-  assert.equal(c.custoProcedimento, 3000 + 1000);
-  assert.equal(c.custoAmostras, 1500);
-  assert.equal(c.total, 4000 + 1500);
+  assert.equal(c.horasBancada, 2 + 8 * 3, 'setup once + test hours per sample');
+  assert.equal(c.horasFaturaveis, 26 + 5, 'plus the report, written once');
+  assert.equal(c.custoHoras, 31 * 200);
+  assert.equal(c.custoInsumos, 1000, 'consumables are not per sample');
+  assert.equal(c.custoProcedimento, 6200 + 1000);
+  assert.equal(c.custoAmostras, 1500, 'the parts consumed are per sample');
+  assert.equal(c.total, 7200 + 1500);
+});
+
+test('one sample costs the same as before the per-sample rule', () => {
+  const t = teste({ horasSetup: 2, horasEnsaio: 8, horasReport: 5, custoInsumos: 1000 });
+  const c = scheduler.custoDemanda({ quantidade: 1 }, t, null, peca({ custoAmostra: 500 }), 200);
+  assert.equal(c.horasBancada, 10);
+  assert.equal(c.horasFaturaveis, 15);
+  assert.equal(c.total, 15 * 200 + 1000 + 500);
+});
+
+/* The quantity drives the schedule, not only the price: the rig is held for every run. */
+test('the rig is held for longer when more samples are tested', () => {
+  const t = teste({ horasSetup: 0, horasEnsaio: 8, horasReport: 0 });
+  const eq = equipamento({ horasDia: 8 });
+  assert.equal(scheduler.diasDeOperacao(t, [eq], 1), 1);
+  assert.equal(scheduler.diasDeOperacao(t, [eq], 3), 3, 'three runs, three days');
 });
 
 test('the equipment hour no longer enters the cost', () => {
@@ -263,8 +283,10 @@ test('reporting hours enter the cost but occupy no rig', () => {
 test('catalogue cost uses the procedure\'s default quantity and ignores samples', () => {
   const c = scheduler.custoCatalogo(teste({ amostras: 4, horasEnsaio: 8, horasReport: 2, custoInsumos: 500 }), 200);
   assert.equal(c.quantidade, 4);
-  assert.equal(c.custoAmostras, 0);
-  assert.equal(c.total, 500 + 10 * 200);
+  assert.equal(c.custoAmostras, 0, 'no part type attached, so nothing consumed');
+  /* 4 runs of 8 h, plus one report of 2 h. */
+  assert.equal(c.horasFaturaveis, 34);
+  assert.equal(c.total, 500 + 34 * 200);
 });
 
 /* The seed catalogue arrives with no rig and no hours — whoever registers fills them in
