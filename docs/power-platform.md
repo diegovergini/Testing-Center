@@ -164,7 +164,9 @@ Both workflows (`src/fluxo.js`) translate well, and this is where the Power Plat
    and `ferramentas/agendador-office-script.ts` is the engine, kept honest by a parity test that
    fails if it places a single request differently from `src/scheduler.js`.
 4. **Quotes**: the quote screen, automatic numbering by flow and Excel export (simpler here
-   than today — Power Automate generates the file).
+   than today — Power Automate generates the file). Written up screen by screen in
+   [docs/power-app-v2-cotacoes.md](power-app-v2-cotacoes.md), and it depends on neither the
+   Office Script nor the scheduler — a quote reserves no rig.
 5. **Power BI**: Gantt and test centre KPIs.
 
 From step 2 on I write all of it: the Power App formulas screen by screen, the Office Script,
