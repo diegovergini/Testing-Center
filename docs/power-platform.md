@@ -159,7 +159,10 @@ Both workflows (`src/fluxo.js`) translate well, and this is where the Power Plat
    and already gives the sharing that is missing today. Full build guide, screen by screen,
    with every Power Fx formula: [docs/power-app-v1.md](power-app-v1.md).
 3. **Scheduling**: Office Script with the current engine + a Power Automate flow that writes
-   the result onto the requests.
+   the result onto the requests. Both are written:
+   [docs/power-automate-agendamento.md](power-automate-agendamento.md) has the flow step by step,
+   and `ferramentas/agendador-office-script.ts` is the engine, kept honest by a parity test that
+   fails if it places a single request differently from `src/scheduler.js`.
 4. **Quotes**: the quote screen, automatic numbering by flow and Excel export (simpler here
    than today — Power Automate generates the file).
 5. **Power BI**: Gantt and test centre KPIs.

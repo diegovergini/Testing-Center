@@ -71,6 +71,9 @@ the same time requires shared data, sign-in and real permissions. Two paths were
   [docs/power-app-v1.md](docs/power-app-v1.md) is the build guide for the first version of the
   app — catalogue, new request, request list — with a design system matched to this app's own
   palette and every screen's Power Fx written out.
+  [docs/power-automate-agendamento.md](docs/power-automate-agendamento.md) is the next step:
+  the scheduling engine as an Office Script (`ferramentas/agendador-office-script.ts`, a port of
+  `src/scheduler.js` kept honest by a parity test) and the flow that calls it.
 * [docs/hospedagem.md](docs/hospedagem.md) — Azure App Service + Entra ID + PostgreSQL.
   Technically better, but it depends on provisioning and on IT taking on code support.
 
@@ -513,6 +516,7 @@ src/util.js           UTC dates, currency, HTML escaping
 docs/hospedagem.md    where to host and how to control access (a document for IT)
 docs/power-platform.md   the SharePoint + Power Platform migration path
 docs/power-app-v1.md     Power App v1 build guide: design tokens and every screen's Power Fx
+docs/power-automate-agendamento.md  step 3: the Office Script and the flow that runs it
 src/fluxo.js          the request and quote workflows: states, who moves them, what they require
 src/manutencao.js     each rig's last and next maintenance, and what is overdue
 src/calibracao.js     instrument validity, due dates and criticality
@@ -532,6 +536,7 @@ tests/                engine tests (node:test)
 ferramentas/listas-schema.json   the SharePoint list schema: the single source of truth
 ferramentas/exportar-listas.js   generates the load CSVs from that schema
 ferramentas/provisionar-listas.ps1  creates the lists on the site from that same schema
+ferramentas/agendador-office-script.ts  the scheduling engine as an Office Script
 ```
 
 `src/scheduler.js` is pure and also runs on Node, which is why the allocation rules are
