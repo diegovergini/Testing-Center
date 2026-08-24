@@ -297,9 +297,15 @@ day the quote stops adding up.
 ```
 SortByColumns(
   Filter(TC_CotacaoItens, QuoteNumber = varCotacao.Title),
-  "ProcedureId", SortOrder.Ascending
+  "Title", SortOrder.Ascending
 )
 ```
+
+Sort on `Title`, not on `ProcedureId`: the item's Title is `<quote> · <procedure>`, so it groups
+by procedure anyway, and it is the one column SharePoint will always sort by. `ProcedureId` —
+like any column the CSV import created as multi-line text — throws two errors at once, "The
+specified column 'ProcedureId' ..." and "The function 'SortByColumns' has some invalid
+arguments", and the gallery renders empty even though the totals above it are right.
 
 Row template, height 48:
 
