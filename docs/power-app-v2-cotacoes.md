@@ -345,9 +345,10 @@ lives in one place and the screen follows it.
 
 This block needs `colMinhaFuncao`, the named formula from *power-app-v1.md* that reads
 `TC_Perfis`. If that list was never created, create it now — `Title` = the person's email,
-`Role` (Text: `PRODUTO` or `TESTES`), one row per person who needs edit rights — add it as a
-data source and add the named formula. Without it every button below is invisible, which looks
-exactly like a broken screen.
+`Role` (Choice: `PRODUTO`, `TESTES`), one row per person — add it as a data source and add the
+named formula. Without it every button below is invisible, which looks exactly like a broken
+screen. Note the `.Value` in that formula: a Choice column returns a record, not text, and
+leaving it off puts a red X on the whole `App.Formulas` block.
 
 `txtMoveNote` — Input → Text input, X:240 Y:678, W:520 H:40, `Default`: `""`, HintText
 `Reason (required when returning or declining)`. It sits **outside** the gallery, which is why

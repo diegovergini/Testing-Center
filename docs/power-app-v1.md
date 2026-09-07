@@ -125,9 +125,16 @@ opens the app is `PRODUTO` by default if their email is not in the list.
 // Named formula, added to the block above
 colMinhaFuncao = With(
   { linha: LookUp(TC_Perfis, Title = User().Email) },
-  If(IsBlank(linha), "PRODUTO", linha.Role)
+  If(IsBlank(linha), "PRODUTO", linha.Role.Value)
 );
 ```
+
+`.Value` because `Role` is a Choice column, and a Choice does not hand back the text — it hands
+back a record, `{ Value: "PRODUTO" }`. Without it the two branches of the `If` have different
+types, and Power Apps reports the error against the whole `App.Formulas` block rather than
+against the line, so all three lines light up red at once and the cause looks bigger than it is.
+Make `Role` a text column instead and `.Value` is what breaks — that is the one place these two
+list designs are not interchangeable.
 
 Every "New procedure", "Edit", or "Delete" button below is gated by
 `colMinhaFuncao = "TESTES"` in its `Visible` property — exactly the same rule the web app
