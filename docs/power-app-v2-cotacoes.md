@@ -324,9 +324,14 @@ Row template, height 48:
 
 Add column headers above the gallery as plain labels, at Y 348, matching those X positions:
 `PROCEDURE`, `HOURS`, `RATE`, `HOURS COST`, `CONSUMABLES`, `UNIT`, `SAMPLES`, `TOTAL` — same
-treatment as the Requests screen.
+treatment as the Requests screen. Delete the `NextArrow` icon Power Apps puts in the template:
+nothing opens from a line, and the chevron invites a click that does nothing.
 
-`lblQuoteGrandTotal` — X:910 Y:720, W:240 H:34, Size 18, Bold:
+On a 1366×768 screen the four blocks only fit if the gallery is 250 tall, not 340 — the workflow
+bar below it needs 100 px. Set `galQuoteItems.Height` to 250 and drop `lblQuoteGrandTotal` to
+Y 630.
+
+`lblQuoteGrandTotal` — X:910 Y:630, W:240 H:34, Size 18, Bold:
 
 ```
 "Total  R$ " &
@@ -338,8 +343,18 @@ Text(Sum(Filter(TC_CotacaoItens, QuoteNumber = varCotacao.Title), Total), "[$-pt
 One gallery, not a row of hand-placed buttons: the moves come from `colQuoteMoves`, so the rule
 lives in one place and the screen follows it.
 
-`galQuoteMoves` — X:240 Y:770, W:900 H:56, Layout horizontal (or a blank horizontal gallery).
-`Items`:
+This block needs `colMinhaFuncao`, the named formula from *power-app-v1.md* that reads
+`TC_Perfis`. If that list was never created, create it now — `Title` = the person's email,
+`Role` (Text: `PRODUTO` or `TESTES`), one row per person who needs edit rights — add it as a
+data source and add the named formula. Without it every button below is invisible, which looks
+exactly like a broken screen.
+
+`txtMoveNote` — Input → Text input, X:240 Y:678, W:520 H:40, `Default`: `""`, HintText
+`Reason (required when returning or declining)`. It sits **outside** the gallery, which is why
+the button formula can reach it.
+
+`galQuoteMoves` — Insert → Gallery → **Blank horizontal**, X:776 Y:678, W:560 H:48,
+`TemplateSize`: 210, `ShowScrollbar`: `false`, `TemplatePadding`: 0. `Items`:
 
 ```
 Filter(
@@ -349,21 +364,17 @@ Filter(
 )
 ```
 
-Inside the template, one button `btnMove`, W:200 H:40, `Text`: `ThisItem.Label`,
+Inside the template, one button `btnMove`, X:0 Y:4, W:200 H:40, `Text`: `ThisItem.Label`,
 `Fill`: `clrBrand`, `Color`: `RGBA(255,255,255,1)`. `OnSelect`:
 
 ```
+Set(varMoveFrom, ThisItem.From);
+Set(varMoveTo, ThisItem.To);
+Set(varMoveLabel, ThisItem.Label);
+Set(varMoveNeedsNote, ThisItem.NeedsNote);
 If(
-  ThisItem.NeedsNote && IsBlank(txtMoveNote.Text),
+  varMoveNeedsNote && IsBlank(txtMoveNote.Text),
   Notify("This move needs a note explaining why.", NotificationType.Error),
-  Set(
-    varCotacao,
-    Patch(
-      TC_Cotacoes,
-      LookUp(TC_Cotacoes, Title = varCotacao.Title),
-      { QuoteStatus: ThisItem.To }
-    )
-  );
   Patch(
     TC_Historico,
     Defaults(TC_Historico),
@@ -372,20 +383,35 @@ If(
       RecordType: "Cotacao",
       Record: varCotacao.Title,
       MovedOn: Now(),
-      FromStatus: ThisItem.From,
-      ToStatus: ThisItem.To,
+      FromStatus: varMoveFrom,
+      ToStatus: varMoveTo,
       Role: colMinhaFuncao,
       Note: txtMoveNote.Text
     }
   );
+  Set(
+    varCotacao,
+    Patch(
+      TC_Cotacoes,
+      LookUp(TC_Cotacoes, Title = varCotacao.Title),
+      { QuoteStatus: varMoveTo }
+    )
+  );
   Reset(txtMoveNote);
-  Notify("Quote moved to " & ThisItem.Label & ".", NotificationType.Success)
+  Notify("Quote moved to " & varMoveLabel & ".", NotificationType.Success)
 )
 ```
 
-`txtMoveNote` — a text input at X:240 Y:830, W:600 H:40, HintText
-`Reason (required when returning or declining)`. It sits outside the gallery, which is why the
-formula can reach it.
+**The four `Set()` calls at the top are not style — they are the fix for a bug that is hard to
+find afterwards.** The moment `varCotacao.QuoteStatus` changes, `galQuoteMoves.Items` re-filters
+and the row the button lives in disappears, taking `ThisItem` with it. Read `ThisItem` after
+that point and the history row is written with a blank `FromStatus` and `ToStatus` — a workflow
+that silently forgets where it came from. Capturing first, and writing the history **before** the
+status change, keeps both writes on the values the person actually clicked.
+
+If `Patch` rejects `{ QuoteStatus: varMoveTo }` with "expects a Record value", the column came
+through as a real Choice rather than as text — write `{ QuoteStatus: { Value: varMoveTo } }`
+instead, and the same for `RecordType` on the history row.
 
 Two moves require a note (`Return to requester`, `Decline quote`) and the check above enforces
 it. That is not bureaucracy: those are the two moves that cost someone else work, and a returned
