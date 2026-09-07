@@ -21,6 +21,9 @@ and lookups: they recalculate automatically, so nothing goes stale if a list cha
 and there is no `Set()`/`Collect()` timing to get wrong. Paste the whole block from *App* →
 *Advanced* → the **Formulas** box (not `OnStart`).
 
+The one exception in this app is `varMinhaFuncao`, below: it needs `User()`, and `App.Formulas`
+does not accept `User()`. That one stays in `OnStart`.
+
 ## Design system
 
 The web app has its own palette (`assets/styles.css`) and it should carry over — a Power App in
@@ -121,23 +124,36 @@ tell a Product Engineer from a Test Engineer without asking anyone to remember a
 Two rows to start — you and whoever else needs edit rights get `TESTES`; everyone else who
 opens the app is `PRODUTO` by default if their email is not in the list.
 
+This one is **not** a named formula, and that is not a stylistic choice. `App.Formulas` rejects
+`User()` — the app checker says *"'User' is a recognized but not supported function"* — and when
+one named formula fails to compile the parser gives up on the rest of that formula, so a single
+unsupported call reports as a dozen errors claiming `With`, `LookUp`, `If` and `IsBlank` are all
+unknown functions. They are not; only the first message is real. If you ever see `App.Formulas`
+light up with "unknown function" on functions you know exist, look for the one line that is
+genuinely unsupported and ignore the rest of the list.
+
+So it goes in `App.OnStart` instead (append with `;` if there is already something there):
+
 ```
-// Named formula, added to the block above
-colMinhaFuncao = With(
-  { linha: LookUp(TC_Perfis, Title = User().Email) },
-  If(IsBlank(linha), "PRODUTO", linha.Role.Value)
-);
+Set(
+  varMinhaFuncao,
+  Coalesce(LookUp(TC_Perfis, Title = User().Email).Role.Value, "PRODUTO")
+)
 ```
 
-`.Value` because `Role` is a Choice column, and a Choice does not hand back the text — it hands
-back a record, `{ Value: "PRODUTO" }`. Without it the two branches of the `If` have different
-types, and Power Apps reports the error against the whole `App.Formulas` block rather than
-against the line, so all three lines light up red at once and the cause looks bigger than it is.
-Make `Role` a text column instead and `.Value` is what breaks — that is the one place these two
-list designs are not interchangeable.
+`.Value` because `Role` is a Choice column, and a Choice hands back a record, `{ Value: "PRODUTO" }`,
+not the text. `Coalesce` covers both the person who is not in the list and the row whose `Role`
+was left empty — both fall back to `PRODUTO`, the role that can do least.
+
+After editing `OnStart`, right-click **App** in the tree view and choose **Run OnStart**;
+otherwise the variable stays blank until the next time the app is opened.
+
+The cost of a variable over a named formula: it is read once, at startup. Change someone's role
+in `TC_Perfis` and they have to reopen the app to see it. For eleven people in a list that
+changes once a semester, that is not worth engineering around.
 
 Every "New procedure", "Edit", or "Delete" button below is gated by
-`colMinhaFuncao = "TESTES"` in its `Visible` property — exactly the same rule the web app
+`varMinhaFuncao = "TESTES"` in its `Visible` property — exactly the same rule the web app
 enforces in `src/permissoes.js`, just re-declared here because Power Apps does not read that
 file.
 
@@ -249,7 +265,7 @@ lblCost.Text              = "R$ " & Text(
                             )
 btnConfirm.Text           = "Confirm need"
 btnConfirm.OnSelect       = Set(varProcedimentoSelecionado, ThisItem); Navigate(scrNewRequest)
-btnEdit.Visible           = colMinhaFuncao = "TESTES"
+btnEdit.Visible           = varMinhaFuncao = "TESTES"
 ```
 
 If `EquipmentGroups` is blank, show the `sem equipamento` warning the web app shows —
@@ -418,5 +434,5 @@ Open it in *Preview* and, in order: confirm a need from the catalogue for a proc
 equipment groups, check the request appears in the queue with the right cost and "Awaiting
 scheduling"; then repeat for a procedure with **no** equipment (the card should still show the
 warning and still let the request through, matching `docs/power-platform.md`'s note that the
-request is recorded regardless); then switch `colMinhaFuncao` by editing your own row in
+request is recorded regardless); then switch `varMinhaFuncao` by editing your own row in
 `TC_Perfis` to `PRODUTO` and confirm the "New procedure"/"Edit" buttons disappear.

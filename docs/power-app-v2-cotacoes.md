@@ -343,12 +343,12 @@ Text(Sum(Filter(TC_CotacaoItens, QuoteNumber = varCotacao.Title), Total), "[$-pt
 One gallery, not a row of hand-placed buttons: the moves come from `colQuoteMoves`, so the rule
 lives in one place and the screen follows it.
 
-This block needs `colMinhaFuncao`, the named formula from *power-app-v1.md* that reads
+This block needs `varMinhaFuncao`, the `App.OnStart` variable from *power-app-v1.md* that reads
 `TC_Perfis`. If that list was never created, create it now — `Title` = the person's email,
 `Role` (Choice: `PRODUTO`, `TESTES`), one row per person — add it as a data source and add the
-named formula. Without it every button below is invisible, which looks exactly like a broken
-screen. Note the `.Value` in that formula: a Choice column returns a record, not text, and
-leaving it off puts a red X on the whole `App.Formulas` block.
+`Set()` to `OnStart`. Without it every button below is invisible, which looks exactly like a
+broken screen. It has to be `OnStart` and not a named formula: `App.Formulas` will not take
+`User()`.
 
 `txtMoveNote` — Input → Text input, X:240 Y:678, W:520 H:40, `Default`: `""`, HintText
 `Reason (required when returning or declining)`. It sits **outside** the gallery, which is why
@@ -361,7 +361,7 @@ the button formula can reach it.
 Filter(
   colQuoteMoves,
   From = varCotacao.QuoteStatus,
-  Role = colMinhaFuncao
+  Role = varMinhaFuncao
 )
 ```
 
@@ -386,7 +386,7 @@ If(
       MovedOn: Now(),
       FromStatus: varMoveFrom,
       ToStatus: varMoveTo,
-      Role: colMinhaFuncao,
+      Role: varMinhaFuncao,
       Note: txtMoveNote.Text
     }
   );
