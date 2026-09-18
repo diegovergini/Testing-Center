@@ -167,7 +167,9 @@ Both workflows (`src/fluxo.js`) translate well, and this is where the Power Plat
    than today — Power Automate generates the file). Written up screen by screen in
    [docs/power-app-v2-cotacoes.md](power-app-v2-cotacoes.md), and it depends on neither the
    Office Script nor the scheduler — a quote reserves no rig.
-5. **Power BI**: Gantt and test centre KPIs.
+5. **Power BI**: Gantt and test centre KPIs. Written up in [docs/power-bi.md](power-bi.md) —
+   the Power Query cleaning, the model, every measure in DAX against the definitions in
+   `src/kpi.js`, and an honest account of which one of them does not translate cleanly.
 
 From step 2 on I write all of it: the Power App formulas screen by screen, the Office Script,
 the flows and the Power BI model. What I cannot do from here is click inside your tenant —

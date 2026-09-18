@@ -524,6 +524,7 @@ docs/power-app-v1.md     Power App v1 build guide: design tokens and every scree
 docs/power-automate-agendamento.md  step 3: the Office Script and the flow that runs it
 docs/power-automate-calibracao.md   the weekly calibration alert (needs no Office Scripts)
 docs/power-app-v2-cotacoes.md       step 4: the quote screens, the workflow and the price freeze
+docs/power-bi.md                    step 5: the Gantt and the KPIs, measure by measure
 src/fluxo.js          the request and quote workflows: states, who moves them, what they require
 src/manutencao.js     each rig's last and next maintenance, and what is overdue
 src/calibracao.js     instrument validity, due dates and criticality
