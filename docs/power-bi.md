@@ -348,9 +348,10 @@ which is the right thing for a card to show.
 Due date =
 VAR Last = TC_Instrumentos[LastCalibration]
 VAR Interval = TC_Instrumentos[IntervalMonths]
+VAR Failed = TC_Instrumentos[LastResult] = "REPROVADO"
 RETURN
     IF(
-        ISBLANK( Last ) || ISBLANK( Interval ) || Interval <= 0,
+        Failed || ISBLANK( Last ) || ISBLANK( Interval ) || Interval <= 0,
         BLANK(),
         EDATE( Last, Interval )
     )
@@ -360,6 +361,21 @@ This one is a **calculated column**, not a measure (*Table tools → New column*
 `TC_Instrumentos` selected). `NextCalibration` is empty on all 229 rows; the due date is computed
 from `LastCalibration + IntervalMonths`, exactly as the calibration flow does it, so the two
 never disagree.
+
+**A failed calibration gets no due date at all.** Take the guard out and the date of the failure
+plus the interval produces a future date, so the instrument reads as *in date* **because** it
+failed. That is the rule `vencimento()` enforces in `src/calibracao.js`. On the data as loaded
+`LastResult` is blank everywhere and the guard changes nothing — it starts mattering the day real
+results are imported.
+
+```dax
+Failed calibration =
+CALCULATE(
+    COUNTROWS( TC_Instrumentos ),
+    TC_Instrumentos[Active] = "Yes",
+    TC_Instrumentos[LastResult] = "REPROVADO"
+)
+```
 
 ```dax
 Overdue instruments =
@@ -406,11 +422,14 @@ number to watch; that one is a list of things someone has to fix.
 
 ### Page 2 — Calibration
 
-Cards: `Overdue instruments`, `Due within six weeks`. Then a **Table**: `Title`,
-`InstrumentName`, `Sector`, `Station`, `LastCalibration`, `Due date`, `IntervalMonths`, sorted by
-`Due date` ascending, filtered to `Active = "Yes"`.
+Cards: `Overdue instruments`, `Due within six weeks`, `Failed calibration`. Then a **Table**:
+`Title`, `InstrumentName`, `Sector`, `Station`, `LastCalibration`, `LastResult`, `Due date`,
+`IntervalMonths`, sorted by `Due date` ascending, filtered to `Active = "Yes"`.
 
 Conditional-format `Due date` on a rule: before today → red background.
+
+Keep `LastResult` on the table. A blank `Due date` means one of two very different things — the
+instrument failed, or its register is incomplete — and that column is what tells them apart.
 
 Slicers: `Sector`, `InstrumentStatus`.
 

@@ -523,6 +523,7 @@ docs/power-platform.md   the SharePoint + Power Platform migration path
 docs/power-app-v1.md     Power App v1 build guide: design tokens and every screen's Power Fx
 docs/power-automate-agendamento.md  step 3: the Office Script and the flow that runs it
 docs/power-automate-calibracao.md   the weekly calibration alert (needs no Office Scripts)
+docs/power-automate-importar-calibracoes.md  loading the metrology spreadsheet into the lists
 docs/power-app-v2-cotacoes.md       step 4: the quote screens, the workflow and the price freeze
 docs/power-bi.md                    step 5: the Gantt and the KPIs, measure by measure
 src/fluxo.js          the request and quote workflows: states, who moves them, what they require

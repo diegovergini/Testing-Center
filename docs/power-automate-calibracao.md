@@ -52,29 +52,43 @@ A **Select** named `With due date`, From `outputs('Get_instruments')?['body/valu
 | `name` | `item()?['InstrumentName']` |
 | `station` | `item()?['Station']` |
 | `status` | `item()?['InstrumentStatus']?['Value']` |
+| `result` | `item()?['LastResult']?['Value']` |
 | `last` | `item()?['LastCalibration']` |
-| `due` | `if(or(empty(item()?['LastCalibration']), empty(item()?['IntervalMonths'])), '', addToTime(item()?['LastCalibration'], int(item()?['IntervalMonths']), 'Month', 'yyyy-MM-dd'))` |
+| `due` | `if(or(equals(item()?['LastResult']?['Value'], 'REPROVADO'), or(empty(item()?['LastCalibration']), empty(item()?['IntervalMonths']))), '', addToTime(item()?['LastCalibration'], int(item()?['IntervalMonths']), 'Month', 'yyyy-MM-dd'))` |
 
 An instrument with no last calibration or no interval comes out with an empty `due` and is
 reported separately below — it is a gap in the register, not an instrument in date.
 
-### 3. Split into three groups
+**A failed calibration has no validity, which is why `REPROVADO` also comes out with an empty
+`due`.** Without that guard, the date of the failure plus the interval would produce a future due
+date and the instrument would report as *in date* **because** it failed — the opposite of what
+happened. This is the same rule `vencimento()` enforces in `src/calibracao.js`, and it bites the
+moment real calibration results are loaded: on the seed data `LastResult` is empty on all 229
+rows, so nothing looks wrong until the first import.
 
-Three **Filter array** actions, all From `body('With_due_date')`:
+### 3. Split into four groups
+
+Four **Filter array** actions, all From `body('With_due_date')`:
 
 | Action | Condition |
 |---|---|
 | `Overdue` | `item()?['due']` is not equal to `` **and** `item()?['due']` is less than `@{formatDateTime(utcNow(), 'yyyy-MM-dd')}` |
 | `Due soon` | `item()?['due']` is greater than or equal to `@{formatDateTime(utcNow(), 'yyyy-MM-dd')}` **and** `item()?['due']` is less than or equal to `@{formatDateTime(addDays(utcNow(), 42), 'yyyy-MM-dd')}` |
-| `No due date` | `item()?['due']` is equal to `` |
+| `Failed` | `item()?['result']` is equal to `REPROVADO` |
+| `No due date` | `item()?['due']` is equal to `` **and** `item()?['result']` is not equal to `REPROVADO` |
 
 Six weeks of look-ahead is enough to book a laboratory slot without the list being so long that
 it stops being read.
 
+`Failed` and `No due date` are kept apart because they need different people to do different
+things: a failed instrument is out of service and needs repair or replacement; a blank due date
+is a register someone has to go and fill in.
+
+
 ### 4. Turn each into a table
 
-Three **Create HTML table** actions — `Table overdue`, `Table due soon`, `Table missing` — each
-From the matching Filter array output, Columns set to *Custom*:
+Four **Create HTML table** actions — `Table overdue`, `Table due soon`, `Table failed`,
+`Table missing` — each From the matching Filter array output, Columns set to *Custom*:
 
 | Header | Value |
 |---|---|
@@ -84,7 +98,9 @@ From the matching Filter array output, Columns set to *Custom*:
 | Last calibration | `item()?['last']` |
 | Due | `item()?['due']` |
 
-On `Table missing`, drop the Due column — it is empty by definition.
+On `Table failed` and `Table missing`, drop the Due column — it is empty by definition on both.
+On `Table failed`, add a `Status` column with `item()?['status']`: an instrument that failed and
+is still `EM_USO` is the single worst row in the whole e-mail.
 
 ### 5. Send it
 
@@ -105,6 +121,11 @@ Body — switch the editor to **code view** (`</>`) so the tables render:
 <h3>Due within six weeks — @{length(body('Due_soon'))}</h3>
 @{body('Table_due_soon')}
 
+<h3>Failed last calibration — @{length(body('Failed'))}</h3>
+<p>A failed calibration carries no validity. These have no due date because they are not in
+date at all — they need repair, re-calibration or replacement.</p>
+@{body('Table_failed')}
+
 <h3>No due date on record — @{length(body('No_due_date'))}</h3>
 <p>These have no last calibration or no interval registered, so no due date can be worked out.</p>
 @{body('Table_missing')}
@@ -121,19 +142,24 @@ reads `0 overdue` is worth as much as one where it does not.
 
 ## Before switching it on
 
-Run it once by hand (**Test → Manually**) and check the e-mail against the list. Two things to
+Run it once by hand (**Test → Manually**) and check the e-mail against the list. Three things to
 confirm on the first run:
 
 * **The overdue count is around 70.** Far from that means the `addToTime` expression is reading
   the wrong column, or `IntervalMonths` did not survive the conversion to a number.
 * **`No due date on record` is empty or nearly so.** It should be, since all 229 rows have both
   fields. A long list there means the conversion to Number or Date left blanks behind.
+* **`Failed last calibration` is empty.** On the data as loaded it has to be — `LastResult` is
+  blank on all 229 rows. It stops being empty the first time real results are imported, and that
+  is exactly when the guard starts earning its place.
 
 Then let it run weekly. It costs nothing to leave on, and the first Monday it reports zero overdue
 is the day the register is genuinely under control.
 
 ## Afterwards
 
-The natural extension, once someone is acting on the e-mail: a second flow on
-`TC_Calibracoes` — when a certificate is recorded there, write its date onto the instrument's
-`LastCalibration`, so the register updates itself instead of being maintained twice.
+Loading the results is the other half of this, and it is written up separately:
+[docs/power-automate-importar-calibracoes.md](power-automate-importar-calibracoes.md) — a flow
+that reads the metrology spreadsheet and updates `TC_Instrumentos` and `TC_Calibracoes` from it,
+matching on the instrument code rather than on row order.
+
